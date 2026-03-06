@@ -299,6 +299,25 @@ input{font-family:inherit;border:none;outline:none}
 .pixel-action-btns{position:absolute;bottom:36px;right:20px;display:flex;flex-direction:column;gap:10px;z-index:4}
 .pixel-action-btn{width:48px;height:48px;border-radius:50%;background:rgba(255,255,255,.1);border:2px solid rgba(255,255,255,.15);color:#fff;font-size:1.1rem;display:flex;align-items:center;justify-content:center;transition:transform .15s,background .15s;cursor:pointer}
 .pixel-action-btn:active{transform:scale(.9);background:rgba(255,255,255,.2)}
+.boost-btn{background:rgba(255,200,50,.15)!important;border-color:rgba(255,200,50,.3)!important}
+.boost-btn:active{background:rgba(255,200,50,.35)!important}
+.boost-bar-wrap{position:absolute;top:58px;left:16px;z-index:5;display:flex;align-items:center;gap:6px;opacity:.85}
+.boost-bar-wrap.glass-boost{top:auto;bottom:100px;left:16px}
+.boost-bar-label{font-size:11px;color:rgba(255,255,255,.6);white-space:nowrap}
+.boost-bar{width:80px;height:6px;background:rgba(255,255,255,.1);border-radius:3px;overflow:hidden}
+.boost-fill{height:100%;background:linear-gradient(90deg,#f39c12,#ffd700);border-radius:3px;transition:width .15s}
+.boost-hint{font-size:9px;color:rgba(255,255,255,.3)}
+.vehicle-selector{position:absolute;top:80px;left:16px;z-index:10;background:rgba(15,15,25,.92);backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:10px;display:none;width:180px;box-shadow:0 12px 40px rgba(0,0,0,.5)}
+.vehicle-selector.glass-vs{top:auto;bottom:130px}
+.vehicle-selector.active{display:block}
+.vh-title{font-size:11px;color:rgba(255,255,255,.4);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid rgba(255,255,255,.08)}
+.vh-opt{display:flex;align-items:center;gap:8px;padding:8px 6px;border-radius:8px;cursor:pointer;transition:background .15s}
+.vh-opt:hover{background:rgba(255,255,255,.06)}
+.vh-opt.active{background:rgba(92,173,255,.15);border:1px solid rgba(92,173,255,.25)}
+.vh-icon{font-size:20px;width:28px;text-align:center}
+.vh-name{font-size:13px;font-weight:600;color:#fff}
+.vh-desc{font-size:10px;color:rgba(255,255,255,.35);display:none}
+.vh-opt:hover .vh-desc{display:block}
 .pixel-poi-popup{position:absolute;z-index:5;background:rgba(26,26,46,.88);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:14px 16px;max-width:240px;display:none;pointer-events:auto;box-shadow:0 8px 32px rgba(0,0,0,.4)}
 .pixel-poi-popup.active{display:block}
 .pixel-poi-popup .pp-name{font-weight:700;font-size:.88rem;color:#fff;margin-bottom:3px}
@@ -593,6 +612,20 @@ input{font-family:inherit;border:none;outline:none}
         <div class="pixel-hud-item">📍 <span id="hudCoord">0, 0</span></div>
         <div class="pixel-hud-item">🏢 <span id="hudBuildings">0</span> 建筑</div>
         <div class="pixel-hud-item">👣 <span id="hudSteps">0</span> 步</div>
+        <div class="pixel-hud-item" id="pixelVehicleLabel" style="cursor:pointer" onclick="toggleVehiclePanel('px')">🚶 步行</div>
+      </div>
+      <div class="boost-bar-wrap" id="pixelBoostWrap">
+        <div class="boost-bar-label">⚡ 加速</div>
+        <div class="boost-bar"><div class="boost-fill" id="pixelBoostFill" style="width:100%"></div></div>
+        <div class="boost-hint">Shift / 长按加速键</div>
+      </div>
+      <div class="vehicle-selector" id="pixelVehicleSel">
+        <div class="vh-title">选择载具</div>
+        <div class="vh-opt active" data-v="walk" onclick="switchVehicle('px','walk')"><span class="vh-icon">🚶</span><span class="vh-name">步行</span><span class="vh-desc">默认步行模式</span></div>
+        <div class="vh-opt" data-v="skateboard" onclick="switchVehicle('px','skateboard')"><span class="vh-icon">🛹</span><span class="vh-name">滑板</span><span class="vh-desc">街头风格，自由滑行</span></div>
+        <div class="vh-opt" data-v="bike" onclick="switchVehicle('px','bike')"><span class="vh-icon">🚲</span><span class="vh-name">自行车</span><span class="vh-desc">轻快骑行，加速更快</span></div>
+        <div class="vh-opt" data-v="scooter" onclick="switchVehicle('px','scooter')"><span class="vh-icon">🛴</span><span class="vh-name">滑板车</span><span class="vh-desc">灵活穿梭，极速冲刺</span></div>
+        <div class="vh-opt" data-v="car" onclick="switchVehicle('px','car')"><span class="vh-icon">🚗</span><span class="vh-name">小轿车</span><span class="vh-desc">高速巡航，能量消耗大</span></div>
       </div>
       <div class="pixel-minimap" id="pixelMinimap"><canvas id="minimapCanvas"></canvas></div>
       <div class="pixel-joystick" id="pixelJoystick">
@@ -601,6 +634,8 @@ input{font-family:inherit;border:none;outline:none}
         </div>
       </div>
       <div class="pixel-action-btns">
+        <button class="pixel-action-btn boost-btn" ontouchstart="PX.boosting=true;PX.keys['Shift']=true" ontouchend="PX.boosting=false;PX.keys['Shift']=false" onmousedown="PX.boosting=true;PX.keys['Shift']=true" onmouseup="PX.boosting=false;PX.keys['Shift']=false" title="加速">⚡</button>
+        <button class="pixel-action-btn" onclick="toggleVehiclePanel('px')" title="载具">🚗</button>
         <button class="pixel-action-btn" onclick="pixelInteract()" title="互动">💬</button>
         <button class="pixel-action-btn" onclick="pixelZoom(1)" title="放大">➕</button>
         <button class="pixel-action-btn" onclick="pixelZoom(-1)" title="缩小">➖</button>
@@ -634,6 +669,20 @@ input{font-family:inherit;border:none;outline:none}
         <div class="glass-hud-item">⏱ <span id="gHudSteps">0</span></div>
         <div class="glass-hud-item" style="color:#ffd700">★ <span id="gHudScore">0</span></div>
         <div class="glass-hud-item" style="color:#ff64b4">◆ <span id="gHudRewards">0/0</span></div>
+        <div class="glass-hud-item" id="glassVehicleLabel" style="cursor:pointer" onclick="toggleVehiclePanel('glass')">🚶 步行</div>
+      </div>
+      <div class="boost-bar-wrap glass-boost" id="glassBoostWrap">
+        <div class="boost-bar-label">⚡ 加速</div>
+        <div class="boost-bar"><div class="boost-fill" id="glassBoostFill" style="width:100%"></div></div>
+        <div class="boost-hint">Shift / 长按加速键</div>
+      </div>
+      <div class="vehicle-selector glass-vs" id="glassVehicleSel">
+        <div class="vh-title">选择载具</div>
+        <div class="vh-opt active" data-v="walk" onclick="switchVehicle('glass','walk')"><span class="vh-icon">🚶</span><span class="vh-name">步行</span><span class="vh-desc">默认步行模式</span></div>
+        <div class="vh-opt" data-v="skateboard" onclick="switchVehicle('glass','skateboard')"><span class="vh-icon">🛹</span><span class="vh-name">滑板</span><span class="vh-desc">街头风格，自由滑行</span></div>
+        <div class="vh-opt" data-v="bike" onclick="switchVehicle('glass','bike')"><span class="vh-icon">🚲</span><span class="vh-name">自行车</span><span class="vh-desc">轻快骑行，加速更快</span></div>
+        <div class="vh-opt" data-v="scooter" onclick="switchVehicle('glass','scooter')"><span class="vh-icon">🛴</span><span class="vh-name">滑板车</span><span class="vh-desc">灵活穿梭，极速冲刺</span></div>
+        <div class="vh-opt" data-v="car" onclick="switchVehicle('glass','car')"><span class="vh-icon">🚗</span><span class="vh-name">小轿车</span><span class="vh-desc">高速巡航，能量消耗大</span></div>
       </div>
       <div class="glass-minimap" id="glassMinimap"><canvas id="glassMinimapCanvas"></canvas></div>
       <div class="glass-joystick" id="glassJoystick">
@@ -642,6 +691,8 @@ input{font-family:inherit;border:none;outline:none}
         </div>
       </div>
       <div class="glass-action-btns">
+        <button class="glass-action-btn boost-btn" ontouchstart="GX.boosting=true;GX.keys['Shift']=true" ontouchend="GX.boosting=false;GX.keys['Shift']=false" onmousedown="GX.boosting=true;GX.keys['Shift']=true" onmouseup="GX.boosting=false;GX.keys['Shift']=false" title="加速">⚡</button>
+        <button class="glass-action-btn" onclick="toggleVehiclePanel('glass')" title="载具">🚗</button>
         <button class="glass-action-btn" onclick="glassInteract()" title="互动">💬</button>
         <button class="glass-action-btn" onclick="glassZoom(1)" title="放大">＋</button>
         <button class="glass-action-btn" onclick="glassZoom(-1)" title="缩小">－</button>
@@ -2209,6 +2260,53 @@ function pickPhoto(areaId) {
   input.click();
 }
 
+// === VEHICLE SYSTEM (shared by both modes) ===
+const VEHICLES = {
+  walk:    {icon:'🚶',name:'步行',   speedMult:1.0, boostMult:1.8, desc:'默认步行模式'},
+  bike:    {icon:'🚲',name:'自行车', speedMult:1.8, boostMult:2.8, desc:'轻快骑行，加速更快'},
+  scooter: {icon:'🛴',name:'滑板车', speedMult:2.2, boostMult:3.5, desc:'灵活穿梭，极速冲刺'},
+  car:     {icon:'🚗',name:'小轿车', speedMult:3.0, boostMult:4.5, desc:'高速巡航，能量消耗大'},
+  skateboard:{icon:'🛹',name:'滑板', speedMult:1.5, boostMult:2.5, desc:'街头风格，自由滑行'},
+};
+
+function switchVehicle(mode, vKey) {
+  const st = mode === 'px' ? PX : GX;
+  if (!VEHICLES[vKey]) return;
+  st.vehicle = vKey;
+  st.speed = st.baseSpeed * VEHICLES[vKey].speedMult;
+  // Update UI
+  const panel = mode === 'px' ? 'pixel' : 'glass';
+  const sel = document.getElementById(panel + 'VehicleSel');
+  if (sel) {
+    sel.querySelectorAll('.vh-opt').forEach(el => {
+      el.classList.toggle('active', el.dataset.v === vKey);
+    });
+  }
+  const label = document.getElementById(panel + 'VehicleLabel');
+  if (label) label.textContent = VEHICLES[vKey].icon + ' ' + VEHICLES[vKey].name;
+  showToast(VEHICLES[vKey].icon + ' 切换为 ' + VEHICLES[vKey].name);
+}
+
+function toggleVehiclePanel(mode) {
+  const panel = mode === 'px' ? 'pixel' : 'glass';
+  const sel = document.getElementById(panel + 'VehicleSel');
+  if (sel) sel.classList.toggle('active');
+}
+
+function updateBoost(st) {
+  const v = VEHICLES[st.vehicle];
+  if (st.boosting && st.boostEnergy > 0) {
+    st.speed = st.baseSpeed * v.boostMult;
+    st.boostEnergy = Math.max(0, st.boostEnergy - st.boostDrain);
+    if (st.boostEnergy <= 0) st.boosting = false;
+  } else {
+    st.speed = st.baseSpeed * v.speedMult;
+    if (!st.boosting && st.boostEnergy < st.boostMax) {
+      st.boostEnergy = Math.min(st.boostMax, st.boostEnergy + st.boostRegen);
+    }
+  }
+}
+
 // === PIXEL CITY ENGINE ===
 const PX = {
   canvas: null, ctx: null, miniCanvas: null, miniCtx: null,
@@ -2224,6 +2322,8 @@ const PX = {
   px: 40, py: 40, pDir: 0, // 0=down,1=left,2=up,3=right
   pFrame: 0, pFrameTimer: 0, pMoving: false,
   steps: 0, speed: 0.06,
+  // Vehicle & boost
+  baseSpeed: 0.06, vehicle: 'walk', boosting: false, boostEnergy: 100, boostMax: 100, boostDrain: 0.8, boostRegen: 0.3,
   // Input
   moveX: 0, moveY: 0, keys: {},
   // POI data
@@ -2849,6 +2949,13 @@ function pixelGameLoop() {
   // Smooth zoom
   PX.zoom += (PX.targetZoom - PX.zoom) * 0.1;
 
+  // Boost key: Shift
+  PX.boosting = !!(PX.keys['Shift'] || PX.keys['ShiftLeft'] || PX.keys['ShiftRight']);
+  updateBoost(PX);
+  // Update boost bar UI
+  const pxBar = document.getElementById('pixelBoostFill');
+  if (pxBar) pxBar.style.width = (PX.boostEnergy / PX.boostMax * 100) + '%';
+
   // Process input
   let dx = PX.moveX, dy = PX.moveY;
   if (PX.keys['ArrowUp'] || PX.keys['w'] || PX.keys['W']) dy -= 1;
@@ -3030,6 +3137,7 @@ const GX = {
   rewards:[],routePath:[],collectedRewards:{},score:0,
   camX:30,camY:30,zoom:1.8,targetZoom:1.8,
   px:30,py:30,pDir:0,pMoving:false,steps:0,speed:0.05,
+  baseSpeed:0.05,vehicle:'walk',boosting:false,boostEnergy:100,boostMax:100,boostDrain:0.8,boostRegen:0.3,
   moveX:0,moveY:0,keys:{},
   pois:[],cityName:'',time:0,
   vpY:0.35,fov:600,tiltAngle:0.55,
@@ -3641,6 +3749,11 @@ function renderGlassMinimap(){
 function glassGameLoop(){
   if(!GX.running)return;
   GX.zoom+=(GX.targetZoom-GX.zoom)*0.1;
+  // Boost key: Shift
+  GX.boosting=!!(GX.keys['Shift']||GX.keys['ShiftLeft']||GX.keys['ShiftRight']);
+  updateBoost(GX);
+  const gxBar=document.getElementById('glassBoostFill');
+  if(gxBar)gxBar.style.width=(GX.boostEnergy/GX.boostMax*100)+'%';
   let dx=GX.moveX,dy=GX.moveY;
   if(GX.keys['ArrowUp']||GX.keys['w']||GX.keys['W'])dy-=1;
   if(GX.keys['ArrowDown']||GX.keys['s']||GX.keys['S'])dy+=1;

@@ -2,7 +2,7 @@
 
 一款基于高德地图 API 的城市漫游攻略游戏，融合了游戏化打卡、3D 城市探索和智能路线推荐。
 
-**[在线体验 Demo →](https://你的用户名.github.io/citywalk-game/)**
+**[在线体验 Demo →](https://2667741708.github.io/citywalk/)**
 
 ---
 
@@ -54,13 +54,13 @@
 
 ### 在线访问
 
-Fork 本仓库后开启 GitHub Pages，即可通过 `https://你的用户名.github.io/citywalk-game/` 访问。
+Fork 本仓库后开启 GitHub Pages，即可通过 `https://你的用户名.github.io/citywalk/` 访问。
 
 ### 本地运行
 
 ```bash
-git clone https://github.com/你的用户名/citywalk-game.git
-cd citywalk-game
+git clone https://github.com/2667741708/citywalk.git
+cd citywalk
 # 任意 HTTP 服务器均可，例如：
 python3 -m http.server 8080
 # 访问 http://localhost:8080
@@ -76,7 +76,7 @@ python3 -m http.server 8080
 ## 项目结构
 
 ```
-citywalk-game/
+citywalk/
 ├── index.html                 # 主应用（单文件，包含全部 HTML/CSS/JS）
 ├── README.md                  # 项目说明
 ├── LICENSE                    # MIT 开源协议

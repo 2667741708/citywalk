@@ -2328,6 +2328,8 @@ const PX = {
   moveX: 0, moveY: 0, keys: {},
   // POI data
   pois: [], cityName: '',
+  // Route
+  routePath: [], _geoBounds: null,
   // Colors palette (pixel art)
   SKY_TOP: '#1a1a3e', SKY_BOT: '#2d2d5a',
   GRASS: ['#4a7c59','#5a8c65','#3d6b4a'],
@@ -2368,6 +2370,7 @@ function closePixelCity() {
 async function initPixelCity(cityName) {
   PX.cityName = cityName;
   PX.buildings = []; PX.trees = []; PX.roads = []; PX.pois = [];
+  PX.routePath = []; PX._geoBounds = null;
   PX.px = 40; PX.py = 40; PX.pDir = 0; PX.steps = 0;
   PX.zoom = 1.5; PX.targetZoom = 1.5;
   PX.pMoving = false; PX.moveX = 0; PX.moveY = 0;
@@ -2437,6 +2440,75 @@ async function initPixelCity(cityName) {
   // Generate the world from POI data
   await generatePixelWorld(poiData);
 
+  // Build walking route using Amap Walking API
+  setPixelLoadProgress(65, '规划步行路线...');
+  PX.routePath = [];
+  const pxRouteBuildings = PX.buildings.filter(b => b.name);
+  if (pxRouteBuildings.length >= 2 && typeof AMap !== 'undefined' && !APP.demoMode && PX._geoBounds) {
+    try {
+      const gb = PX._geoBounds;
+      const rpois = pxRouteBuildings.map(b => {
+        const poi = poiData.find(p => p.name === b.name);
+        return poi ? {lng:poi.lng, lat:poi.lat} : null;
+      }).filter(Boolean);
+      if (rpois.length >= 2) {
+        for (let i = 0; i < rpois.length - 1; i++) {
+          try {
+            const pts = await new Promise(resolve => {
+              const w = new AMap.Walking({hideMarkers:true});
+              w.search([rpois[i].lng, rpois[i].lat], [rpois[i+1].lng, rpois[i+1].lat], (st, res) => {
+                if (st === 'complete' && res.routes && res.routes.length > 0) {
+                  const arr = [];
+                  (res.routes[0].steps || []).forEach(s => { if (s.path) s.path.forEach(ll => arr.push({lng:ll.lng, lat:ll.lat})); });
+                  resolve(arr);
+                } else resolve([]);
+              });
+              setTimeout(() => resolve([]), 5000);
+            });
+            if (pts.length > 0) {
+              const step = Math.max(1, Math.floor(pts.length / 40));
+              for (let s = 0; s < pts.length; s += step) {
+                const rp = pts[s];
+                const gx = Math.round(gb.margin + ((rp.lng - gb.minLng) / gb.lngRange) * gb.usableW);
+                const gy = Math.round(gb.margin + (1 - (rp.lat - gb.minLat) / gb.latRange) * gb.usableH);
+                if (gx >= 0 && gx < gb.W && gy >= 0 && gy < gb.H) {
+                  PX.routePath.push({x: gx, y: gy});
+                  if (PX.ground[gy] && PX.ground[gy][gx] === 'grass') PX.ground[gy][gx] = 'road';
+                }
+              }
+            } else {
+              // Fallback L-path
+              const a = pxRouteBuildings[i], b2 = pxRouteBuildings[i+1];
+              let cx = a.gx || a.x, cy = a.gy || a.y;
+              const dx = (b2.gx || b2.x) > cx ? 1 : -1;
+              while (cx !== (b2.gx || b2.x)) { cx += dx; PX.routePath.push({x:cx, y:cy}); }
+              const dy = (b2.gy || b2.y) > cy ? 1 : -1;
+              while (cy !== (b2.gy || b2.y)) { cy += dy; PX.routePath.push({x:cx, y:cy}); }
+            }
+          } catch(e) {
+            const a = pxRouteBuildings[i], b2 = pxRouteBuildings[i+1];
+            let cx = a.gx || a.x, cy = a.gy || a.y;
+            const dx = (b2.gx || b2.x) > cx ? 1 : -1;
+            while (cx !== (b2.gx || b2.x)) { cx += dx; PX.routePath.push({x:cx, y:cy}); }
+            const dy = (b2.gy || b2.y) > cy ? 1 : -1;
+            while (cy !== (b2.gy || b2.y)) { cy += dy; PX.routePath.push({x:cx, y:cy}); }
+          }
+          setPixelLoadProgress(65 + Math.round(20 * i / (rpois.length - 1)), '路线 ' + (i+1) + '/' + (rpois.length-1));
+        }
+      }
+    } catch(e) { console.warn('PX walking route error:', e); }
+  } else if (pxRouteBuildings.length >= 2) {
+    // Fallback without AMap
+    for (let i = 0; i < pxRouteBuildings.length - 1; i++) {
+      const a = pxRouteBuildings[i], b2 = pxRouteBuildings[i+1];
+      let cx = a.gx || a.x, cy = a.gy || a.y;
+      const dx = (b2.gx || b2.x) > cx ? 1 : -1;
+      while (cx !== (b2.gx || b2.x)) { cx += dx; PX.routePath.push({x:cx, y:cy}); }
+      const dy = (b2.gy || b2.y) > cy ? 1 : -1;
+      while (cy !== (b2.gy || b2.y)) { cy += dy; PX.routePath.push({x:cx, y:cy}); }
+    }
+  }
+
   setPixelLoadProgress(90, '放置像素小人...');
 
   // Place player on a road tile near center
@@ -2485,6 +2557,8 @@ async function generatePixelWorld(pois) {
   // Map POIs to grid positions (leave margins)
   const margin = 6;
   const usableW = W - margin * 2, usableH = H - margin * 2;
+  // Store geo bounds for route mapping
+  PX._geoBounds = {minLat, maxLat, minLng, maxLng, latRange, lngRange, margin, usableW, usableH, W, H};
   const gridPois = pois.map(p => ({
     ...p,
     gx: Math.round(margin + ((p.lng - minLng) / lngRange) * usableW),
@@ -2706,6 +2780,26 @@ function pixelRender() {
     }
   }
 
+  // Route path overlay on pixel city
+  if (PX.routePath && PX.routePath.length > 0) {
+    const routeSet = new Set(PX.routePath.map(rp => rp.x + ',' + rp.y));
+    for (let y = startY; y <= endY; y++) {
+      for (let x = startX; x <= endX; x++) {
+        if (!routeSet.has(x + ',' + y)) continue;
+        const iso = isoProject(x, y);
+        const pulse = 0.2 + Math.sin(Date.now() * 0.003 + x * 0.4 + y * 0.3) * 0.1;
+        ctx.beginPath();
+        ctx.moveTo(iso.sx, iso.sy - PX.tileH / 2);
+        ctx.lineTo(iso.sx + PX.tileW / 2, iso.sy);
+        ctx.lineTo(iso.sx, iso.sy + PX.tileH / 2);
+        ctx.lineTo(iso.sx - PX.tileW / 2, iso.sy);
+        ctx.closePath();
+        ctx.fillStyle = `rgba(255,200,80,${pulse})`;
+        ctx.fill();
+      }
+    }
+  }
+
   // Collect all drawable objects for depth sorting
   const drawables = [];
 
@@ -2860,54 +2954,122 @@ function drawPlayer(ctx) {
   const iso = isoProject(PX.px, PX.py);
   const bounce = PX.pMoving ? Math.sin(Date.now() * 0.012) * 2 : 0;
   const baseY = iso.sy - 2 + bounce;
+  const v = PX.vehicle;
+  const bst = PX.boosting && PX.boostEnergy > 0;
 
   // Shadow
   ctx.fillStyle = 'rgba(0,0,0,.2)';
   ctx.beginPath();
-  ctx.ellipse(iso.sx, iso.sy + 2, 5, 2, 0, 0, Math.PI * 2);
+  const shW = (v === 'car') ? 10 : (v === 'bike' || v === 'scooter') ? 7 : 5;
+  ctx.ellipse(iso.sx, iso.sy + 2, shW, 2, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  // Body
-  ctx.fillStyle = '#ff6b35';
-  ctx.fillRect(iso.sx - 3, baseY - 12, 6, 8);
-
-  // Head
-  ctx.fillStyle = '#fdd';
-  ctx.fillRect(iso.sx - 3, baseY - 18, 6, 6);
-
-  // Eyes
-  ctx.fillStyle = '#1a1a2e';
-  if (PX.pDir === 0) { // down
-    ctx.fillRect(iso.sx - 2, baseY - 15, 1.5, 1.5);
-    ctx.fillRect(iso.sx + 1, baseY - 15, 1.5, 1.5);
-  } else if (PX.pDir === 2) { // up
-    // no eyes visible
-  } else if (PX.pDir === 1) { // left
-    ctx.fillRect(iso.sx - 2, baseY - 15, 1.5, 1.5);
-  } else { // right
-    ctx.fillRect(iso.sx + 1, baseY - 15, 1.5, 1.5);
+  // Boost trail
+  if (bst && PX.pMoving) {
+    ctx.globalAlpha = 0.3;
+    const dirOff = [0, 1, 0, -1][PX.pDir]; // dx for trail
+    const dirOffy = [1, 0, -1, 0][PX.pDir]; // dy for trail
+    for (let t = 1; t <= 3; t++) {
+      ctx.globalAlpha = 0.15 / t;
+      ctx.fillStyle = '#ffd700';
+      ctx.beginPath();
+      ctx.arc(iso.sx - dirOff * t * 4, iso.sy + 2 - dirOffy * t * 2, 3 - t * 0.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
   }
 
-  // Hair
-  ctx.fillStyle = '#2d2d4a';
-  ctx.fillRect(iso.sx - 3, baseY - 19, 6, 2);
-
-  // Legs (animate when moving)
-  ctx.fillStyle = '#3498db';
-  if (PX.pMoving) {
-    const legOff = Math.sin(Date.now() * 0.015) * 2;
-    ctx.fillRect(iso.sx - 2, baseY - 4, 2, 4 + legOff);
-    ctx.fillRect(iso.sx + 1, baseY - 4, 2, 4 - legOff);
-  } else {
-    ctx.fillRect(iso.sx - 2, baseY - 4, 2, 4);
-    ctx.fillRect(iso.sx + 1, baseY - 4, 2, 4);
+  if (v === 'walk') {
+    // Body
+    ctx.fillStyle = '#ff6b35';
+    ctx.fillRect(iso.sx - 3, baseY - 12, 6, 8);
+    // Head
+    ctx.fillStyle = '#fdd';
+    ctx.fillRect(iso.sx - 3, baseY - 18, 6, 6);
+    // Eyes
+    ctx.fillStyle = '#1a1a2e';
+    if (PX.pDir === 0) { ctx.fillRect(iso.sx - 2, baseY - 15, 1.5, 1.5); ctx.fillRect(iso.sx + 1, baseY - 15, 1.5, 1.5); }
+    else if (PX.pDir === 1) { ctx.fillRect(iso.sx - 2, baseY - 15, 1.5, 1.5); }
+    else if (PX.pDir === 3) { ctx.fillRect(iso.sx + 1, baseY - 15, 1.5, 1.5); }
+    // Hair
+    ctx.fillStyle = '#2d2d4a';
+    ctx.fillRect(iso.sx - 3, baseY - 19, 6, 2);
+    // Legs
+    ctx.fillStyle = '#3498db';
+    if (PX.pMoving) {
+      const legOff = Math.sin(Date.now() * 0.015) * 2;
+      ctx.fillRect(iso.sx - 2, baseY - 4, 2, 4 + legOff); ctx.fillRect(iso.sx + 1, baseY - 4, 2, 4 - legOff);
+    } else {
+      ctx.fillRect(iso.sx - 2, baseY - 4, 2, 4); ctx.fillRect(iso.sx + 1, baseY - 4, 2, 4);
+    }
+  } else if (v === 'bike') {
+    // Bike frame
+    ctx.strokeStyle = '#5dade2'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(iso.sx - 5, baseY - 2); ctx.lineTo(iso.sx, baseY - 8); ctx.lineTo(iso.sx + 5, baseY - 2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(iso.sx, baseY - 8); ctx.lineTo(iso.sx - 2, baseY - 2); ctx.stroke();
+    // Wheels
+    ctx.strokeStyle = '#aaa'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(iso.sx - 5, baseY - 1, 3, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(iso.sx + 5, baseY - 1, 3, 0, Math.PI * 2); ctx.stroke();
+    if (PX.pMoving) { const sp = Math.sin(Date.now() * 0.02) * 0.3; ctx.fillStyle = '#aaa'; ctx.beginPath(); ctx.arc(iso.sx - 5, baseY - 1, 1, sp, sp + Math.PI); ctx.fill(); ctx.beginPath(); ctx.arc(iso.sx + 5, baseY - 1, 1, sp + Math.PI, sp + Math.PI * 2); ctx.fill(); }
+    // Rider body
+    ctx.fillStyle = '#ff6b35'; ctx.fillRect(iso.sx - 2, baseY - 16, 4, 7);
+    // Head
+    ctx.fillStyle = '#fdd'; ctx.fillRect(iso.sx - 2, baseY - 20, 4, 4);
+    ctx.fillStyle = '#e74c3c'; ctx.fillRect(iso.sx - 2.5, baseY - 21, 5, 2); // helmet
+  } else if (v === 'scooter') {
+    // Scooter deck
+    ctx.fillStyle = '#2ecc71'; ctx.fillRect(iso.sx - 6, baseY - 3, 12, 2);
+    // Handle
+    ctx.strokeStyle = '#888'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(iso.sx + 4, baseY - 3); ctx.lineTo(iso.sx + 4, baseY - 12); ctx.stroke();
+    ctx.fillStyle = '#555'; ctx.fillRect(iso.sx + 2, baseY - 13, 5, 2);
+    // Wheels
+    ctx.fillStyle = '#333'; ctx.beginPath(); ctx.arc(iso.sx - 5, baseY - 1, 2.5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(iso.sx + 5, baseY - 1, 2.5, 0, Math.PI * 2); ctx.fill();
+    // Rider
+    ctx.fillStyle = '#ff6b35'; ctx.fillRect(iso.sx - 2, baseY - 15, 4, 7);
+    ctx.fillStyle = '#fdd'; ctx.fillRect(iso.sx - 2, baseY - 19, 4, 4);
+  } else if (v === 'skateboard') {
+    // Board
+    ctx.fillStyle = '#e74c3c'; ctx.fillRect(iso.sx - 5, baseY - 2, 10, 2);
+    ctx.fillStyle = '#c0392b'; ctx.fillRect(iso.sx - 6, baseY - 3, 2, 2); ctx.fillRect(iso.sx + 4, baseY - 3, 2, 2); // kicktails
+    // Wheels
+    ctx.fillStyle = '#333';
+    ctx.fillRect(iso.sx - 4, baseY, 2, 1.5); ctx.fillRect(iso.sx + 2, baseY, 2, 1.5);
+    // Rider
+    ctx.fillStyle = '#ff6b35'; ctx.fillRect(iso.sx - 2, baseY - 13, 4, 7);
+    ctx.fillStyle = '#fdd'; ctx.fillRect(iso.sx - 2, baseY - 17, 4, 4);
+    ctx.fillStyle = '#9b59b6'; ctx.fillRect(iso.sx - 2.5, baseY - 18, 5, 2); // cap
+    // Lean when moving
+    if (PX.pMoving) { ctx.fillStyle = '#3498db'; ctx.fillRect(iso.sx - 3, baseY - 6, 2, 3); ctx.fillRect(iso.sx + 1, baseY - 5, 2, 3); }
+    else { ctx.fillStyle = '#3498db'; ctx.fillRect(iso.sx - 2, baseY - 6, 2, 4); ctx.fillRect(iso.sx + 1, baseY - 6, 2, 4); }
+  } else if (v === 'car') {
+    // Car body
+    ctx.fillStyle = '#e74c3c'; ctx.fillRect(iso.sx - 8, baseY - 6, 16, 6);
+    // Roof
+    ctx.fillStyle = '#c0392b'; ctx.fillRect(iso.sx - 5, baseY - 10, 10, 4);
+    // Windows
+    ctx.fillStyle = 'rgba(135,206,250,.6)'; ctx.fillRect(iso.sx - 4, baseY - 9, 3, 3); ctx.fillRect(iso.sx + 1, baseY - 9, 3, 3);
+    // Wheels
+    ctx.fillStyle = '#222';
+    ctx.beginPath(); ctx.arc(iso.sx - 5, baseY + 1, 2.5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(iso.sx + 5, baseY + 1, 2.5, 0, Math.PI * 2); ctx.fill();
+    if (PX.pMoving) { ctx.fillStyle = '#666'; const wr = Date.now() * 0.03; ctx.beginPath(); ctx.arc(iso.sx - 5, baseY + 1, 1, wr, wr + 2); ctx.fill(); ctx.beginPath(); ctx.arc(iso.sx + 5, baseY + 1, 1, wr + 1, wr + 3); ctx.fill(); }
+    // Headlights
+    ctx.fillStyle = '#ffd700';
+    if (PX.pDir === 3) { ctx.fillRect(iso.sx + 7, baseY - 4, 2, 2); }
+    else if (PX.pDir === 1) { ctx.fillRect(iso.sx - 9, baseY - 4, 2, 2); }
+    else { ctx.fillRect(iso.sx - 8, baseY - 5, 2, 1.5); ctx.fillRect(iso.sx + 6, baseY - 5, 2, 1.5); }
   }
 
   // Name tag
+  const vInfo = VEHICLES[v];
   ctx.font = '5px "Noto Sans SC",sans-serif';
   ctx.textAlign = 'center';
   ctx.fillStyle = '#fff';
-  ctx.fillText('漫步者', iso.sx, baseY - 22);
+  const tagY = (v === 'car') ? baseY - 14 : baseY - 22;
+  ctx.fillText(vInfo.icon + ' ' + vInfo.name, iso.sx, tagY);
 }
 
 function renderMinimap() {
@@ -2932,6 +3094,11 @@ function renderMinimap() {
     else mc.fillStyle = '#666';
     mc.fillRect(b.x * scale, b.y * scale, b.w * scale, 2 * scale);
   });
+  // Route path on minimap
+  if (PX.routePath && PX.routePath.length > 0) {
+    mc.fillStyle = 'rgba(255,200,80,.5)';
+    PX.routePath.forEach(rp => { mc.fillRect(rp.x * scale, rp.y * scale, scale, scale); });
+  }
   // Player
   mc.fillStyle = '#ff6b35';
   mc.fillRect(PX.px * scale - 1.5, PX.py * scale - 1.5, 3, 3);
@@ -3207,17 +3374,97 @@ async function initGlassCity(cityName){
 
   buildGlassWorld(poiData);
 
-  // Build guided route path connecting POI buildings in order + place rewards
+  // Build guided route using Amap Walking API for real routes
+  setGlassLoad(55,'规划步行路线...');
   const routeBuildings = GX.buildings.filter(b=>b.name);
-  if(routeBuildings.length>=2){
+  if(routeBuildings.length>=2 && typeof AMap!=='undefined' && !APP.demoMode && GX._geoBounds){
+    try{
+      const gb=GX._geoBounds;
+      // Get original POI coordinates for Walking API
+      const routePois=routeBuildings.map(b=>{
+        const poi=poiData.find(p=>p.name===b.name);
+        return poi?{lng:poi.lng,lat:poi.lat,name:poi.name}:null;
+      }).filter(Boolean);
+
+      if(routePois.length>=2){
+        // Request walking routes between consecutive POIs
+        for(let i=0;i<routePois.length-1;i++){
+          try{
+            const routeSteps=await new Promise((resolve)=>{
+              const walking=new AMap.Walking({hideMarkers:true});
+              walking.search(
+                [routePois[i].lng,routePois[i].lat],
+                [routePois[i+1].lng,routePois[i+1].lat],
+                (status,result)=>{
+                  if(status==='complete'&&result.routes&&result.routes.length>0){
+                    const steps=result.routes[0].steps||[];
+                    const pts=[];
+                    steps.forEach(step=>{
+                      if(step.path)step.path.forEach(lnglat=>{
+                        pts.push({lng:lnglat.lng,lat:lnglat.lat});
+                      });
+                    });
+                    resolve(pts);
+                  }else{resolve([]);}
+                }
+              );
+              setTimeout(()=>resolve([]),5000);// timeout fallback
+            });
+            // Map real route lat/lng to game grid coordinates
+            if(routeSteps.length>0){
+              const sampleStep=Math.max(1,Math.floor(routeSteps.length/30));
+              for(let s=0;s<routeSteps.length;s+=sampleStep){
+                const rp=routeSteps[s];
+                const gx=Math.round(gb.mg+((rp.lng-gb.mnLng)/gb.lngR)*gb.uW);
+                const gy=Math.round(gb.mg+(1-(rp.lat-gb.mnLat)/gb.latR)*gb.uH);
+                if(gx>=0&&gx<gb.W&&gy>=0&&gy<gb.H){
+                  GX.routePath.push({x:gx,y:gy});
+                  // Also mark as road on ground for walkability
+                  if(GX.ground[gy]&&GX.ground[gy][gx]==='grass')GX.ground[gy][gx]='road';
+                }
+              }
+            }else{
+              // Fallback: L-path
+              const a=routeBuildings[i],b2=routeBuildings[i+1];
+              let cx2=a.x,cy2=a.y+1;
+              const dx3=b2.x>cx2?1:-1;
+              while(cx2!==b2.x){cx2+=dx3;GX.routePath.push({x:cx2,y:cy2});}
+              const dy3=(b2.y+1)>cy2?1:-1;
+              while(cy2!==(b2.y+1)){cy2+=dy3;GX.routePath.push({x:cx2,y:cy2});}
+            }
+          }catch(e){
+            // Fallback on error
+            const a=routeBuildings[i],b2=routeBuildings[i+1];
+            let cx2=a.x,cy2=a.y+1;
+            const dx3=b2.x>cx2?1:-1;
+            while(cx2!==b2.x){cx2+=dx3;GX.routePath.push({x:cx2,y:cy2});}
+            const dy3=(b2.y+1)>cy2?1:-1;
+            while(cy2!==(b2.y+1)){cy2+=dy3;GX.routePath.push({x:cx2,y:cy2});}
+          }
+          setGlassLoad(55+Math.round(20*i/(routePois.length-1)),'规划路线 '+(i+1)+'/'+(routePois.length-1)+'...');
+        }
+      }
+    }catch(e){
+      console.warn('Walking route error:',e);
+      // Full fallback to L-path
+      for(let i=0;i<routeBuildings.length-1;i++){
+        const a=routeBuildings[i],b2=routeBuildings[i+1];
+        let cx2=a.x,cy2=a.y+1;
+        const dx3=b2.x>cx2?1:-1;
+        while(cx2!==b2.x){cx2+=dx3;GX.routePath.push({x:cx2,y:cy2});}
+        const dy3=(b2.y+1)>cy2?1:-1;
+        while(cy2!==(b2.y+1)){cy2+=dy3;GX.routePath.push({x:cx2,y:cy2});}
+      }
+    }
+  }else if(routeBuildings.length>=2){
+    // Fallback without AMap: L-path
     for(let i=0;i<routeBuildings.length-1;i++){
-      const a=routeBuildings[i],b=routeBuildings[i+1];
-      // Trace L-path from a to b on roads
+      const a=routeBuildings[i],b2=routeBuildings[i+1];
       let cx2=a.x,cy2=a.y+1;
-      const dx3=b.x>cx2?1:-1;
-      while(cx2!==b.x){cx2+=dx3;GX.routePath.push({x:cx2,y:cy2});}
-      const dy3=(b.y+1)>cy2?1:-1;
-      while(cy2!==(b.y+1)){cy2+=dy3;GX.routePath.push({x:cx2,y:cy2});}
+      const dx3=b2.x>cx2?1:-1;
+      while(cx2!==b2.x){cx2+=dx3;GX.routePath.push({x:cx2,y:cy2});}
+      const dy3=(b2.y+1)>cy2?1:-1;
+      while(cy2!==(b2.y+1)){cy2+=dy3;GX.routePath.push({x:cx2,y:cy2});}
     }
   }
   // Place rewards along route path
@@ -3279,6 +3526,8 @@ function buildGlassWorld(pois){
   pois.forEach(p=>{mnLat=Math.min(mnLat,p.lat);mxLat=Math.max(mxLat,p.lat);mnLng=Math.min(mnLng,p.lng);mxLng=Math.max(mxLng,p.lng);});
   mnLat-=.002;mxLat+=.002;mnLng-=.002;mxLng+=.002;
   const latR=mxLat-mnLat||.01,lngR=mxLng-mnLng||.01,mg=5,uW=W-mg*2,uH=H-mg*2;
+  // Store geo bounds for route mapping
+  GX._geoBounds={mnLat,mxLat,mnLng,mxLng,latR,lngR,mg,uW,uH,W,H};
 
   const gp=pois.map(p=>({...p,gx:Math.round(mg+((p.lng-mnLng)/lngR)*uW),gy:Math.round(mg+(1-(p.lat-mnLat)/latR)*uH)})).filter(p=>p.gx>=mg&&p.gx<W-mg&&p.gy>=mg&&p.gy<H-mg);
 
@@ -3649,65 +3898,121 @@ function drawGlassPlayer(ctx){
   const p=glassProject(GX.px,GX.py,0);
   const bounce=GX.pMoving?Math.sin(GX.time*12)*1.5:0;
   const by=p.sy-2+bounce;
+  const v=GX.vehicle;
+  const bst=GX.boosting&&GX.boostEnergy>0;
 
   // Ground glow
   ctx.globalAlpha=0.15;
-  const gg=ctx.createRadialGradient(p.sx,p.sy+2,0,p.sx,p.sy+2,12);
-  gg.addColorStop(0,'#5cadff');gg.addColorStop(1,'transparent');
-  ctx.fillStyle=gg;
-  ctx.fillRect(p.sx-12,p.sy-6,24,16);
+  const glowR=(v==='car')?18:(v==='bike'||v==='scooter')?14:12;
+  const gc2=bst?'#ffd700':'#5cadff';
+  const gg=ctx.createRadialGradient(p.sx,p.sy+2,0,p.sx,p.sy+2,glowR);
+  gg.addColorStop(0,gc2);gg.addColorStop(1,'transparent');
+  ctx.fillStyle=gg;ctx.fillRect(p.sx-glowR,p.sy-glowR/2,glowR*2,glowR);
   ctx.globalAlpha=1;
 
   // Shadow
+  const shW=(v==='car')?12:(v==='bike'||v==='scooter')?8:6;
   ctx.fillStyle='rgba(0,0,0,.3)';
-  ctx.beginPath();ctx.ellipse(p.sx,p.sy+2,6,2.5,0,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.ellipse(p.sx,p.sy+2,shW,2.5,0,0,Math.PI*2);ctx.fill();
 
-  // Body glow outline
-  ctx.shadowColor='rgba(92,173,255,.4)';ctx.shadowBlur=8;
-
-  // Legs
-  ctx.fillStyle='#1a2a3a';
-  if(GX.pMoving){
-    const lo=Math.sin(GX.time*15)*2;
-    ctx.fillRect(p.sx-2.5,by-4,2.5,5+lo);
-    ctx.fillRect(p.sx+0.5,by-4,2.5,5-lo);
-  }else{
-    ctx.fillRect(p.sx-2.5,by-4,2.5,5);
-    ctx.fillRect(p.sx+0.5,by-4,2.5,5);
+  // Boost trail
+  if(bst&&GX.pMoving){
+    const dxT=[0,1,0,-1][GX.pDir],dyT=[1,0,-1,0][GX.pDir];
+    for(let t=1;t<=4;t++){ctx.globalAlpha=0.2/t;ctx.fillStyle='#ffd700';ctx.beginPath();ctx.arc(p.sx-dxT*t*5,p.sy+2-dyT*t*3,4-t*0.7,0,Math.PI*2);ctx.fill();}
+    ctx.globalAlpha=1;
   }
 
-  // Body
-  const bodyG=ctx.createLinearGradient(p.sx-3,by-14,p.sx+3,by-14);
-  bodyG.addColorStop(0,'#2a4a6a');bodyG.addColorStop(0.5,'#3a6a9a');bodyG.addColorStop(1,'#2a4a6a');
-  ctx.fillStyle=bodyG;
-  ctx.fillRect(p.sx-3.5,by-14,7,10);
+  ctx.shadowColor=bst?'rgba(255,215,0,.5)':'rgba(92,173,255,.4)';ctx.shadowBlur=8;
 
-  // Head
-  ctx.fillStyle='#ffe0cc';
-  ctx.fillRect(p.sx-3,by-20,6,6);
-
-  // Hair
-  ctx.fillStyle='#1a1a2e';
-  ctx.fillRect(p.sx-3.5,by-21,7,2.5);
-
-  // Eyes (direction-based)
-  ctx.fillStyle='#fff';
-  if(GX.pDir===0){ctx.fillRect(p.sx-2,by-18,1.5,1.5);ctx.fillRect(p.sx+1,by-18,1.5,1.5);}
-  else if(GX.pDir===1){ctx.fillRect(p.sx-2.5,by-18,1.5,1.5);}
-  else if(GX.pDir===3){ctx.fillRect(p.sx+1.5,by-18,1.5,1.5);}
+  if(v==='walk'){
+    // Legs
+    ctx.fillStyle='#1a2a3a';
+    if(GX.pMoving){const lo=Math.sin(GX.time*15)*2;ctx.fillRect(p.sx-2.5,by-4,2.5,5+lo);ctx.fillRect(p.sx+0.5,by-4,2.5,5-lo);}
+    else{ctx.fillRect(p.sx-2.5,by-4,2.5,5);ctx.fillRect(p.sx+0.5,by-4,2.5,5);}
+    // Body
+    const bodyG=ctx.createLinearGradient(p.sx-3,by-14,p.sx+3,by-14);
+    bodyG.addColorStop(0,'#2a4a6a');bodyG.addColorStop(0.5,'#3a6a9a');bodyG.addColorStop(1,'#2a4a6a');
+    ctx.fillStyle=bodyG;ctx.fillRect(p.sx-3.5,by-14,7,10);
+    // Head
+    ctx.fillStyle='#ffe0cc';ctx.fillRect(p.sx-3,by-20,6,6);
+    ctx.fillStyle='#1a1a2e';ctx.fillRect(p.sx-3.5,by-21,7,2.5);
+    ctx.fillStyle='#fff';
+    if(GX.pDir===0){ctx.fillRect(p.sx-2,by-18,1.5,1.5);ctx.fillRect(p.sx+1,by-18,1.5,1.5);}
+    else if(GX.pDir===1){ctx.fillRect(p.sx-2.5,by-18,1.5,1.5);}
+    else if(GX.pDir===3){ctx.fillRect(p.sx+1.5,by-18,1.5,1.5);}
+  }else if(v==='bike'){
+    // Frame
+    ctx.strokeStyle='#5dade2';ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.moveTo(p.sx-6,by-2);ctx.lineTo(p.sx,by-9);ctx.lineTo(p.sx+6,by-2);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(p.sx,by-9);ctx.lineTo(p.sx-2,by-2);ctx.stroke();
+    ctx.strokeStyle='#aaa';ctx.lineWidth=1;
+    ctx.beginPath();ctx.arc(p.sx-6,by-1,3.5,0,Math.PI*2);ctx.stroke();
+    ctx.beginPath();ctx.arc(p.sx+6,by-1,3.5,0,Math.PI*2);ctx.stroke();
+    // Rider
+    const rg=ctx.createLinearGradient(p.sx-2,by-18,p.sx+2,by-18);
+    rg.addColorStop(0,'#2a4a6a');rg.addColorStop(1,'#3a6a9a');
+    ctx.fillStyle=rg;ctx.fillRect(p.sx-2.5,by-18,5,8);
+    ctx.fillStyle='#ffe0cc';ctx.fillRect(p.sx-2,by-22,4,4);
+    ctx.fillStyle='#e74c3c';ctx.fillRect(p.sx-2.5,by-23,5,2);
+  }else if(v==='scooter'){
+    // Deck
+    const dg=ctx.createLinearGradient(p.sx-7,by-3,p.sx+7,by-3);
+    dg.addColorStop(0,'#1abc9c');dg.addColorStop(1,'#2ecc71');
+    ctx.fillStyle=dg;ctx.fillRect(p.sx-7,by-3,14,2.5);
+    ctx.strokeStyle='#999';ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.moveTo(p.sx+5,by-3);ctx.lineTo(p.sx+5,by-13);ctx.stroke();
+    ctx.fillStyle='#666';ctx.fillRect(p.sx+3,by-14,5,2);
+    ctx.fillStyle='#333';ctx.beginPath();ctx.arc(p.sx-6,by,3,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.arc(p.sx+6,by,3,0,Math.PI*2);ctx.fill();
+    // Rider
+    const rg2=ctx.createLinearGradient(p.sx-2,by-17,p.sx+2,by-17);
+    rg2.addColorStop(0,'#2a4a6a');rg2.addColorStop(1,'#3a6a9a');
+    ctx.fillStyle=rg2;ctx.fillRect(p.sx-2.5,by-17,5,8);
+    ctx.fillStyle='#ffe0cc';ctx.fillRect(p.sx-2,by-21,4,4);
+  }else if(v==='skateboard'){
+    // Board
+    ctx.fillStyle='#e74c3c';ctx.fillRect(p.sx-6,by-2,12,2.5);
+    ctx.fillStyle='#c0392b';ctx.fillRect(p.sx-7,by-3,2,2.5);ctx.fillRect(p.sx+5,by-3,2,2.5);
+    ctx.fillStyle='#333';ctx.fillRect(p.sx-4,by+1,2,1.5);ctx.fillRect(p.sx+2,by+1,2,1.5);
+    // Rider
+    const rg3=ctx.createLinearGradient(p.sx-2,by-15,p.sx+2,by-15);
+    rg3.addColorStop(0,'#2a4a6a');rg3.addColorStop(1,'#3a6a9a');
+    ctx.fillStyle=rg3;ctx.fillRect(p.sx-2.5,by-15,5,8);
+    ctx.fillStyle='#ffe0cc';ctx.fillRect(p.sx-2,by-19,4,4);
+    ctx.fillStyle='#9b59b6';ctx.fillRect(p.sx-2.5,by-20,5,2);
+  }else if(v==='car'){
+    // Car body
+    const cg=ctx.createLinearGradient(p.sx-10,by-7,p.sx+10,by-7);
+    cg.addColorStop(0,'#a02020');cg.addColorStop(0.5,'#e74c3c');cg.addColorStop(1,'#a02020');
+    ctx.fillStyle=cg;ctx.fillRect(p.sx-10,by-7,20,7);
+    // Roof
+    ctx.fillStyle='#c0392b';ctx.fillRect(p.sx-6,by-12,12,5);
+    // Windows
+    ctx.fillStyle='rgba(135,206,250,.5)';ctx.fillRect(p.sx-5,by-11,4,3.5);ctx.fillRect(p.sx+1,by-11,4,3.5);
+    // Wheels
+    ctx.fillStyle='#222';ctx.beginPath();ctx.arc(p.sx-7,by+1,3,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.arc(p.sx+7,by+1,3,0,Math.PI*2);ctx.fill();
+    // Headlights
+    ctx.fillStyle='#ffd700';
+    if(GX.pDir===3){ctx.fillRect(p.sx+9,by-5,2,2);}
+    else if(GX.pDir===1){ctx.fillRect(p.sx-11,by-5,2,2);}
+    else{ctx.fillRect(p.sx-10,by-6,2,1.5);ctx.fillRect(p.sx+8,by-6,2,1.5);}
+  }
 
   ctx.shadowColor='transparent';ctx.shadowBlur=0;
 
-  // Name tag (glass style)
-  ctx.fillStyle='rgba(20,30,50,.5)';
-  const tagW=ctx.measureText('漫步者').width||20;
-  ctx.fillRect(p.sx-tagW/2-4,by-28,tagW+8,10);
-  ctx.strokeStyle='rgba(92,173,255,.2)';ctx.lineWidth=0.4;
-  ctx.strokeRect(p.sx-tagW/2-4,by-28,tagW+8,10);
+  // Name tag
+  const vInfo=VEHICLES[v];
+  const tagText=vInfo.icon+' '+vInfo.name;
   ctx.font='5px "Noto Sans SC",sans-serif';
-  ctx.textAlign='center';
-  ctx.fillStyle='rgba(200,220,255,.7)';
-  ctx.fillText('漫步者',p.sx,by-21);
+  const tagW2=ctx.measureText(tagText).width||24;
+  const tagY2=(v==='car')?by-16:by-28;
+  ctx.fillStyle='rgba(20,30,50,.5)';
+  ctx.fillRect(p.sx-tagW2/2-4,tagY2-2,tagW2+8,10);
+  ctx.strokeStyle=bst?'rgba(255,215,0,.3)':'rgba(92,173,255,.2)';ctx.lineWidth=0.4;
+  ctx.strokeRect(p.sx-tagW2/2-4,tagY2-2,tagW2+8,10);
+  ctx.textAlign='center';ctx.fillStyle=bst?'rgba(255,230,150,.8)':'rgba(200,220,255,.7)';
+  ctx.fillText(tagText,p.sx,tagY2+6);
 }
 
 function renderGlassMinimap(){

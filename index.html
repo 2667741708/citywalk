@@ -307,7 +307,7 @@ input{font-family:inherit;border:none;outline:none}
 .boost-bar{width:80px;height:6px;background:rgba(255,255,255,.1);border-radius:3px;overflow:hidden}
 .boost-fill{height:100%;background:linear-gradient(90deg,#f39c12,#ffd700);border-radius:3px;transition:width .15s}
 .boost-hint{font-size:9px;color:rgba(255,255,255,.3)}
-.vehicle-selector{position:absolute;top:80px;left:16px;z-index:10;background:rgba(15,15,25,.92);backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:10px;display:none;width:180px;box-shadow:0 12px 40px rgba(0,0,0,.5)}
+.vehicle-selector{position:absolute;top:80px;left:16px;z-index:10;background:rgba(15,15,25,.92);backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:10px;display:none;width:200px;box-shadow:0 12px 40px rgba(0,0,0,.5);max-height:60vh;overflow-y:auto}
 .vehicle-selector.glass-vs{top:auto;bottom:130px}
 .vehicle-selector.active{display:block}
 .vh-title{font-size:11px;color:rgba(255,255,255,.4);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid rgba(255,255,255,.08)}
@@ -318,6 +318,9 @@ input{font-family:inherit;border:none;outline:none}
 .vh-name{font-size:13px;font-weight:600;color:#fff}
 .vh-desc{font-size:10px;color:rgba(255,255,255,.35);display:none}
 .vh-opt:hover .vh-desc{display:block}
+.vh-opt.locked{cursor:default;opacity:.5}
+.vh-opt.locked:hover{background:transparent}
+.vh-rarity{font-size:9px;margin-left:auto;white-space:nowrap}
 .pixel-poi-popup{position:absolute;z-index:5;background:rgba(26,26,46,.88);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:14px 16px;max-width:240px;display:none;pointer-events:auto;box-shadow:0 8px 32px rgba(0,0,0,.4)}
 .pixel-poi-popup.active{display:block}
 .pixel-poi-popup .pp-name{font-weight:700;font-size:.88rem;color:#fff;margin-bottom:3px}
@@ -612,6 +615,8 @@ input{font-family:inherit;border:none;outline:none}
         <div class="pixel-hud-item">📍 <span id="hudCoord">0, 0</span></div>
         <div class="pixel-hud-item">🏢 <span id="hudBuildings">0</span> 建筑</div>
         <div class="pixel-hud-item">👣 <span id="hudSteps">0</span> 步</div>
+        <div class="pixel-hud-item" style="color:#ffd700">★ <span id="hudScore">0</span></div>
+        <div class="pixel-hud-item" style="color:#ff64b4">◆ <span id="hudRewards">0/0</span></div>
         <div class="pixel-hud-item" id="pixelVehicleLabel" style="cursor:pointer" onclick="toggleVehiclePanel('px')">🚶 步行</div>
       </div>
       <div class="boost-bar-wrap" id="pixelBoostWrap">
@@ -621,11 +626,6 @@ input{font-family:inherit;border:none;outline:none}
       </div>
       <div class="vehicle-selector" id="pixelVehicleSel">
         <div class="vh-title">选择载具</div>
-        <div class="vh-opt active" data-v="walk" onclick="switchVehicle('px','walk')"><span class="vh-icon">🚶</span><span class="vh-name">步行</span><span class="vh-desc">默认步行模式</span></div>
-        <div class="vh-opt" data-v="skateboard" onclick="switchVehicle('px','skateboard')"><span class="vh-icon">🛹</span><span class="vh-name">滑板</span><span class="vh-desc">街头风格，自由滑行</span></div>
-        <div class="vh-opt" data-v="bike" onclick="switchVehicle('px','bike')"><span class="vh-icon">🚲</span><span class="vh-name">自行车</span><span class="vh-desc">轻快骑行，加速更快</span></div>
-        <div class="vh-opt" data-v="scooter" onclick="switchVehicle('px','scooter')"><span class="vh-icon">🛴</span><span class="vh-name">滑板车</span><span class="vh-desc">灵活穿梭，极速冲刺</span></div>
-        <div class="vh-opt" data-v="car" onclick="switchVehicle('px','car')"><span class="vh-icon">🚗</span><span class="vh-name">小轿车</span><span class="vh-desc">高速巡航，能量消耗大</span></div>
       </div>
       <div class="pixel-minimap" id="pixelMinimap"><canvas id="minimapCanvas"></canvas></div>
       <div class="pixel-joystick" id="pixelJoystick">
@@ -678,11 +678,6 @@ input{font-family:inherit;border:none;outline:none}
       </div>
       <div class="vehicle-selector glass-vs" id="glassVehicleSel">
         <div class="vh-title">选择载具</div>
-        <div class="vh-opt active" data-v="walk" onclick="switchVehicle('glass','walk')"><span class="vh-icon">🚶</span><span class="vh-name">步行</span><span class="vh-desc">默认步行模式</span></div>
-        <div class="vh-opt" data-v="skateboard" onclick="switchVehicle('glass','skateboard')"><span class="vh-icon">🛹</span><span class="vh-name">滑板</span><span class="vh-desc">街头风格，自由滑行</span></div>
-        <div class="vh-opt" data-v="bike" onclick="switchVehicle('glass','bike')"><span class="vh-icon">🚲</span><span class="vh-name">自行车</span><span class="vh-desc">轻快骑行，加速更快</span></div>
-        <div class="vh-opt" data-v="scooter" onclick="switchVehicle('glass','scooter')"><span class="vh-icon">🛴</span><span class="vh-name">滑板车</span><span class="vh-desc">灵活穿梭，极速冲刺</span></div>
-        <div class="vh-opt" data-v="car" onclick="switchVehicle('glass','car')"><span class="vh-icon">🚗</span><span class="vh-name">小轿车</span><span class="vh-desc">高速巡航，能量消耗大</span></div>
       </div>
       <div class="glass-minimap" id="glassMinimap"><canvas id="glassMinimapCanvas"></canvas></div>
       <div class="glass-joystick" id="glassJoystick">
@@ -1254,11 +1249,17 @@ function showToast(msg) {
 // [CITY_SELECT_LOGIC]
 // POI categories for CityWalk route generation
 const POI_CATEGORIES = [
-  {code:'110000',name:'景点',icon:'🏛️',types:'风景名胜|公园广场|文物古迹|博物馆|纪念馆|展览馆|主题公园'},
-  {code:'050000',name:'美食',icon:'🍜',types:'中餐厅|小吃快餐|咖啡厅|茶艺馆|甜品店'},
-  {code:'060000',name:'购物',icon:'🛍️',types:'商业步行街|特色商业街|购物中心'},
-  {code:'080000',name:'文艺',icon:'🎨',types:'美术馆|图书馆|文化宫|剧场|画廊|文化传媒'},
-  {code:'141000',name:'网红',icon:'📸',types:'广场|特色街道|历史建筑'},
+  {code:'110000',type:'110000',name:'景点',icon:'🏛️',types:'风景名胜|公园广场|文物古迹|博物馆|纪念馆|展览馆|主题公园'},
+  {code:'050000',type:'050000',name:'美食',icon:'🍜',types:'中餐厅|小吃快餐|咖啡厅|茶艺馆|甜品店'},
+  {code:'060000',type:'060000',name:'购物',icon:'🛍️',types:'商业步行街|特色商业街|购物中心'},
+  {code:'080000',type:'080000',name:'文艺',icon:'🎨',types:'美术馆|图书馆|文化宫|剧场|画廊|文化传媒'},
+  {code:'141000',type:'141000',name:'网红',icon:'📸',types:'广场|特色街道|历史建筑'},
+  {code:'120000',type:'120000',name:'住宅办公',icon:'🏢',types:'写字楼|商务大厦|科技园区'},
+  {code:'150000',type:'150000',name:'交通设施',icon:'🚉',types:'火车站|地铁站|公交枢纽|长途汽车站'},
+  {code:'070000',type:'070000',name:'生活服务',icon:'🏪',types:'便利店|超市|邮局|银行'},
+  {code:'090000',type:'090000',name:'体育休闲',icon:'⛳',types:'体育场馆|游泳馆|健身中心|高尔夫球场'},
+  {code:'100000',type:'100000',name:'医疗保健',icon:'🏥',types:'综合医院|专科医院|诊所|药店'},
+  {code:'140000',type:'140000',name:'科教文化',icon:'🏫',types:'高等院校|中学|科研机构|培训机构'},
 ];
 const DEFAULT_COLORS = ['#ff6b35','#e84393','#a29bfe','#00b894','#fdcb6e','#74b9ff','#fd79a8','#e17055'];
 // Dynamic city data store (augments MOCK_DATA)
@@ -1530,7 +1531,7 @@ function amapPOISearch(keyword, city, typeCode) {
       const ps = new AMap.PlaceSearch({
         city: city,
         citylimit: true,
-        pageSize: 15,
+        pageSize: 25,
         type: typeCode || ''
       });
       ps.search(keyword, (status, result) => {
@@ -2260,31 +2261,132 @@ function pickPhoto(areaId) {
   input.click();
 }
 
+// === SHARED CONSTANTS ===
+
+const REWARD_TYPES = [
+  {icon:'⭐',name:'星辰碎片',points:10,color:'#ffd700'},
+  {icon:'💎',name:'蓝宝石',points:25,color:'#5cadff'},
+  {icon:'🔮',name:'水晶球',points:15,color:'#b464ff'},
+  {icon:'🍜',name:'美食券',points:20,color:'#ffb43c'},
+  {icon:'📸',name:'打卡徽章',points:30,color:'#ff64b4'},
+  {icon:'🎁',name:'盲盒礼物',points:50,color:'#ff6b6b'},
+];
+
+const REWARD_RESPAWN_TIME = 30000; // 30 seconds
+
 // === VEHICLE SYSTEM (shared by both modes) ===
 const VEHICLES = {
-  walk:    {icon:'🚶',name:'步行',   speedMult:1.0, boostMult:1.8, desc:'默认步行模式'},
-  bike:    {icon:'🚲',name:'自行车', speedMult:1.8, boostMult:2.8, desc:'轻快骑行，加速更快'},
-  scooter: {icon:'🛴',name:'滑板车', speedMult:2.2, boostMult:3.5, desc:'灵活穿梭，极速冲刺'},
-  car:     {icon:'🚗',name:'小轿车', speedMult:3.0, boostMult:4.5, desc:'高速巡航，能量消耗大'},
-  skateboard:{icon:'🛹',name:'滑板', speedMult:1.5, boostMult:2.5, desc:'街头风格，自由滑行'},
+  walk:       {icon:'🚶',name:'步行',   speedMult:1.0, boostMult:1.8, desc:'默认步行模式', rarity:'common'},
+  skateboard: {icon:'🛹',name:'滑板',   speedMult:1.5, boostMult:2.5, desc:'街头风格，自由滑行', rarity:'common'},
+  bike:       {icon:'🚲',name:'自行车', speedMult:1.8, boostMult:2.8, desc:'轻快骑行，加速更快', rarity:'common'},
+  scooter:    {icon:'🛴',name:'滑板车', speedMult:2.2, boostMult:3.5, desc:'灵活穿梭，极速冲刺', rarity:'uncommon'},
+  car:        {icon:'🚗',name:'小轿车', speedMult:3.0, boostMult:4.5, desc:'高速巡航，能量消耗大', rarity:'uncommon'},
+  motorcycle: {icon:'🏍️',name:'摩托车', speedMult:3.5, boostMult:5.0, desc:'极速飙车，风驰电掣', rarity:'rare'},
+  boat:       {icon:'🛶',name:'小船',   speedMult:2.0, boostMult:3.0, desc:'水上漂流，畅游江河', rarity:'rare', canWater:true},
+  helicopter: {icon:'🚁',name:'直升机', speedMult:5.0, boostMult:7.0, desc:'空中霸主，无视障碍', rarity:'legendary'},
 };
+
+const RARITY_COLORS = {common:'#4ade80',uncommon:'#60a5fa',rare:'#a78bfa',legendary:'#fbbf24'};
+const RARITY_NAMES = {common:'普通',uncommon:'稀有',rare:'珍稀',legendary:'传说'};
+
+// Vehicle pickup definitions with rarity weights
+const VEHICLE_PICKUP_TYPES = [
+  {key:'skateboard', weight:5},
+  {key:'bike',       weight:5},
+  {key:'scooter',    weight:4},
+  {key:'car',        weight:3},
+  {key:'motorcycle', weight:2},
+  {key:'boat',       weight:2},
+  {key:'helicopter', weight:1},
+];
+
+// Vehicle unlock persistence
+let VEHICLE_UNLOCKS = JSON.parse(localStorage.getItem('cw_vehicle_unlocks') || '["walk"]');
+function isVehicleUnlocked(vKey) { return VEHICLE_UNLOCKS.includes(vKey); }
+function unlockVehicle(vKey) {
+  if (!VEHICLE_UNLOCKS.includes(vKey)) {
+    VEHICLE_UNLOCKS.push(vKey);
+    localStorage.setItem('cw_vehicle_unlocks', JSON.stringify(VEHICLE_UNLOCKS));
+  }
+}
+function pickRandomVehiclePickup() {
+  const locked = VEHICLE_PICKUP_TYPES.filter(v => !isVehicleUnlocked(v.key));
+  if (locked.length === 0) return null;
+  const totalW = locked.reduce((s, v) => s + v.weight, 0);
+  let r = Math.random() * totalW;
+  for (const v of locked) { r -= v.weight; if (r <= 0) return v.key; }
+  return locked[locked.length - 1].key;
+}
 
 function switchVehicle(mode, vKey) {
   const st = mode === 'px' ? PX : GX;
   if (!VEHICLES[vKey]) return;
+  if (!isVehicleUnlocked(vKey)) {
+    showToast('🔒 ' + VEHICLES[vKey].name + ' 尚未解锁，在地图上寻找吧！');
+    return;
+  }
   st.vehicle = vKey;
   st.speed = st.baseSpeed * VEHICLES[vKey].speedMult;
-  // Update UI
+  renderVehicleSelector(mode);
   const panel = mode === 'px' ? 'pixel' : 'glass';
-  const sel = document.getElementById(panel + 'VehicleSel');
-  if (sel) {
-    sel.querySelectorAll('.vh-opt').forEach(el => {
-      el.classList.toggle('active', el.dataset.v === vKey);
-    });
-  }
   const label = document.getElementById(panel + 'VehicleLabel');
   if (label) label.textContent = VEHICLES[vKey].icon + ' ' + VEHICLES[vKey].name;
   showToast(VEHICLES[vKey].icon + ' 切换为 ' + VEHICLES[vKey].name);
+}
+
+function renderVehicleSelector(mode) {
+  const panel = mode === 'px' ? 'pixel' : 'glass';
+  const st = mode === 'px' ? PX : GX;
+  const sel = document.getElementById(panel + 'VehicleSel');
+  if (!sel) return;
+  const modePrefix = mode === 'px' ? 'px' : 'glass';
+  let html = '<div class="vh-title">选择载具</div>';
+  Object.keys(VEHICLES).forEach(vKey => {
+    const v = VEHICLES[vKey];
+    const unlocked = isVehicleUnlocked(vKey);
+    const active = st.vehicle === vKey;
+    const rCol = RARITY_COLORS[v.rarity] || '#fff';
+    if (unlocked) {
+      html += `<div class="vh-opt${active?' active':''}" data-v="${vKey}" onclick="switchVehicle('${modePrefix}','${vKey}')"><span class="vh-icon">${v.icon}</span><span class="vh-name">${v.name}</span><span class="vh-rarity" style="color:${rCol};font-size:9px;margin-left:auto">${RARITY_NAMES[v.rarity]||''}</span><span class="vh-desc">${v.desc}</span></div>`;
+    } else {
+      html += `<div class="vh-opt locked" data-v="${vKey}"><span class="vh-icon" style="filter:grayscale(1);opacity:.4">🔒</span><span class="vh-name" style="opacity:.35">???</span><span class="vh-rarity" style="color:${rCol};font-size:9px;margin-left:auto;opacity:.5">${RARITY_NAMES[v.rarity]||''}</span></div>`;
+    }
+  });
+  sel.innerHTML = html;
+}
+
+function showVehicleUnlockToast(vKey) {
+  const v = VEHICLES[vKey];
+  if (!v) return;
+  const rCol = RARITY_COLORS[v.rarity] || '#ffd700';
+  const el = document.createElement('div');
+  el.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(0);z-index:400;padding:24px 36px;border-radius:20px;background:rgba(10,10,20,.92);backdrop-filter:blur(16px);color:#fff;text-align:center;pointer-events:none;transition:all .5s cubic-bezier(.17,.67,.35,1.4);border:2px solid '+rCol+';box-shadow:0 0 60px '+rCol+'44,0 12px 40px rgba(0,0,0,.5);';
+  el.innerHTML = `<div style="font-size:14px;opacity:.6;margin-bottom:8px;letter-spacing:2px">载具解锁!</div><div style="font-size:52px;margin-bottom:8px;filter:drop-shadow(0 0 12px ${rCol})">${v.icon}</div><div style="font-size:20px;font-weight:700;color:${rCol}">${v.name}</div><div style="font-size:13px;opacity:.6;margin-top:6px">${v.desc}</div><div style="font-size:11px;margin-top:8px;color:${rCol};opacity:.7">${RARITY_NAMES[v.rarity]}</div>`;
+  document.body.appendChild(el);
+  requestAnimationFrame(() => { el.style.transform = 'translate(-50%,-50%) scale(1)'; });
+  setTimeout(() => { el.style.opacity = '0'; el.style.transform = 'translate(-50%,-60%) scale(.8)'; }, 2500);
+  setTimeout(() => el.remove(), 3200);
+}
+
+function updateRewardRespawns(state) {
+  const now = Date.now();
+  state.rewards.forEach(r => {
+    if (r.collected && !r.isVehiclePickup && !r.respawning) {
+      r.respawning = true;
+      r.respawnTimer = now;
+    }
+    if (r.respawning && (now - r.respawnTimer) >= REWARD_RESPAWN_TIME) {
+      r.collected = false;
+      r.respawning = false;
+      r.respawnTimer = 0;
+      r.type = REWARD_TYPES[Math.floor(Math.random() * REWARD_TYPES.length)];
+      r.fadeAlpha = 0;
+      delete state.collectedRewards[r.id];
+    }
+    if (!r.collected && r.fadeAlpha < 1) {
+      r.fadeAlpha = Math.min(1, r.fadeAlpha + 0.02);
+    }
+  });
 }
 
 function toggleVehiclePanel(mode) {
@@ -2330,6 +2432,9 @@ const PX = {
   pois: [], cityName: '',
   // Route
   routePath: [], _geoBounds: null,
+  // Rewards
+  rewards: [], collectedRewards: {}, score: 0,
+  vehiclePickups: [],
   // Colors palette (pixel art)
   SKY_TOP: '#1a1a3e', SKY_BOT: '#2d2d5a',
   GRASS: ['#4a7c59','#5a8c65','#3d6b4a'],
@@ -2344,6 +2449,12 @@ const BLDG_TYPES = {
   '购物':    {colors:['#3498db','#2980b9','#5dade2'],roofColor:'#74b9ff',h:[3,6],w:[2,3],icon:'🛍️',style:'modern'},
   '文艺':    {colors:['#9b59b6','#8e44ad','#a569bd'],roofColor:'#d5a6ff',h:[3,5],w:[2,2],icon:'🎨',style:'art'},
   '网红':    {colors:['#e84393','#d63384','#fd79a8'],roofColor:'#ff9ff3',h:[3,6],w:[2,3],icon:'📸',style:'modern'},
+  '住宅办公':{colors:['#5b7b9a','#4a6a88','#6c8caa'],roofColor:'#8badc8',h:[5,9],w:[2,3],icon:'🏢',style:'office'},
+  '交通设施':{colors:['#7a7a8a','#666676','#8a8a9a'],roofColor:'#aaaabc',h:[2,3],w:[3,4],icon:'🚉',style:'modern'},
+  '生活服务':{colors:['#2d9e8f','#25877a','#38b5a5'],roofColor:'#5ccfbf',h:[2,4],w:[1,2],icon:'🏪',style:'shop'},
+  '体育休闲':{colors:['#4a9e5a','#3a8a4a','#5ab06a'],roofColor:'#78d088',h:[2,4],w:[3,4],icon:'⛳',style:'modern'},
+  '医疗保健':{colors:['#d0d0d8','#b8b8c4','#e0e0e8'],roofColor:'#f0f0f8',h:[4,7],w:[2,3],icon:'🏥',style:'office'},
+  '科教文化':{colors:['#3a4a60','#2e3e50','#4a5a70'],roofColor:'#6a7a90',h:[3,6],w:[2,3],icon:'🏫',style:'office'},
   'default': {colors:['#636e72','#535c5f','#748c8d'],roofColor:'#b2bec3',h:[2,5],w:[1,3],icon:'🏢',style:'office'},
 };
 
@@ -2371,6 +2482,8 @@ async function initPixelCity(cityName) {
   PX.cityName = cityName;
   PX.buildings = []; PX.trees = []; PX.roads = []; PX.pois = [];
   PX.routePath = []; PX._geoBounds = null;
+  PX.rewards = []; PX.collectedRewards = {}; PX.score = 0;
+  PX.vehiclePickups = [];
   PX.px = 40; PX.py = 40; PX.pDir = 0; PX.steps = 0;
   PX.zoom = 1.5; PX.targetZoom = 1.5;
   PX.pMoving = false; PX.moveX = 0; PX.moveY = 0;
@@ -2406,15 +2519,9 @@ async function initPixelCity(cityName) {
   let poiData = [];
   if (typeof AMap !== 'undefined' && !APP.demoMode) {
     try {
-      const cats = [
-        {type:'110000',name:'景点'},
-        {type:'050000',name:'美食'},
-        {type:'060000',name:'购物'},
-        {type:'080000',name:'文艺'},
-        {type:'141000',name:'网红'}
-      ];
+      const cats = POI_CATEGORIES;
       setPixelLoadProgress(20, '搜索景点...');
-      const results = await Promise.all(cats.map(c => amapPOISearch(c.name, cityName, c.type)));
+      const results = await Promise.all(cats.map(c => amapPOISearch(c.name, cityName, c.code)));
       cats.forEach((cat, ci) => {
         (results[ci] || []).forEach(poi => {
           if (poi.location) {
@@ -2508,6 +2615,50 @@ async function initPixelCity(cityName) {
       while (cy !== (b2.gy || b2.y)) { cy += dy; PX.routePath.push({x:cx, y:cy}); }
     }
   }
+
+  // Place rewards along pixel route path
+  let pxRewardId = 0;
+  if (PX.routePath.length > 0) {
+    const step = Math.max(3, Math.floor(PX.routePath.length / 15));
+    for (let i = step; i < PX.routePath.length; i += step) {
+      const rp = PX.routePath[i];
+      const rt = REWARD_TYPES[pxRewardId % REWARD_TYPES.length];
+      PX.rewards.push({id:pxRewardId,x:rp.x,y:rp.y,type:rt,collected:false,bobPhase:Math.random()*Math.PI*2,fadeAlpha:1,respawning:false,respawnTimer:0,isVehiclePickup:false});
+      pxRewardId++;
+    }
+  }
+  // Scatter bonus rewards near POI buildings
+  const pxRouteB = PX.buildings.filter(b => b.name);
+  pxRouteB.forEach((b, bi) => {
+    if (bi % 2 === 0) {
+      const rt = REWARD_TYPES[(bi + 3) % REWARD_TYPES.length];
+      PX.rewards.push({id:pxRewardId++,x:b.x-1,y:b.y+2,type:{...rt,points:rt.points*2,name:rt.name+'(双倍)'},collected:false,bobPhase:Math.random()*Math.PI*2,fadeAlpha:1,respawning:false,respawnTimer:0,isVehiclePickup:false});
+    }
+  });
+
+  // Place vehicle pickups near POI buildings
+  PX.vehiclePickups = [];
+  const pxPickupCount = Math.min(4, pxRouteB.length);
+  const pxUsedSlots = new Set();
+  for (let i = 0; i < pxPickupCount; i++) {
+    const vKey = pickRandomVehiclePickup();
+    if (!vKey) break;
+    let slot;
+    do { slot = Math.floor(Math.random() * pxRouteB.length); } while (pxUsedSlots.has(slot) && pxUsedSlots.size < pxRouteB.length);
+    pxUsedSlots.add(slot);
+    const b = pxRouteB[slot];
+    const v = VEHICLES[vKey];
+    PX.rewards.push({
+      id: pxRewardId++, x: b.x + b.w + 1, y: b.y + 1,
+      type: {icon: v.icon, name: v.name, points: 0, color: RARITY_COLORS[v.rarity] || '#ffd700'},
+      collected: false, bobPhase: Math.random() * Math.PI * 2, fadeAlpha: 1,
+      respawning: false, respawnTimer: 0,
+      isVehiclePickup: true, vehicleKey: vKey
+    });
+  }
+
+  // Render vehicle selectors with lock state
+  renderVehicleSelector('px');
 
   setPixelLoadProgress(90, '放置像素小人...');
 
@@ -2631,23 +2782,32 @@ async function generatePixelWorld(pois) {
     }
   });
 
-  // Fill empty areas with random buildings & trees
+  // Fill empty areas with density-aware buildings & trees
   for (let y = margin; y < H - margin; y += 4) {
     for (let x = margin; x < W - margin; x += 4) {
-      if (PX.ground[y][x] === 'grass' && !occupied.has(y + ',' + x) && Math.random() < 0.3) {
-        if (Math.random() < 0.4) {
-          // Random tree
+      if (PX.ground[y][x] === 'grass' && !occupied.has(y + ',' + x) && Math.random() < 0.35) {
+        // Count nearby POI buildings for density
+        let nearbyCount = 0;
+        PX.buildings.forEach(b => { if (b.name && Math.abs(b.x - x) + Math.abs(b.y - y) < 12) nearbyCount++; });
+        const density = Math.min(nearbyCount / 3, 1); // 0-1
+
+        if (Math.random() < 0.3 - density * 0.2) {
+          // Trees more common in low-density areas
           PX.trees.push({ x, y, size: 1 + Math.floor(Math.random() * 2), color: PX.GRASS[Math.floor(Math.random() * 3)] });
-        } else if (Math.random() < 0.5) {
-          // Random filler building
-          const bh = 2 + Math.floor(Math.random() * 3);
+        } else if (Math.random() < 0.4 + density * 0.3) {
+          // Buildings more common and taller in high-density areas
+          const bh = 2 + Math.floor(Math.random() * (3 + density * 4));
           const bw = 1 + Math.floor(Math.random() * 2);
           if (canPlaceBuilding(x, y, bw, occupied)) {
+            // Pick filler type based on what's nearby
+            const fillerTypes = ['住宅办公','生活服务','交通设施','default'];
+            const ft = fillerTypes[Math.floor(Math.random() * fillerTypes.length)];
+            const bt = BLDG_TYPES[ft] || BLDG_TYPES['default'];
             PX.buildings.push({
               x, y, w: bw, h: bh,
-              color: '#' + (0x555555 + Math.floor(Math.random() * 0x444444)).toString(16),
-              roofColor: '#' + (0x888888 + Math.floor(Math.random() * 0x333333)).toString(16),
-              style: 'office', icon: '', name: '', type: '', address: '', poiIdx: -1
+              color: bt.colors[Math.floor(Math.random() * bt.colors.length)],
+              roofColor: bt.roofColor,
+              style: bt.style, icon: '', name: '', type: '', address: '', poiIdx: -1
             });
             for (let dy2 = 0; dy2 < 2; dy2++) for (let dx2 = 0; dx2 < bw; dx2++) occupied.add((y + dy2) + ',' + (x + dx2));
           }
@@ -2684,18 +2844,24 @@ function canPlaceBuilding(x, y, w, occupied) {
 
 function generateFallbackPOIs(cityName) {
   // Generate procedural POIs when API not available
-  const types = ['景点','美食','购物','文艺','网红'];
+  const types = ['景点','美食','购物','文艺','网红','住宅办公','交通设施','生活服务','体育休闲','医疗保健','科教文化'];
   const names = {
     '景点': ['中央公园','古塔','博物馆','纪念碑','古城门','文庙','观景台'],
     '美食': ['老字号面馆','网红奶茶店','火锅城','烧烤一条街','早餐铺','甜品屋'],
     '购物': ['步行街','百货大楼','创意市集','古玩街','潮牌店'],
     '文艺': ['美术馆','独立书店','画廊','小剧场','手作工坊'],
-    '网红': ['打卡墙','天台花园','复古咖啡馆','艺术装置','涂鸦巷']
+    '网红': ['打卡墙','天台花园','复古咖啡馆','艺术装置','涂鸦巷'],
+    '住宅办公': ['科技园','写字楼','创业中心','商务大厦','人才公寓'],
+    '交通设施': ['地铁站','公交枢纽','停车场','火车站','码头'],
+    '生活服务': ['便利店','洗衣坊','理发店','快递站','药店'],
+    '体育休闲': ['体育场','游泳馆','篮球场','公园绿道','健身房'],
+    '医疗保健': ['市医院','诊所','康复中心','体检中心','中医馆'],
+    '科教文化': ['大学城','科技馆','图书馆','实验室','文化中心']
   };
   const pois = [];
   const baseLat = 31.23 + Math.random() * 0.02;
   const baseLng = 121.47 + Math.random() * 0.02;
-  for (let i = 0; i < 30; i++) {
+  for (let i = 0; i < 50; i++) {
     const type = types[i % types.length];
     const nameList = names[type];
     pois.push({
@@ -2817,6 +2983,13 @@ function pixelRender() {
     }
   });
 
+  // Rewards in view
+  PX.rewards.forEach(r => {
+    if (!r.collected && r.x >= startX && r.x <= endX && r.y >= startY && r.y <= endY) {
+      drawables.push({ type: 'reward', obj: r, sortY: r.y, sortX: r.x });
+    }
+  });
+
   // Player
   drawables.push({ type: 'player', sortY: PX.py, sortX: PX.px });
 
@@ -2827,6 +3000,7 @@ function pixelRender() {
   drawables.forEach(d => {
     if (d.type === 'building') drawBuilding(ctx, d.obj);
     else if (d.type === 'tree') drawTree(ctx, d.obj);
+    else if (d.type === 'reward') drawPixelReward(ctx, d.obj);
     else if (d.type === 'player') drawPlayer(ctx);
   });
 
@@ -2836,6 +3010,10 @@ function pixelRender() {
   document.getElementById('hudCoord').textContent = Math.round(PX.px) + ', ' + Math.round(PX.py);
   document.getElementById('hudBuildings').textContent = PX.buildings.filter(b => b.name).length;
   document.getElementById('hudSteps').textContent = PX.steps;
+  const pxScoreEl = document.getElementById('hudScore');
+  if (pxScoreEl) pxScoreEl.textContent = PX.score + ' 分';
+  const pxRwEl = document.getElementById('hudRewards');
+  if (pxRwEl) pxRwEl.textContent = PX.rewards.filter(r => r.collected).length + '/' + PX.rewards.length;
 
   // Minimap
   renderMinimap();
@@ -2950,6 +3128,56 @@ function drawTree(ctx, t) {
   ctx.fill();
 }
 
+function drawPixelReward(ctx, r) {
+  if (r.collected) return;
+  const iso = isoProject(r.x, r.y);
+  const bobH = Math.sin(Date.now() * 0.004 + r.bobPhase) * 3;
+  const sx = iso.sx, sy = iso.sy - 8 + bobH;
+  ctx.save();
+  ctx.globalAlpha = r.fadeAlpha || 1;
+  // Glow on ground
+  ctx.globalAlpha *= 0.3;
+  const grd = ctx.createRadialGradient(iso.sx, iso.sy, 0, iso.sx, iso.sy, 10);
+  grd.addColorStop(0, r.type.color); grd.addColorStop(1, 'transparent');
+  ctx.fillStyle = grd; ctx.fillRect(iso.sx - 10, iso.sy - 5, 20, 10);
+  ctx.globalAlpha = r.fadeAlpha || 1;
+  // Diamond shape
+  const sz = r.isVehiclePickup ? 8 : 5;
+  ctx.beginPath();
+  ctx.moveTo(sx, sy - sz); ctx.lineTo(sx + sz, sy); ctx.lineTo(sx, sy + sz); ctx.lineTo(sx - sz, sy);
+  ctx.closePath();
+  const orbG = ctx.createRadialGradient(sx - 1, sy - 1, 1, sx, sy, sz);
+  orbG.addColorStop(0, '#fff'); orbG.addColorStop(0.4, r.type.color); orbG.addColorStop(1, 'rgba(0,0,0,.3)');
+  ctx.fillStyle = orbG; ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,.5)'; ctx.lineWidth = 0.5; ctx.stroke();
+  // Icon
+  ctx.font = (r.isVehiclePickup ? '10px' : '7px') + ' sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(r.type.icon, sx, sy);
+  // Vehicle pickup special border
+  if (r.isVehiclePickup) {
+    const v = VEHICLES[r.vehicleKey];
+    const rCol = RARITY_COLORS[v ? v.rarity : 'common'] || '#4ade80';
+    ctx.strokeStyle = rCol; ctx.lineWidth = 1.5;
+    const rot = Date.now() * 0.003;
+    ctx.save(); ctx.translate(sx, sy); ctx.rotate(rot);
+    ctx.strokeRect(-sz - 2, -sz - 2, (sz + 2) * 2, (sz + 2) * 2);
+    ctx.restore();
+    ctx.font = '6px sans-serif'; ctx.fillStyle = rCol; ctx.fillText('NEW', sx, sy - sz - 5);
+  }
+  ctx.restore();
+}
+
+function showPixelRewardToast(rt, isPxMode) {
+  const el = document.createElement('div');
+  el.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(0);z-index:300;padding:14px 28px;border-radius:16px;background:rgba(15,15,25,.85);backdrop-filter:blur(12px);color:#fff;font-size:16px;text-align:center;pointer-events:none;transition:all .4s cubic-bezier(.17,.67,.35,1.3);border:1px solid rgba(255,255,255,.12);box-shadow:0 8px 32px rgba(0,0,0,.4);';
+  el.innerHTML = `<div style="font-size:32px;margin-bottom:4px">${rt.icon}</div><div style="font-weight:700;color:${rt.color}">${rt.name}</div><div style="font-size:13px;opacity:.7;margin-top:2px">+${rt.points} 分</div><div style="font-size:12px;opacity:.5;margin-top:4px">总分: ${PX.score}</div>`;
+  document.body.appendChild(el);
+  requestAnimationFrame(() => { el.style.transform = 'translate(-50%,-50%) scale(1)'; });
+  setTimeout(() => { el.style.opacity = '0'; el.style.transform = 'translate(-50%,-70%) scale(.8)'; }, 1500);
+  setTimeout(() => el.remove(), 2200);
+}
+
 function drawPlayer(ctx) {
   const iso = isoProject(PX.px, PX.py);
   const bounce = PX.pMoving ? Math.sin(Date.now() * 0.012) * 2 : 0;
@@ -2960,7 +3188,7 @@ function drawPlayer(ctx) {
   // Shadow
   ctx.fillStyle = 'rgba(0,0,0,.2)';
   ctx.beginPath();
-  const shW = (v === 'car') ? 10 : (v === 'bike' || v === 'scooter') ? 7 : 5;
+  const shW = (v === 'car' || v === 'motorcycle') ? 10 : (v === 'bike' || v === 'scooter') ? 7 : (v === 'boat') ? 9 : (v === 'helicopter') ? 0 : 5;
   ctx.ellipse(iso.sx, iso.sy + 2, shW, 2, 0, 0, Math.PI * 2);
   ctx.fill();
 
@@ -3061,6 +3289,76 @@ function drawPlayer(ctx) {
     if (PX.pDir === 3) { ctx.fillRect(iso.sx + 7, baseY - 4, 2, 2); }
     else if (PX.pDir === 1) { ctx.fillRect(iso.sx - 9, baseY - 4, 2, 2); }
     else { ctx.fillRect(iso.sx - 8, baseY - 5, 2, 1.5); ctx.fillRect(iso.sx + 6, baseY - 5, 2, 1.5); }
+  } else if (v === 'motorcycle') {
+    // Motorcycle body
+    ctx.fillStyle = '#6c3483'; ctx.fillRect(iso.sx - 6, baseY - 5, 12, 4);
+    ctx.fillStyle = '#8e44ad'; ctx.fillRect(iso.sx - 3, baseY - 8, 6, 3);
+    // Exhaust
+    ctx.fillStyle = '#888'; ctx.fillRect(iso.sx + 5, baseY - 3, 3, 1.5);
+    // Wheels
+    ctx.fillStyle = '#222';
+    ctx.beginPath(); ctx.arc(iso.sx - 5, baseY, 2.5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(iso.sx + 5, baseY, 2.5, 0, Math.PI * 2); ctx.fill();
+    if (PX.pMoving) { ctx.fillStyle = '#555'; const wr = Date.now() * 0.04; ctx.beginPath(); ctx.arc(iso.sx - 5, baseY, 1, wr, wr + 2); ctx.fill(); ctx.beginPath(); ctx.arc(iso.sx + 5, baseY, 1, wr + 1, wr + 3); ctx.fill(); }
+    // Rider
+    ctx.fillStyle = '#333'; ctx.fillRect(iso.sx - 2, baseY - 16, 4, 7);
+    ctx.fillStyle = '#fdd'; ctx.fillRect(iso.sx - 2, baseY - 20, 4, 4);
+    ctx.fillStyle = '#2c2c2c'; ctx.fillRect(iso.sx - 2.5, baseY - 21, 5, 2.5); // helmet visor
+    ctx.fillStyle = '#111'; ctx.fillRect(iso.sx - 2, baseY - 18, 4, 1); // visor
+    // Headlight
+    ctx.fillStyle = '#ffd700';
+    if (PX.pDir === 3) ctx.fillRect(iso.sx + 7, baseY - 4, 2, 2);
+    else if (PX.pDir === 1) ctx.fillRect(iso.sx - 9, baseY - 4, 2, 2);
+    else { ctx.fillRect(iso.sx - 6, baseY - 5, 1.5, 1.5); ctx.fillRect(iso.sx + 5, baseY - 5, 1.5, 1.5); }
+  } else if (v === 'boat') {
+    // Hull
+    ctx.fillStyle = '#8B4513'; ctx.beginPath();
+    ctx.moveTo(iso.sx - 8, baseY - 2); ctx.lineTo(iso.sx + 8, baseY - 2);
+    ctx.lineTo(iso.sx + 6, baseY + 3); ctx.lineTo(iso.sx - 6, baseY + 3);
+    ctx.closePath(); ctx.fill();
+    // Water splash
+    if (PX.pMoving) {
+      ctx.fillStyle = 'rgba(100,200,255,.4)';
+      for (let sp = 0; sp < 3; sp++) {
+        const sx2 = iso.sx + (Math.random() - .5) * 14, sy2 = baseY + 2 + Math.random() * 3;
+        ctx.beginPath(); ctx.arc(sx2, sy2, 1 + Math.random(), 0, Math.PI * 2); ctx.fill();
+      }
+    }
+    // Deck
+    ctx.fillStyle = '#A0522D'; ctx.fillRect(iso.sx - 5, baseY - 4, 10, 2);
+    // Rider
+    ctx.fillStyle = '#ff6b35'; ctx.fillRect(iso.sx - 2, baseY - 14, 4, 7);
+    ctx.fillStyle = '#fdd'; ctx.fillRect(iso.sx - 2, baseY - 18, 4, 4);
+    ctx.fillStyle = '#f39c12'; ctx.fillRect(iso.sx - 2.5, baseY - 19, 5, 2); // hat
+  } else if (v === 'helicopter') {
+    // Body
+    ctx.fillStyle = '#2c3e50'; ctx.fillRect(iso.sx - 6, baseY - 7, 12, 5);
+    ctx.fillStyle = '#34495e'; ctx.fillRect(iso.sx - 4, baseY - 10, 8, 3);
+    // Cockpit window
+    ctx.fillStyle = 'rgba(135,206,250,.6)'; ctx.fillRect(iso.sx - 3, baseY - 9, 6, 2);
+    // Tail
+    ctx.fillStyle = '#2c3e50'; ctx.fillRect(iso.sx + 5, baseY - 6, 6, 2);
+    ctx.fillStyle = '#e74c3c'; ctx.fillRect(iso.sx + 10, baseY - 8, 2, 4);
+    // Rotor (spinning)
+    const rotAng = Date.now() * 0.015;
+    ctx.strokeStyle = '#aaa'; ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(iso.sx - 10 * Math.cos(rotAng), baseY - 13);
+    ctx.lineTo(iso.sx + 10 * Math.cos(rotAng), baseY - 13);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(iso.sx - 10 * Math.sin(rotAng), baseY - 13);
+    ctx.lineTo(iso.sx + 10 * Math.sin(rotAng), baseY - 13);
+    ctx.stroke();
+    // Rotor hub
+    ctx.fillStyle = '#888'; ctx.beginPath(); ctx.arc(iso.sx, baseY - 13, 2, 0, Math.PI * 2); ctx.fill();
+    // Skids
+    ctx.strokeStyle = '#666'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(iso.sx - 5, baseY - 2); ctx.lineTo(iso.sx - 7, baseY + 1); ctx.lineTo(iso.sx + 7, baseY + 1); ctx.lineTo(iso.sx + 5, baseY - 2); ctx.stroke();
+    // Shadow is bigger for helicopter (floating effect)
+    ctx.globalAlpha = 0.15; ctx.fillStyle = '#000';
+    ctx.beginPath(); ctx.ellipse(iso.sx, iso.sy + 6, 8, 3, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = 1;
   }
 
   // Name tag
@@ -3068,7 +3366,7 @@ function drawPlayer(ctx) {
   ctx.font = '5px "Noto Sans SC",sans-serif';
   ctx.textAlign = 'center';
   ctx.fillStyle = '#fff';
-  const tagY = (v === 'car') ? baseY - 14 : baseY - 22;
+  const tagY = (v === 'car' || v === 'motorcycle') ? baseY - 14 : (v === 'helicopter') ? baseY - 18 : baseY - 22;
   ctx.fillText(vInfo.icon + ' ' + vInfo.name, iso.sx, tagY);
 }
 
@@ -3150,7 +3448,8 @@ function pixelGameLoop() {
     const tileX = Math.round(newX), tileY = Math.round(newY);
     if (tileX >= 0 && tileX < PX.worldW && tileY >= 0 && tileY < PX.worldH) {
       const tile = PX.ground[tileY][tileX];
-      const blocked = tile === 'water' || isOccupiedByBuilding(tileX, tileY);
+      const canWater = VEHICLES[PX.vehicle] && VEHICLES[PX.vehicle].canWater;
+      const blocked = (tile === 'water' && !canWater) || isOccupiedByBuilding(tileX, tileY);
       if (!blocked) {
         // Count steps
         if (Math.floor(PX.px) !== Math.floor(newX) || Math.floor(PX.py) !== Math.floor(newY)) {
@@ -3161,6 +3460,26 @@ function pixelGameLoop() {
       }
     }
   }
+
+  // Pixel reward collection check
+  PX.rewards.forEach(r => {
+    if (r.collected) return;
+    const dist = Math.abs(r.x - PX.px) + Math.abs(r.y - PX.py);
+    if (dist < 1.5) {
+      r.collected = true;
+      PX.collectedRewards[r.id] = true;
+      if (r.isVehiclePickup && r.vehicleKey) {
+        unlockVehicle(r.vehicleKey);
+        showVehicleUnlockToast(r.vehicleKey);
+        renderVehicleSelector('px');
+      } else {
+        PX.score += r.type.points;
+        showPixelRewardToast(r.type, true);
+      }
+    }
+  });
+  // Reward respawn
+  updateRewardRespawns(PX);
 
   // Camera follow player
   PX.camX += (PX.px - PX.camX) * 0.08;
@@ -3302,6 +3621,7 @@ const GX = {
   worldW:60,worldH:60,
   buildings:[],ground:null,particles:[],
   rewards:[],routePath:[],collectedRewards:{},score:0,
+  vehiclePickups:[],
   camX:30,camY:30,zoom:1.8,targetZoom:1.8,
   px:30,py:30,pDir:0,pMoving:false,steps:0,speed:0.05,
   baseSpeed:0.05,vehicle:'walk',boosting:false,boostEnergy:100,boostMax:100,boostDrain:0.8,boostRegen:0.3,
@@ -3316,6 +3636,12 @@ const GLASS_COLORS = {
   '购物':{base:'#28507a',baseL:'#3870a8',baseD:'#183050',glow:'#3ca0ff',edge:'rgba(80,140,200,.4)',accent:'#5af',sheen:'rgba(170,210,255,.3)'},
   '文艺':{base:'#5a3080',baseL:'#7848a8',baseD:'#3a1858',glow:'#b464ff',edge:'rgba(160,100,220,.4)',accent:'#a5f',sheen:'rgba(210,180,255,.3)'},
   '网红':{base:'#903060',baseL:'#b84880',baseD:'#601840',glow:'#ff64b4',edge:'rgba(220,100,160,.4)',accent:'#f6b',sheen:'rgba(255,180,220,.3)'},
+  '住宅办公':{base:'#3a5570',baseL:'#4a7090',baseD:'#2a3a50',glow:'#6a9ac0',edge:'rgba(100,140,180,.4)',accent:'#7ac',sheen:'rgba(170,200,230,.28)'},
+  '交通设施':{base:'#505060',baseL:'#686878',baseD:'#383848',glow:'#9090a8',edge:'rgba(130,130,150,.35)',accent:'#99a',sheen:'rgba(190,190,210,.25)'},
+  '生活服务':{base:'#1a7a68',baseL:'#28a088',baseD:'#105848',glow:'#40c8a8',edge:'rgba(60,180,150,.4)',accent:'#4ca',sheen:'rgba(150,230,210,.3)'},
+  '体育休闲':{base:'#2a7a3a',baseL:'#38a048',baseD:'#185828',glow:'#50c860',edge:'rgba(70,180,90,.4)',accent:'#5c6',sheen:'rgba(160,230,170,.28)'},
+  '医疗保健':{base:'#808898',baseL:'#a0a8b8',baseD:'#606878',glow:'#c0c8d8',edge:'rgba(170,178,200,.4)',accent:'#bcd',sheen:'rgba(220,225,240,.35)'},
+  '科教文化':{base:'#2a3448',baseL:'#3a4a68',baseD:'#1a2430',glow:'#5a7098',edge:'rgba(80,100,140,.35)',accent:'#68a',sheen:'rgba(160,180,210,.28)'},
   'default':{base:'#3a4550',baseL:'#506070',baseD:'#252e35',glow:'#8ca0b4',edge:'rgba(120,140,160,.35)',accent:'#8ab',sheen:'rgba(180,200,220,.25)'},
 };
 
@@ -3362,9 +3688,9 @@ async function initGlassCity(cityName){
   let poiData=[];
   if(typeof AMap!=='undefined'&&!APP.demoMode){
     try{
-      const cats=[{type:'110000',name:'景点'},{type:'050000',name:'美食'},{type:'060000',name:'购物'},{type:'080000',name:'文艺'},{type:'141000',name:'网红'}];
+      const cats=POI_CATEGORIES;
       setGlassLoad(20,'搜索建筑...');
-      const results=await Promise.all(cats.map(c=>amapPOISearch(c.name,cityName,c.type)));
+      const results=await Promise.all(cats.map(c=>amapPOISearch(c.name,cityName,c.code)));
       cats.forEach((cat,ci)=>{(results[ci]||[]).forEach(poi=>{if(poi.location){const[lng,lat]=poi.location.split(',').map(Number);if(lng&&lat)poiData.push({name:poi.name,type:cat.name,address:poi.address||'',lat,lng});}});});
     }catch(e){console.warn('Glass POI fetch:',e);}
   }
@@ -3467,22 +3793,14 @@ async function initGlassCity(cityName){
       while(cy2!==(b2.y+1)){cy2+=dy3;GX.routePath.push({x:cx2,y:cy2});}
     }
   }
-  // Place rewards along route path
-  const REWARD_TYPES=[
-    {icon:'⭐',name:'星辰碎片',points:10,color:'#ffd700'},
-    {icon:'💎',name:'蓝宝石',points:25,color:'#5cadff'},
-    {icon:'🔮',name:'水晶球',points:15,color:'#b464ff'},
-    {icon:'🍜',name:'美食券',points:20,color:'#ffb43c'},
-    {icon:'📸',name:'打卡徽章',points:30,color:'#ff64b4'},
-    {icon:'🎁',name:'盲盒礼物',points:50,color:'#ff6b6b'},
-  ];
+  // Place rewards along route path (using global REWARD_TYPES)
   let rewardId=0;
   if(GX.routePath.length>0){
     const step=Math.max(3,Math.floor(GX.routePath.length/15));
     for(let i=step;i<GX.routePath.length;i+=step){
       const rp=GX.routePath[i];
       const rt=REWARD_TYPES[rewardId%REWARD_TYPES.length];
-      GX.rewards.push({id:rewardId,x:rp.x,y:rp.y,type:rt,collected:false,bobPhase:Math.random()*Math.PI*2});
+      GX.rewards.push({id:rewardId,x:rp.x,y:rp.y,type:rt,collected:false,bobPhase:Math.random()*Math.PI*2,fadeAlpha:1,respawning:false,respawnTimer:0,isVehiclePickup:false});
       rewardId++;
     }
   }
@@ -3490,9 +3808,33 @@ async function initGlassCity(cityName){
   routeBuildings.forEach((b,bi)=>{
     if(bi%2===0){
       const rt=REWARD_TYPES[(bi+3)%REWARD_TYPES.length];
-      GX.rewards.push({id:rewardId++,x:b.x-1,y:b.y+2,type:{...rt,points:rt.points*2,name:rt.name+'(双倍)'},collected:false,bobPhase:Math.random()*Math.PI*2});
+      GX.rewards.push({id:rewardId++,x:b.x-1,y:b.y+2,type:{...rt,points:rt.points*2,name:rt.name+'(双倍)'},collected:false,bobPhase:Math.random()*Math.PI*2,fadeAlpha:1,respawning:false,respawnTimer:0,isVehiclePickup:false});
     }
   });
+
+  // Place vehicle pickups in glass city
+  GX.vehiclePickups=[];
+  const gxPickupCount=Math.min(4,routeBuildings.length);
+  const gxUsedSlots=new Set();
+  for(let i=0;i<gxPickupCount;i++){
+    const vKey=pickRandomVehiclePickup();
+    if(!vKey)break;
+    let slot;
+    do{slot=Math.floor(Math.random()*routeBuildings.length);}while(gxUsedSlots.has(slot)&&gxUsedSlots.size<routeBuildings.length);
+    gxUsedSlots.add(slot);
+    const b=routeBuildings[slot];
+    const v=VEHICLES[vKey];
+    GX.rewards.push({
+      id:rewardId++,x:b.x+b.w+1,y:b.y+1,
+      type:{icon:v.icon,name:v.name,points:0,color:RARITY_COLORS[v.rarity]||'#ffd700'},
+      collected:false,bobPhase:Math.random()*Math.PI*2,fadeAlpha:1,
+      respawning:false,respawnTimer:0,
+      isVehiclePickup:true,vehicleKey:vKey
+    });
+  }
+
+  // Render vehicle selectors with lock state
+  renderVehicleSelector('glass');
 
   setGlassLoad(80,'初始化光影...');
 
@@ -3561,12 +3903,17 @@ function buildGlassWorld(pois){
     }
   });
 
-  // Filler buildings
+  // Density-aware filler buildings
   for(let y=mg;y<H-mg;y+=3){for(let x=mg;x<W-mg;x+=3){
-    if(GX.ground[y][x]==='grass'&&!occ.has(y+','+x)&&Math.random()<.25){
-      const bw=1;const bh=10+Math.floor(Math.random()*35);
+    if(GX.ground[y][x]==='grass'&&!occ.has(y+','+x)&&Math.random()<.3){
+      let nearbyCount=0;
+      GX.buildings.forEach(b=>{if(b.name&&Math.abs(b.x-x)+Math.abs(b.y-y)<10)nearbyCount++;});
+      const density=Math.min(nearbyCount/3,1);
+      const bw=1;const bh=10+Math.floor(Math.random()*(25+density*20));
       if(canPlaceG(x,y,bw,occ)){
-        GX.buildings.push({x,y,w:bw,h:bh,gc:GLASS_COLORS['default'],name:'',type:'',address:'',poiIdx:-1});
+        const fillerTypes=['住宅办公','生活服务','交通设施','医疗保健','default'];
+        const ft=fillerTypes[Math.floor(Math.random()*fillerTypes.length)];
+        GX.buildings.push({x,y,w:bw,h:bh,gc:GLASS_COLORS[ft]||GLASS_COLORS['default'],name:'',type:'',address:'',poiIdx:-1});
         for(let d=0;d<2;d++)occ.add((y+d)+','+x);
       }
     }
@@ -3752,9 +4099,12 @@ function glassRender(){
 }
 
 function drawGlassReward(ctx,r){
+  if(r.collected) return;
+  ctx.save();
+  ctx.globalAlpha = r.fadeAlpha !== undefined ? r.fadeAlpha : 1;
   const bobH=3+Math.sin(GX.time*4+r.bobPhase)*2;
   const p=glassProject(r.x,r.y,bobH);
-  const sz=8*p.scale;
+  const sz=(r.isVehiclePickup ? 12 : 8)*p.scale;
   // Glow disc on ground
   const pg=glassProject(r.x,r.y,0);
   ctx.globalAlpha=0.25+Math.sin(GX.time*3+r.bobPhase)*0.1;
@@ -3777,6 +4127,20 @@ function drawGlassReward(ctx,r){
   ctx.strokeText('+'+r.type.points,p.sx,p.sy-sz-3);
   ctx.fillText('+'+r.type.points,p.sx,p.sy-sz-3);
   ctx.textAlign='start';
+  // Vehicle pickup special border
+  if(r.isVehiclePickup){
+    const v=VEHICLES[r.vehicleKey];
+    const rCol=RARITY_COLORS[v?v.rarity:'common']||'#4ade80';
+    ctx.strokeStyle=rCol;ctx.lineWidth=2;
+    const rot=GX.time*2;
+    ctx.save();ctx.translate(p.sx,p.sy);ctx.rotate(rot);
+    ctx.strokeRect(-sz-3,-sz-3,(sz+3)*2,(sz+3)*2);
+    ctx.restore();
+    ctx.font='bold 8px sans-serif';ctx.fillStyle=rCol;ctx.textAlign='center';
+    ctx.fillText('NEW',p.sx,p.sy-sz-10);
+    ctx.textAlign='start';
+  }
+  ctx.restore();
 }
 
 function drawGlassBuilding(ctx,b){
@@ -3903,7 +4267,7 @@ function drawGlassPlayer(ctx){
 
   // Ground glow
   ctx.globalAlpha=0.15;
-  const glowR=(v==='car')?18:(v==='bike'||v==='scooter')?14:12;
+  const glowR=(v==='car'||v==='motorcycle')?18:(v==='helicopter')?20:(v==='bike'||v==='scooter'||v==='boat')?14:12;
   const gc2=bst?'#ffd700':'#5cadff';
   const gg=ctx.createRadialGradient(p.sx,p.sy+2,0,p.sx,p.sy+2,glowR);
   gg.addColorStop(0,gc2);gg.addColorStop(1,'transparent');
@@ -3911,7 +4275,7 @@ function drawGlassPlayer(ctx){
   ctx.globalAlpha=1;
 
   // Shadow
-  const shW=(v==='car')?12:(v==='bike'||v==='scooter')?8:6;
+  const shW=(v==='car'||v==='motorcycle')?12:(v==='helicopter')?0:(v==='bike'||v==='scooter'||v==='boat')?8:6;
   ctx.fillStyle='rgba(0,0,0,.3)';
   ctx.beginPath();ctx.ellipse(p.sx,p.sy+2,shW,2.5,0,0,Math.PI*2);ctx.fill();
 
@@ -3997,6 +4361,56 @@ function drawGlassPlayer(ctx){
     if(GX.pDir===3){ctx.fillRect(p.sx+9,by-5,2,2);}
     else if(GX.pDir===1){ctx.fillRect(p.sx-11,by-5,2,2);}
     else{ctx.fillRect(p.sx-10,by-6,2,1.5);ctx.fillRect(p.sx+8,by-6,2,1.5);}
+  }else if(v==='motorcycle'){
+    // Motorcycle body
+    const mg=ctx.createLinearGradient(p.sx-7,by-6,p.sx+7,by-6);
+    mg.addColorStop(0,'#4a1a6a');mg.addColorStop(0.5,'#8e44ad');mg.addColorStop(1,'#4a1a6a');
+    ctx.fillStyle=mg;ctx.fillRect(p.sx-7,by-6,14,5);
+    ctx.fillStyle='#6c3483';ctx.fillRect(p.sx-3,by-9,6,3);
+    ctx.fillStyle='#888';ctx.fillRect(p.sx+6,by-4,3,1.5);
+    ctx.fillStyle='#222';ctx.beginPath();ctx.arc(p.sx-6,by,3,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.arc(p.sx+6,by,3,0,Math.PI*2);ctx.fill();
+    // Rider
+    ctx.fillStyle='#1a1a1a';ctx.fillRect(p.sx-2.5,by-18,5,8);
+    ctx.fillStyle='#ffe0cc';ctx.fillRect(p.sx-2,by-22,4,4);
+    ctx.fillStyle='#222';ctx.fillRect(p.sx-2.5,by-23,5,2.5);
+    ctx.fillStyle='#111';ctx.fillRect(p.sx-2,by-20.5,4,1);
+    ctx.fillStyle='#ffd700';
+    if(GX.pDir===3)ctx.fillRect(p.sx+8,by-5,2,2);
+    else if(GX.pDir===1)ctx.fillRect(p.sx-10,by-5,2,2);
+    else{ctx.fillRect(p.sx-7,by-5,1.5,1.5);ctx.fillRect(p.sx+6,by-5,1.5,1.5);}
+  }else if(v==='boat'){
+    // Hull
+    const bg=ctx.createLinearGradient(p.sx-9,by-2,p.sx+9,by+3);
+    bg.addColorStop(0,'#5a3010');bg.addColorStop(0.5,'#8B4513');bg.addColorStop(1,'#5a3010');
+    ctx.fillStyle=bg;ctx.beginPath();
+    ctx.moveTo(p.sx-9,by-2);ctx.lineTo(p.sx+9,by-2);
+    ctx.lineTo(p.sx+7,by+4);ctx.lineTo(p.sx-7,by+4);
+    ctx.closePath();ctx.fill();
+    ctx.fillStyle='#A0522D';ctx.fillRect(p.sx-6,by-4,12,2);
+    if(GX.pMoving){ctx.fillStyle='rgba(100,200,255,.3)';for(let sp=0;sp<4;sp++){const sx2=p.sx+(Math.random()-.5)*16,sy2=by+3+Math.random()*3;ctx.beginPath();ctx.arc(sx2,sy2,1.5+Math.random(),0,Math.PI*2);ctx.fill();}}
+    // Rider
+    const rg4=ctx.createLinearGradient(p.sx-2,by-16,p.sx+2,by-16);
+    rg4.addColorStop(0,'#2a4a6a');rg4.addColorStop(1,'#3a6a9a');
+    ctx.fillStyle=rg4;ctx.fillRect(p.sx-2.5,by-16,5,8);
+    ctx.fillStyle='#ffe0cc';ctx.fillRect(p.sx-2,by-20,4,4);
+    ctx.fillStyle='#f39c12';ctx.fillRect(p.sx-2.5,by-21,5,2);
+  }else if(v==='helicopter'){
+    // Body
+    const hg=ctx.createLinearGradient(p.sx-7,by-8,p.sx+7,by-8);
+    hg.addColorStop(0,'#1a2a3a');hg.addColorStop(0.5,'#2c3e50');hg.addColorStop(1,'#1a2a3a');
+    ctx.fillStyle=hg;ctx.fillRect(p.sx-7,by-8,14,6);
+    ctx.fillStyle='#34495e';ctx.fillRect(p.sx-5,by-12,10,4);
+    ctx.fillStyle='rgba(135,206,250,.5)';ctx.fillRect(p.sx-4,by-11,8,2.5);
+    ctx.fillStyle='#2c3e50';ctx.fillRect(p.sx+6,by-7,7,2);
+    ctx.fillStyle='#e74c3c';ctx.fillRect(p.sx+12,by-9,2,5);
+    const rotA=GX.time*8;
+    ctx.strokeStyle='#bbb';ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.moveTo(p.sx-12*Math.cos(rotA),by-15);ctx.lineTo(p.sx+12*Math.cos(rotA),by-15);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(p.sx-12*Math.sin(rotA),by-15);ctx.lineTo(p.sx+12*Math.sin(rotA),by-15);ctx.stroke();
+    ctx.fillStyle='#999';ctx.beginPath();ctx.arc(p.sx,by-15,2.5,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle='#666';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(p.sx-6,by-2);ctx.lineTo(p.sx-8,by+2);ctx.lineTo(p.sx+8,by+2);ctx.lineTo(p.sx+6,by-2);ctx.stroke();
   }
 
   ctx.shadowColor='transparent';ctx.shadowBlur=0;
@@ -4006,7 +4420,7 @@ function drawGlassPlayer(ctx){
   const tagText=vInfo.icon+' '+vInfo.name;
   ctx.font='5px "Noto Sans SC",sans-serif';
   const tagW2=ctx.measureText(tagText).width||24;
-  const tagY2=(v==='car')?by-16:by-28;
+  const tagY2=(v==='car'||v==='motorcycle')?by-16:(v==='helicopter')?by-20:by-28;
   ctx.fillStyle='rgba(20,30,50,.5)';
   ctx.fillRect(p.sx-tagW2/2-4,tagY2-2,tagW2+8,10);
   ctx.strokeStyle=bst?'rgba(255,215,0,.3)':'rgba(92,173,255,.2)';ctx.lineWidth=0.4;
@@ -4072,7 +4486,8 @@ function glassGameLoop(){
     const tx=Math.round(nx),ty=Math.round(ny);
     if(tx>=0&&tx<GX.worldW&&ty>=0&&ty<GX.worldH){
       const tile=GX.ground[ty][tx];
-      if(tile!=='water'&&!GX.buildings.some(b=>tx>=b.x&&tx<b.x+b.w&&ty>=b.y&&ty<b.y+2)){
+      const canWater=VEHICLES[GX.vehicle]&&VEHICLES[GX.vehicle].canWater;
+      if((tile!=='water'||canWater)&&!GX.buildings.some(b=>tx>=b.x&&tx<b.x+b.w&&ty>=b.y&&ty<b.y+2)){
         if(Math.floor(GX.px)!==Math.floor(nx)||Math.floor(GX.py)!==Math.floor(ny))GX.steps++;
         GX.px=nx;GX.py=ny;
       }
@@ -4087,10 +4502,18 @@ function glassGameLoop(){
     if(dist<1.5){
       r.collected=true;
       GX.collectedRewards[r.id]=true;
-      GX.score+=r.type.points;
-      showGlassRewardToast(r.type);
+      if(r.isVehiclePickup&&r.vehicleKey){
+        unlockVehicle(r.vehicleKey);
+        showVehicleUnlockToast(r.vehicleKey);
+        renderVehicleSelector('glass');
+      }else{
+        GX.score+=r.type.points;
+        showGlassRewardToast(r.type);
+      }
     }
   });
+  // Reward respawn
+  updateRewardRespawns(GX);
   glassRender();
   GX.animFrame=requestAnimationFrame(glassGameLoop);
 }

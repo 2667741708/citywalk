@@ -640,6 +640,7 @@ input{font-family:inherit;border:none;outline:none}
         <button class="pixel-action-btn" onclick="pixelInteract()" title="互动">💬</button>
         <button class="pixel-action-btn" onclick="pixelZoom(1)" title="放大">➕</button>
         <button class="pixel-action-btn" onclick="pixelZoom(-1)" title="缩小">➖</button>
+        <button class="pixel-action-btn" id="pxGhostBtn" onclick="toggleGhostMode('px')" title="穿越模式:关">👻</button>
       </div>
       <div class="pixel-poi-popup" id="pixelPoiPopup">
         <span class="pp-close" onclick="closePoiPopup()">✕</span>
@@ -692,6 +693,7 @@ input{font-family:inherit;border:none;outline:none}
         <button class="glass-action-btn" onclick="glassInteract()" title="互动">💬</button>
         <button class="glass-action-btn" onclick="glassZoom(1)" title="放大">＋</button>
         <button class="glass-action-btn" onclick="glassZoom(-1)" title="缩小">－</button>
+        <button class="glass-action-btn" id="gxGhostBtn" onclick="toggleGhostMode('gx')" title="穿越模式:关">👻</button>
       </div>
       <div class="glass-poi-popup" id="glassPoiPopup">
         <span class="gp-close" onclick="closeGlassPopup()">✕</span>
@@ -2602,6 +2604,20 @@ function generateChunkTerrain(chunk){
   }}
   chunk.generated=true;
 }
+// Random building name pools by category for filler buildings
+const FILLER_NAMES={
+  '景点':['城市公园','纪念广场','文化宫','博物馆','展览馆','名人故居','历史遗址','古塔','观景台','碑林'],
+  '美食':['老字号面馆','烧烤大排档','甜品屋','火锅店','早茶楼','小笼包铺','奶茶店','烤鸭店','川菜馆','粤菜馆','拉面馆','饺子馆','咖啡厅','面包坊'],
+  '购物':['百货商场','潮牌集合店','文创市集','古董店','书店','数码城','花卉市场','茶叶店','特产商城','零食铺'],
+  '文艺':['画廊','独立书店','咖啡书屋','手作工坊','艺术空间','摄影工作室','陶艺馆','音乐酒吧','剧场','诗社'],
+  '网红':['网红墙','打卡地标','主题咖啡','猫咖','沉浸体验馆','密室逃脱','剧本杀','VR体验','屋顶花园','天台酒吧'],
+  '住宅办公':['写字楼','商务中心','公寓','居民楼','创业园','联合办公','产业园','科技大厦','金融中心','总部基地'],
+  '交通设施':['公交站','地铁站','停车场','出租站','共享单车点','充电站','客运站','高铁站'],
+  '生活服务':['便利店','超市','药房','洗衣店','理发店','快递站','银行','邮局','健身房','宠物店'],
+  '体育休闲':['篮球场','足球场','游泳馆','羽毛球馆','公园绿地','滑板场','攀岩馆','瑜伽馆'],
+  '医疗保健':['社区医院','诊所','中医馆','体检中心','口腔医院','眼科医院','康复中心','养生堂'],
+  '科教文化':['小学','中学','大学','图书馆','科技馆','天文馆','少年宫','培训机构','研究所','实验室'],
+};
 // Filler buildings for chunks without POI data
 function generateChunkFillers(engine,chunk){
   const S=CHUNK_SIZE,rng=mulberry32(chunk.seed+99999);
@@ -2621,31 +2637,35 @@ function generateChunkFillers(engine,chunk){
       if(isGlass){
         const gc=GLASS_COLORS[catName]||GLASS_COLORS['default'];
         const bh=10+Math.floor(rng()*30);
-        chunk.buildings.push({lx,ly,x:gx,y:gy,w:bw,h:bh,gc,name:'',type:catName,address:'',poiIdx:-1});
+        const names=FILLER_NAMES[catName]||FILLER_NAMES['生活服务'];
+        const bName=names[Math.floor(rng()*names.length)];
+        chunk.buildings.push({lx,ly,x:gx,y:gy,w:bw,h:bh,gc,name:bName,type:catName,address:'',poiIdx:-1});
       }else{
         const bt=BLDG_TYPES[catName]||BLDG_TYPES['default'];
         const bh=bt.h[0]+Math.floor(rng()*(bt.h[1]-bt.h[0]+1));
+        const names=FILLER_NAMES[catName]||FILLER_NAMES['生活服务'];
+        const bName=names[Math.floor(rng()*names.length)];
         chunk.buildings.push({lx,ly,x:gx,y:gy,w:bw,h:bh,
           color:bt.colors[Math.floor(rng()*bt.colors.length)],roofColor:bt.roofColor,
-          style:bt.style,icon:bt.icon,name:'',type:catName,address:'',poiIdx:-1});
+          style:bt.style,icon:bt.icon,name:bName,type:catName,address:'',poiIdx:-1});
       }
       for(let dy=0;dy<2;dy++)for(let dx=0;dx<bw;dx++)occupied.add((ly+dy)+','+(lx+dx));
     }
   }}
   // Generate seeded rewards scattered in chunk
   const rwRng=mulberry32(chunk.seed+77777);
-  let rwId=chunk.cx*10000+chunk.cy*100;
-  for(let i=0;i<3;i++){
+  let rwId=Math.abs(chunk.cx*10000+chunk.cy*100);
+  for(let i=0;i<8;i++){
     const rx=Math.floor(rwRng()*S),ry=Math.floor(rwRng()*S);
-    if(chunk.ground[ry]&&chunk.ground[ry][rx]==='road'){
+    if(chunk.ground[ry]&&chunk.ground[ry][rx]!=='water'){
       const rt=REWARD_TYPES[rwId%REWARD_TYPES.length];
       chunk.rewards.push({id:'r'+rwId,x:chunk.cx*S+rx,y:chunk.cy*S+ry,type:rt,collected:false,
         bobPhase:rwRng()*Math.PI*2,fadeAlpha:1,respawning:false,respawnTimer:0,isVehiclePickup:false});
       rwId++;
     }
   }
-  // Rare vehicle pickup (1 in 5 chunks)
-  if(rwRng()<0.2){
+  // Rare vehicle pickup (1 in 3 chunks)
+  if(rwRng()<0.33){
     const vKeys=Object.keys(VEHICLES).filter(k=>k!=='walk');
     if(vKeys.length>0){
       const vk=vKeys[Math.floor(rwRng()*vKeys.length)];
@@ -2693,6 +2713,7 @@ function getVisibleTrees(engine){
   return all;
 }
 function isOccupiedInfinite(engine,tx,ty){
+  if(engine.ghostMode)return false;
   if(!engine.infiniteMode){
     return engine.buildings.some(b=>tx>=b.x&&tx<b.x+b.w&&ty>=b.y&&ty<b.y+2);
   }
@@ -2700,6 +2721,13 @@ function isOccupiedInfinite(engine,tx,ty){
   const chunk=engine.chunkMgr.chunks.get(cx+','+cy);
   if(!chunk)return false;
   return chunk.buildings.some(b=>tx>=b.x&&tx<b.x+b.w&&ty>=b.y&&ty<b.y+2);
+}
+function toggleGhostMode(engineType){
+  const engine=engineType==='px'?PX:GX;
+  engine.ghostMode=!engine.ghostMode;
+  const btn=document.getElementById(engineType+'GhostBtn');
+  if(btn){btn.style.background=engine.ghostMode?'rgba(0,255,200,0.35)':'rgba(0,0,0,0.25)';btn.title=engine.ghostMode?'穿越模式:开':'穿越模式:关';}
+  showToast(engine.ghostMode?'穿越模式已开启 · 可穿过建筑':'穿越模式已关闭');
 }
 // API throttling for POI search
 const API_THROTTLE={queue:[],active:0,maxConcurrent:2,minInterval:300,lastCallTime:0};
@@ -3010,8 +3038,7 @@ const PX = {
   rewards: [], collectedRewards: {}, score: 0,
   vehiclePickups: [],
   // Infinite mode
-  infiniteMode: false, chunkMgr: null,
-  // Colors palette (pixel art)
+  infiniteMode: false, chunkMgr: null, ghostMode: false,
   SKY_TOP: '#1a1a3e', SKY_BOT: '#2d2d5a',
   GRASS: ['#4a7c59','#5a8c65','#3d6b4a'],
   ROAD: ['#6b6b7b','#5a5a6a','#7a7a8a'],
@@ -3720,6 +3747,7 @@ function drawTree(ctx, t) {
 
 function drawPixelReward(ctx, r) {
   if (r.collected) return;
+  if (!r.type) r.type = REWARD_TYPES[0];
   const iso = isoProject(r.x, r.y);
   const bobH = Math.sin(Date.now() * 0.004 + r.bobPhase) * 3;
   const sx = iso.sx, sy = iso.sy - 8 + bobH;
@@ -4072,7 +4100,7 @@ function pixelGameLoop() {
     if (PX.infiniteMode || (tileX >= 0 && tileX < PX.worldW && tileY >= 0 && tileY < PX.worldH)) {
       const tile = getGround(PX, tileX, tileY);
       const canWater = VEHICLES[PX.vehicle] && VEHICLES[PX.vehicle].canWater;
-      const blocked = (tile === 'water' && !canWater) || isOccupiedInfinite(PX, tileX, tileY);
+      const blocked = !PX.ghostMode && ((tile === 'water' && !canWater) || isOccupiedInfinite(PX, tileX, tileY));
       if (!blocked) {
         // Count steps
         if (Math.floor(PX.px) !== Math.floor(newX) || Math.floor(PX.py) !== Math.floor(newY)) {
@@ -4123,10 +4151,15 @@ function isOccupiedByBuilding(tx, ty) {
 
 // ---- Input handling ----
 function setupPixelListeners() {
-  window._pxKeyDown = e => { PX.keys[e.key] = true; };
+  window._pxKeyDown = e => { PX.keys[e.key] = true; if(e.key==='g'||e.key==='G')toggleGhostMode('px'); };
   window._pxKeyUp = e => { PX.keys[e.key] = false; };
   window.addEventListener('keydown', window._pxKeyDown);
   window.addEventListener('keyup', window._pxKeyUp);
+
+  // Mouse wheel zoom
+  const pxWrap = document.getElementById('pixelCanvasWrap');
+  window._pxWheel = e => { e.preventDefault(); pixelZoom(e.deltaY < 0 ? 1 : -1); };
+  pxWrap.addEventListener('wheel', window._pxWheel, {passive:false});
 
   // Joystick touch
   const joy = document.getElementById('pixelJoystick');
@@ -4185,6 +4218,8 @@ function removePixelListeners() {
   window.removeEventListener('touchend', window._pxTouchEnd);
   window.removeEventListener('mousemove', window._pxMouseMove);
   window.removeEventListener('mouseup', window._pxMouseUp);
+  const pxWrap=document.getElementById('pixelCanvasWrap');
+  if(pxWrap&&window._pxWheel)pxWrap.removeEventListener('wheel',window._pxWheel);
   PX.keys = {};
   PX.moveX = 0; PX.moveY = 0;
 }
@@ -4251,7 +4286,7 @@ const GX = {
   buildings:[],ground:null,particles:[],
   rewards:[],routePath:[],collectedRewards:{},score:0,
   vehiclePickups:[],
-  infiniteMode:false,chunkMgr:null,
+  infiniteMode:false,chunkMgr:null,ghostMode:false,
   camX:30,camY:30,zoom:1.8,targetZoom:1.8,
   px:30,py:30,pDir:0,pMoving:false,steps:0,speed:0.05,
   baseSpeed:0.05,vehicle:'walk',boosting:false,boostEnergy:100,boostMax:100,boostDrain:0.8,boostRegen:0.3,
@@ -4740,6 +4775,7 @@ function glassRender(){
 
 function drawGlassReward(ctx,r){
   if(r.collected) return;
+  if(!r.type) r.type=REWARD_TYPES[0];
   ctx.save();
   ctx.globalAlpha = r.fadeAlpha !== undefined ? r.fadeAlpha : 1;
   const bobH=3+Math.sin(GX.time*4+r.bobPhase)*2;
@@ -5159,7 +5195,7 @@ function glassGameLoop(){
     if(GX.infiniteMode||(tx>=0&&tx<GX.worldW&&ty>=0&&ty<GX.worldH)){
       const tile=getGround(GX,tx,ty);
       const canWater=VEHICLES[GX.vehicle]&&VEHICLES[GX.vehicle].canWater;
-      if((tile!=='water'||canWater)&&!isOccupiedInfinite(GX,tx,ty)){
+      if(GX.ghostMode||((tile!=='water'||canWater)&&!isOccupiedInfinite(GX,tx,ty))){
         if(Math.floor(GX.px)!==Math.floor(nx)||Math.floor(GX.py)!==Math.floor(ny)){GX.steps++;if(GX.infiniteMode){EXPLORE_TRACK.totalSteps++;checkStepMilestones();}}
         GX.px=nx;GX.py=ny;
       }
@@ -5195,10 +5231,15 @@ function glassGameLoop(){
 
 // --- Input ---
 function setupGlassListeners(){
-  window._gxKeyDown=e=>{GX.keys[e.key]=true;};
+  window._gxKeyDown=e=>{GX.keys[e.key]=true;if(e.key==='g'||e.key==='G')toggleGhostMode('gx');};
   window._gxKeyUp=e=>{GX.keys[e.key]=false;};
   window.addEventListener('keydown',window._gxKeyDown);
   window.addEventListener('keyup',window._gxKeyUp);
+
+  // Mouse wheel zoom
+  const gxWrap=document.getElementById('glassCanvasWrap');
+  window._gxWheel=e=>{e.preventDefault();glassZoom(e.deltaY<0?1:-1);};
+  gxWrap.addEventListener('wheel',window._gxWheel,{passive:false});
   const joy=document.getElementById('glassJoystick');
   const knob=document.getElementById('glassJoystickKnob');
   let ja=false;const jR=40;
@@ -5233,6 +5274,8 @@ function removeGlassListeners(){
   window.removeEventListener('touchend',window._gxTE);
   window.removeEventListener('mousemove',window._gxMM);
   window.removeEventListener('mouseup',window._gxMU);
+  const gxWrap=document.getElementById('glassCanvasWrap');
+  if(gxWrap&&window._gxWheel)gxWrap.removeEventListener('wheel',window._gxWheel);
   GX.keys={};GX.moveX=0;GX.moveY=0;
 }
 function glassZoom(dir){GX.targetZoom=Math.max(0.8,Math.min(4,GX.targetZoom+dir*0.3));}

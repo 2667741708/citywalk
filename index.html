@@ -63,8 +63,12 @@ input{font-family:inherit;border:none;outline:none}
 .search-input-wrap{position:relative;display:flex;align-items:center;background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;border:2px solid transparent;transition:border-color .3s,box-shadow .3s}
 .search-input-wrap:focus-within{border-color:var(--accent);box-shadow:0 8px 32px rgba(255,107,53,.15)}
 .search-icon{position:absolute;left:16px;font-size:1.2rem;color:rgba(26,26,46,.3);pointer-events:none}
-.search-input{width:100%;padding:16px 16px 16px 48px;font-size:1rem;background:transparent;color:var(--ink)}
+.search-input{width:100%;padding:16px 52px 16px 48px;font-size:1rem;background:transparent;color:var(--ink)}
 .search-input::placeholder{color:rgba(26,26,46,.3)}
+.locate-btn{position:absolute;right:40px;width:36px;height:36px;border:none;background:linear-gradient(135deg,var(--accent),#e84393);color:#fff;border-radius:50%;font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform .2s,box-shadow .2s;z-index:2;padding:0}
+.locate-btn:hover{transform:scale(1.15);box-shadow:0 4px 12px rgba(255,107,53,.3)}
+.locate-btn:active{transform:scale(0.95)}
+.locate-btn.locating{animation:spin .8s linear infinite}
 .city-grid{max-width:600px;margin:24px auto;padding:0 20px 100px;width:100%;display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
 .city-card{position:relative;border-radius:var(--radius);overflow:hidden;aspect-ratio:4/3;cursor:pointer;transition:transform .35s cubic-bezier(.22,1,.36,1),box-shadow .35s}
 .city-card:hover{transform:translateY(-4px) scale(1.02);box-shadow:var(--shadow-lg)}
@@ -250,6 +254,10 @@ input{font-family:inherit;border:none;outline:none}
 @keyframes spin{to{transform:rotate(360deg)}}
 .search-hint{max-width:600px;margin:8px auto 0;padding:0 20px;width:100%;font-size:.72rem;color:rgba(26,26,46,.3);text-align:center;line-height:1.5;display:none}
 .search-hint.visible{display:block}
+.quick-cities{max-width:600px;margin:10px auto 0;padding:0 20px;width:100%;display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:center}
+.quick-label{font-size:.75rem;color:rgba(26,26,46,.35);margin-right:2px}
+.quick-chip{padding:5px 14px;border:1.5px solid rgba(26,26,46,.1);background:rgba(255,255,255,.8);border-radius:20px;font-size:.78rem;color:var(--ink);cursor:pointer;transition:all .2s;backdrop-filter:blur(4px)}
+.quick-chip:hover{border-color:var(--accent);color:var(--accent);background:#fff;transform:translateY(-1px);box-shadow:0 3px 10px rgba(255,107,53,.15)}
 .city-card.dynamic{border:2px dashed rgba(255,107,53,.3)}
 .city-card.dynamic .city-card-tag{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff}
 .discover-banner{max-width:600px;margin:0 auto 14px;padding:0 20px;width:100%}
@@ -489,10 +497,23 @@ input{font-family:inherit;border:none;outline:none}
       <div class="search-input-wrap">
         <span class="search-icon">🔍</span>
         <input class="search-input" id="citySearch" type="text" placeholder="输入任意城市名，回车搜索..." oninput="filterCities(this.value)" onkeydown="if(event.key==='Enter')discoverCity(this.value)">
+        <button class="locate-btn" id="locateBtn" onclick="locateMyCity()" title="定位当前城市">📍</button>
         <div class="search-loading" id="searchLoading" style="display:none"></div>
       </div>
     </div>
     <div class="search-hint" id="searchHint">输入城市名后按回车，自动从高德地图发现打卡路线</div>
+    <div class="quick-cities" id="quickCities">
+      <span class="quick-label">试试：</span>
+      <button class="quick-chip" onclick="discoverCity('南京')">南京</button>
+      <button class="quick-chip" onclick="discoverCity('西安')">西安</button>
+      <button class="quick-chip" onclick="discoverCity('重庆')">重庆</button>
+      <button class="quick-chip" onclick="discoverCity('厦门')">厦门</button>
+      <button class="quick-chip" onclick="discoverCity('武汉')">武汉</button>
+      <button class="quick-chip" onclick="discoverCity('苏州')">苏州</button>
+      <button class="quick-chip" onclick="discoverCity('大理')">大理</button>
+      <button class="quick-chip" onclick="discoverCity('深圳')">深圳</button>
+      <button class="quick-chip" onclick="refreshQuickCities()" title="换一批">🔄</button>
+    </div>
     <div class="city-grid" id="cityGrid"></div>
   </div>
 
@@ -1420,6 +1441,127 @@ async function discoverCity(cityName) {
     showToast('探索失败，请稍后重试');
     if (loader) loader.style.display = 'none';
   }
+}
+
+// === AUTO-DETECT CURRENT CITY ===
+async function locateMyCity() {
+  const btn = document.getElementById('locateBtn');
+  if (btn) btn.classList.add('locating');
+  showToast('正在定位您的城市...');
+
+  try {
+    // Method 1: AMap.CitySearch (IP-based, fast, no permission needed)
+    const cityName = await new Promise((resolve, reject) => {
+      if (typeof AMap === 'undefined') { reject('地图未加载'); return; }
+      const cs = new AMap.CitySearch();
+      cs.getLocalCity(function(status, result) {
+        if (status === 'complete' && result.info === 'OK') {
+          // result.city is like "上海市", strip the "市" suffix
+          let name = result.city || '';
+          name = name.replace(/[市省区]$/, '');
+          resolve(name);
+        } else {
+          reject('IP定位失败');
+        }
+      });
+    });
+
+    if (!cityName) {
+      showToast('无法获取城市信息');
+      if (btn) btn.classList.remove('locating');
+      return;
+    }
+
+    if (btn) btn.classList.remove('locating');
+
+    // Fill the search input with detected city
+    const input = document.getElementById('citySearch');
+    if (input) input.value = cityName;
+
+    showToast(`定位到：${cityName}`);
+
+    // Check if city already exists in list
+    const allCities = {...MOCK_DATA, ...DYNAMIC_CITIES};
+    if (allCities[cityName]) {
+      APP.selectedCity = cityName;
+      renderRouteList(cityName);
+      showView('routeList');
+    } else {
+      // Auto-discover the city
+      discoverCity(cityName);
+    }
+  } catch (err) {
+    console.warn('CitySearch failed, trying Geolocation...', err);
+    // Method 2: Browser Geolocation + Reverse Geocode
+    try {
+      const cityName = await locateViaBrowser();
+      if (btn) btn.classList.remove('locating');
+      if (!cityName) {
+        showToast('定位失败，请手动输入城市名');
+        return;
+      }
+      const input = document.getElementById('citySearch');
+      if (input) input.value = cityName;
+      showToast(`定位到：${cityName}`);
+      const allCities = {...MOCK_DATA, ...DYNAMIC_CITIES};
+      if (allCities[cityName]) {
+        APP.selectedCity = cityName;
+        renderRouteList(cityName);
+        showView('routeList');
+      } else {
+        discoverCity(cityName);
+      }
+    } catch (e2) {
+      if (btn) btn.classList.remove('locating');
+      showToast('定位失败，请手动输入城市名');
+    }
+  }
+}
+
+function locateViaBrowser() {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) { reject('不支持定位'); return; }
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        const lnglat = [pos.coords.longitude, pos.coords.latitude];
+        const geocoder = new AMap.Geocoder();
+        geocoder.getAddress(lnglat, function(status, result) {
+          if (status === 'complete' && result.regeocode) {
+            let city = result.regeocode.addressComponent.city || result.regeocode.addressComponent.province || '';
+            city = city.replace(/[市省区]$/, '');
+            resolve(city);
+          } else {
+            reject('反向地理编码失败');
+          }
+        });
+      },
+      err => reject(err.message),
+      { timeout: 8000, maximumAge: 300000 }
+    );
+  });
+}
+
+// === QUICK CITY SUGGESTIONS ===
+const CITY_POOL = [
+  '南京','西安','重庆','厦门','武汉','苏州','大理','深圳',
+  '青岛','昆明','桂林','三亚','拉萨','哈尔滨','天津','郑州',
+  '济南','福州','合肥','太原','贵阳','兰州','海口','银川',
+  '呼和浩特','乌鲁木齐','丽江','洛阳','扬州','泉州','绍兴',
+  '珠海','中山','佛山','东莞','威海','烟台','秦皇岛','大连',
+  '宁波','无锡','常州','温州','湖州','嘉兴','徐州','泰州',
+  '黄山','九江','景德镇','凤凰','平遥','周庄','乌镇','婺源'
+];
+function refreshQuickCities() {
+  const container = document.getElementById('quickCities');
+  if (!container) return;
+  // Exclude cities already in list
+  const existing = new Set(Object.keys({...MOCK_DATA, ...DYNAMIC_CITIES}));
+  const available = CITY_POOL.filter(c => !existing.has(c));
+  // Shuffle and pick 8
+  const shuffled = available.sort(() => Math.random() - 0.5).slice(0, 8);
+  container.innerHTML = '<span class="quick-label">试试：</span>' +
+    shuffled.map(c => `<button class="quick-chip" onclick="discoverCity('${c}')">${c}</button>`).join('') +
+    `<button class="quick-chip" onclick="refreshQuickCities()" title="换一批">🔄</button>`;
 }
 
 // Generate routes by clustering POIs by category and proximity
@@ -5710,6 +5852,6 @@ window.addEventListener('DOMContentLoaded', () => {
   }, 1200);
 });
 </script>
-<script src="https://webapi.amap.com/maps?v=2.0&key=d7427bb415e50eb00a01f93581ceb3ac&plugin=AMap.PlaceSearch,AMap.Walking,AMap.Geocoder,AMap.DistrictSearch"></script>
+<script src="https://webapi.amap.com/maps?v=2.0&key=d7427bb415e50eb00a01f93581ceb3ac&plugin=AMap.PlaceSearch,AMap.Walking,AMap.Geocoder,AMap.DistrictSearch,AMap.CitySearch,AMap.Geolocation"></script>
 </body>
 </html>

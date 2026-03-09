@@ -334,6 +334,7 @@ input{font-family:inherit;border:none;outline:none}
 .pixel-loading-overlay .pl-bar{width:180px;height:4px;background:rgba(255,255,255,.08);border-radius:4px;margin-top:12px;overflow:hidden}
 .pixel-loading-overlay .pl-fill{height:100%;background:linear-gradient(90deg,#6c5ce7,#a29bfe);border-radius:4px;transition:width .3s}
 /* === 3D GLASS CITY === */
+.mode-card.freeroam-mode .mode-card-top::before{background:linear-gradient(135deg,#ff6b35,#e84393,#6c5ce7)}
 .mode-card.glass-mode .mode-card-top::before{background:linear-gradient(135deg,#0f2027,#203a43,#2c5364)}
 .glass-city-panel{position:fixed;inset:0;z-index:225;background:#0a0a1a;display:none;flex-direction:column}
 .glass-city-panel.active{display:flex}
@@ -741,6 +742,9 @@ input{font-family:inherit;border:none;outline:none}
     <div class="tab-bar-inner">
       <button class="tab-item active" onclick="goBack('citySelect')">
         <span class="tab-icon">🏙️</span>城市
+      </button>
+      <button class="tab-item" onclick="openFreeroam()">
+        <span class="tab-icon">🌍</span>漫游
       </button>
       <button class="tab-item" onclick="showExplore()">
         <span class="tab-icon">🗺️</span>探索
@@ -1785,6 +1789,9 @@ function closeAchievements() {
 }
 // [CREATIVE_MODES]
 const CREATIVE_MODES = [
+  {id:'freeroam',icon:'🌍',name:'无限漫游',en:'FREE ROAM',
+   desc:'在无限延伸的城市中自由探索！基于高德地图POI数据，走到哪里城市就生成到哪里。选择一座城市作为起点，向任意方向出发吧。',
+   tags:['无限','探索','真实地图','动态生成'],cls:'freeroam-mode'},
   {id:'colorwalk',icon:'🌈',name:'ColorWalk',en:'COLOR WALK',
    desc:'每人选一个颜色，在CityWalk途中专注寻找属于自己颜色的城市元素——红色的门、蓝色的天、黄色的落叶。拍下来拼在一起，生成一组独一无二的城市色卡。',
    tags:['2-6人','拍照','社交','创意'],cls:'color-mode'},
@@ -1875,13 +1882,152 @@ function closeSubPanel(id) {
   }
 }
 function openMode(id) {
-  if (id === 'colorwalk') openColorWalk();
+  if (id === 'freeroam') openFreeroam();
+  else if (id === 'colorwalk') openColorWalk();
   else if (id === 'visit') openVisitMode();
   else if (id === 'blindwalk') openBlindWalk();
   else if (id === 'soundwalk') openSoundWalk();
   else if (id === 'timewalk') openTimeWalk();
   else if (id === 'pixelcity') openPixelCity();
   else if (id === 'glasscity') openGlassCity();
+}
+
+// === FREE ROAM (INFINITE MODE) ===
+function openFreeroam() {
+  const city = APP.selectedCity || '上海';
+  // Remove any existing overlay first
+  const existing = document.getElementById('freeroamOverlay');
+  if (existing) existing.remove();
+  // Show engine selection overlay
+  const overlay = document.createElement('div');
+  overlay.id = 'freeroamOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:500;display:flex;align-items:center;justify-content:center;background:rgba(10,10,20,.88);backdrop-filter:blur(12px);';
+  overlay.innerHTML = `
+    <div style="background:rgba(20,22,35,.95);border-radius:24px;padding:32px 28px;max-width:340px;width:90%;text-align:center;border:1px solid rgba(255,255,255,.08);box-shadow:0 24px 80px rgba(0,0,0,.5);">
+      <div style="font-size:3rem;margin-bottom:8px;">🌍</div>
+      <div style="font-family:var(--font-display);font-size:1.6rem;color:#fff;margin-bottom:4px;">无限漫游</div>
+      <div style="font-size:.78rem;color:rgba(255,255,255,.45);margin-bottom:20px;line-height:1.6;">从 <b style="color:var(--accent)">${city}</b> 出发，走向无尽的城市</div>
+      <div style="display:flex;gap:12px;margin-bottom:16px;">
+        <button onclick="startFreeroam('px')" style="flex:1;padding:18px 0;border-radius:16px;background:linear-gradient(135deg,#2d2d5a,#1a1a3e);border:1px solid rgba(255,255,255,.1);color:#fff;font-size:.95rem;font-weight:700;cursor:pointer;transition:all .2s;" onmouseover="this.style.borderColor='var(--accent)';this.style.boxShadow='0 0 20px rgba(255,107,53,.15)'" onmouseout="this.style.borderColor='rgba(255,255,255,.1)';this.style.boxShadow='none'">
+          <div style="font-size:2rem;margin-bottom:6px;">🎮</div>像素风格
+        </button>
+        <button onclick="startFreeroam('gx')" style="flex:1;padding:18px 0;border-radius:16px;background:linear-gradient(135deg,#1a2040,#0a0a20);border:1px solid rgba(255,255,255,.1);color:#fff;font-size:.95rem;font-weight:700;cursor:pointer;transition:all .2s;" onmouseover="this.style.borderColor='#5cadff';this.style.boxShadow='0 0 20px rgba(92,173,255,.15)'" onmouseout="this.style.borderColor='rgba(255,255,255,.1)';this.style.boxShadow='none'">
+          <div style="font-size:2rem;margin-bottom:6px;">✨</div>全景风格
+        </button>
+      </div>
+      <button onclick="document.getElementById('freeroamOverlay').remove()" style="padding:8px 24px;border-radius:20px;background:rgba(255,255,255,.06);color:rgba(255,255,255,.4);font-size:.8rem;cursor:pointer;border:none;">取消</button>
+    </div>`;
+  document.body.appendChild(overlay);
+  document.getElementById('creativePanel').classList.remove('active');
+}
+
+async function startFreeroam(type) {
+  const overlay = document.getElementById('freeroamOverlay');
+  if (overlay) overlay.remove();
+  const city = APP.selectedCity || '上海';
+
+  if (type === 'px') {
+    // Use pixel city panel
+    document.getElementById('pixelCityTag').textContent = city + ' · 无限';
+    document.getElementById('pixelCityPanel').classList.add('active');
+    document.getElementById('pixelLoading').classList.remove('hidden');
+    document.getElementById('pixelLoadBar').style.width = '0%';
+    document.getElementById('pixelLoadText').textContent = '正在初始化无限世界...';
+    setTimeout(async () => {
+      try {
+        // Setup canvas
+        const wrap = document.getElementById('pixelCanvasWrap');
+        PX.canvas = document.getElementById('pixelCanvas');
+        PX.ctx = PX.canvas.getContext('2d');
+        PX.miniCanvas = document.getElementById('minimapCanvas');
+        PX.miniCtx = PX.miniCanvas.getContext('2d');
+        function resize() {
+          PX.canvas.width = wrap.clientWidth;
+          PX.canvas.height = wrap.clientHeight;
+          PX.miniCanvas.width = 90;
+          PX.miniCanvas.height = 90;
+        }
+        resize();
+        window._pxResize = resize;
+        window.addEventListener('resize', resize);
+
+        document.getElementById('pixelLoadText').textContent = '获取城市坐标...';
+        document.getElementById('pixelLoadBar').style.width = '30%';
+        await initInfiniteMode('px', city);
+        document.getElementById('pixelLoadText').textContent = '生成初始区域...';
+        document.getElementById('pixelLoadBar').style.width = '70%';
+        // Small delay for visual feedback
+        await new Promise(r => setTimeout(r, 300));
+        document.getElementById('pixelLoadBar').style.width = '100%';
+        document.getElementById('pixelLoadText').textContent = '欢迎来到 ' + city + ' · 无限漫游';
+        await new Promise(r => setTimeout(r, 400));
+        document.getElementById('pixelLoading').classList.add('hidden');
+        PX.running = true;
+        PX.vehicle = 'walk';
+        PX.pMoving = false;
+        PX.moveX = 0; PX.moveY = 0;
+        PX.keys = {};
+        setupPixelListeners();
+        renderVehicleSelector('px');
+        pixelGameLoop();
+      } catch(e) {
+        console.error('Freeroam PX init error:', e);
+        document.getElementById('pixelLoadText').textContent = '初始化失败: ' + e.message;
+      }
+    }, 200);
+  } else {
+    // Use glass city panel
+    document.getElementById('glassCityTag').textContent = city + ' · 无限';
+    document.getElementById('glassCityPanel').classList.add('active');
+    document.getElementById('glassLoading').classList.remove('hidden');
+    document.getElementById('glassLoadBar').style.width = '0%';
+    document.getElementById('glassLoadText').textContent = '正在初始化无限世界...';
+    setTimeout(async () => {
+      try {
+        const wrap = document.getElementById('glassCanvasWrap');
+        GX.canvas = document.getElementById('glassCanvas');
+        GX.ctx = GX.canvas.getContext('2d');
+        GX.miniC = document.getElementById('glassMinimapCanvas');
+        GX.miniCtx = GX.miniC.getContext('2d');
+        function resize2() {
+          GX.canvas.width = wrap.clientWidth;
+          GX.canvas.height = wrap.clientHeight;
+          GX.miniC.width = 100;
+          GX.miniC.height = 100;
+        }
+        resize2();
+        window._glassResize = resize2;
+        window.addEventListener('resize', resize2);
+
+        document.getElementById('glassLoadText').textContent = '获取城市坐标...';
+        document.getElementById('glassLoadBar').style.width = '30%';
+        await initInfiniteMode('gx', city);
+        document.getElementById('glassLoadText').textContent = '生成初始区域...';
+        document.getElementById('glassLoadBar').style.width = '70%';
+        GX.particles = [];
+        for (let i = 0; i < 40; i++) {
+          GX.particles.push({x:GX.px+Math.random()*60-30,y:GX.py+Math.random()*60-30,z:Math.random()*80+20,speed:0.2+Math.random()*0.5,size:1+Math.random()*2,alpha:0.1+Math.random()*0.3});
+        }
+        await new Promise(r => setTimeout(r, 300));
+        document.getElementById('glassLoadBar').style.width = '100%';
+        document.getElementById('glassLoadText').textContent = '欢迎来到 ' + city + ' · 无限漫游';
+        await new Promise(r => setTimeout(r, 400));
+        document.getElementById('glassLoading').classList.add('hidden');
+        GX.running = true;
+        GX.time = 0;
+        GX.vehicle = 'walk';
+        GX.pMoving = false;
+        GX.moveX = 0; GX.moveY = 0;
+        GX.keys = {};
+        setupGlassListeners();
+        renderVehicleSelector('glass');
+        glassGameLoop();
+      } catch(e) {
+        console.error('Freeroam GX init error:', e);
+        document.getElementById('glassLoadText').textContent = '初始化失败: ' + e.message;
+      }
+    }, 200);
+  }
 }
 
 // === COLOR WALK ===
@@ -2409,6 +2555,434 @@ function updateBoost(st) {
   }
 }
 
+// === INFINITE WORLD CHUNK SYSTEM ===
+const CHUNK_SIZE = 32;
+const GEO = {originLat:31.23,originLng:121.47,degPerTileY:0.000135,degPerTileX:0.000156};
+function gridToGeo(gx,gy){return{lat:GEO.originLat-gy*GEO.degPerTileY,lng:GEO.originLng+gx*GEO.degPerTileX};}
+function geoToGrid(lat,lng){return{gx:(lng-GEO.originLng)/GEO.degPerTileX,gy:(GEO.originLat-lat)/GEO.degPerTileY};}
+function chunkSeed(cx,cy){return((cx*73856093)^(cy*19349663))>>>0;}
+function createChunkManager(){
+  return{chunks:new Map(),loading:new Set(),LOAD_RADIUS:2,UNLOAD_RADIUS:4,frameCounter:0};
+}
+function createChunk(cx,cy){
+  return{cx,cy,ground:null,buildings:[],trees:[],rewards:[],pois:[],generated:false,poisLoaded:false,poisLoading:false,seed:chunkSeed(cx,cy)};
+}
+function generateChunkTerrain(chunk){
+  const S=CHUNK_SIZE,rng=mulberry32(chunk.seed);
+  chunk.ground=[];
+  for(let y=0;y<S;y++){chunk.ground[y]=[];for(let x=0;x<S;x++)chunk.ground[y][x]='grass';}
+  // Main roads at fixed local positions (seamless across chunks)
+  const mainRoads=[10,22];
+  mainRoads.forEach(r=>{
+    for(let x=0;x<S;x++){if(r<S)chunk.ground[r][x]='road';}
+    for(let y=0;y<S;y++){if(r<S)chunk.ground[y][r]='road';}
+  });
+  // Secondary roads (seeded random, edge-to-edge)
+  const numSec=1+Math.floor(rng()*2);
+  for(let s=0;s<numSec;s++){
+    const isH=rng()>0.5,pos=2+Math.floor(rng()*(S-4));
+    if(isH){for(let x=0;x<S;x++)chunk.ground[pos][x]='road';}
+    else{for(let y=0;y<S;y++)chunk.ground[y][pos]='road';}
+  }
+  // Water: ~1 in 7 chunks have a river segment
+  if(((chunk.cx+chunk.cy*3)&7)===0){
+    const ry=8+Math.floor(rng()*14);
+    for(let x=0;x<S;x++){
+      const ww=2+Math.floor(rng()*2);
+      for(let d=0;d<ww;d++){if(ry+d<S)chunk.ground[ry+d][x]='water';}
+    }
+  }
+  // Decorative trees in grass areas
+  const TREE_COLORS=['#4a7c59','#5a8c65','#3d6b4a','#2d8e5e','#3a9960'];
+  for(let y=1;y<S-1;y+=3){for(let x=1;x<S-1;x+=3){
+    if(chunk.ground[y][x]==='grass'&&rng()<0.12){
+      chunk.trees.push({lx:x,ly:y,x:chunk.cx*S+x,y:chunk.cy*S+y,h:2+Math.floor(rng()*3),type:Math.floor(rng()*3),
+        size:1+Math.floor(rng()*2),color:TREE_COLORS[Math.floor(rng()*TREE_COLORS.length)]});
+    }
+  }}
+  chunk.generated=true;
+}
+// Filler buildings for chunks without POI data
+function generateChunkFillers(engine,chunk){
+  const S=CHUNK_SIZE,rng=mulberry32(chunk.seed+99999);
+  const occupied=new Set();
+  chunk.buildings.forEach(b=>{
+    for(let dy=0;dy<2;dy++)for(let dx=0;dx<b.w;dx++)occupied.add((b.ly+dy)+','+(b.lx+dx));
+  });
+  const isGlass=(engine===GX);
+  const catKeys=Object.keys(isGlass?GLASS_COLORS:BLDG_TYPES);
+  for(let ly=2;ly<S-2;ly+=4){for(let lx=2;lx<S-2;lx+=4){
+    if(chunk.ground[ly][lx]==='grass'&&!occupied.has(ly+','+lx)&&rng()<0.22){
+      const catName=catKeys[Math.floor(rng()*catKeys.length)];
+      if(catName==='default')continue;
+      const bw=1+Math.floor(rng()*2);
+      if(occupied.has(ly+','+(lx+1)))continue;
+      const gx=chunk.cx*S+lx,gy=chunk.cy*S+ly;
+      if(isGlass){
+        const gc=GLASS_COLORS[catName]||GLASS_COLORS['default'];
+        const bh=10+Math.floor(rng()*30);
+        chunk.buildings.push({lx,ly,x:gx,y:gy,w:bw,h:bh,gc,name:'',type:catName,address:'',poiIdx:-1});
+      }else{
+        const bt=BLDG_TYPES[catName]||BLDG_TYPES['default'];
+        const bh=bt.h[0]+Math.floor(rng()*(bt.h[1]-bt.h[0]+1));
+        chunk.buildings.push({lx,ly,x:gx,y:gy,w:bw,h:bh,
+          color:bt.colors[Math.floor(rng()*bt.colors.length)],roofColor:bt.roofColor,
+          style:bt.style,icon:bt.icon,name:'',type:catName,address:'',poiIdx:-1});
+      }
+      for(let dy=0;dy<2;dy++)for(let dx=0;dx<bw;dx++)occupied.add((ly+dy)+','+(lx+dx));
+    }
+  }}
+  // Generate seeded rewards scattered in chunk
+  const rwRng=mulberry32(chunk.seed+77777);
+  let rwId=chunk.cx*10000+chunk.cy*100;
+  for(let i=0;i<3;i++){
+    const rx=Math.floor(rwRng()*S),ry=Math.floor(rwRng()*S);
+    if(chunk.ground[ry]&&chunk.ground[ry][rx]==='road'){
+      const rt=REWARD_TYPES[rwId%REWARD_TYPES.length];
+      chunk.rewards.push({id:'r'+rwId,x:chunk.cx*S+rx,y:chunk.cy*S+ry,type:rt,collected:false,
+        bobPhase:rwRng()*Math.PI*2,fadeAlpha:1,respawning:false,respawnTimer:0,isVehiclePickup:false});
+      rwId++;
+    }
+  }
+  // Rare vehicle pickup (1 in 5 chunks)
+  if(rwRng()<0.2){
+    const vKeys=Object.keys(VEHICLES).filter(k=>k!=='walk');
+    if(vKeys.length>0){
+      const vk=vKeys[Math.floor(rwRng()*vKeys.length)];
+      const vrx=10+Math.floor(rwRng()*12),vry=10+Math.floor(rwRng()*12);
+      chunk.rewards.push({id:'v'+rwId,x:chunk.cx*S+vrx,y:chunk.cy*S+vry,type:REWARD_TYPES[0],collected:false,
+        bobPhase:rwRng()*Math.PI*2,fadeAlpha:1,respawning:false,respawnTimer:0,
+        isVehiclePickup:true,vehicleKey:vk});
+    }
+  }
+}
+function getGround(engine,gx,gy){
+  if(!engine.infiniteMode){
+    if(gx<0||gx>=engine.worldW||gy<0||gy>=engine.worldH)return 'grass';
+    return engine.ground[gy][gx];
+  }
+  const cx=Math.floor(gx/CHUNK_SIZE),cy=Math.floor(gy/CHUNK_SIZE);
+  const chunk=engine.chunkMgr.chunks.get(cx+','+cy);
+  if(!chunk||!chunk.generated)return 'grass';
+  const lx=((gx%CHUNK_SIZE)+CHUNK_SIZE)%CHUNK_SIZE;
+  const ly=((gy%CHUNK_SIZE)+CHUNK_SIZE)%CHUNK_SIZE;
+  return chunk.ground[ly][lx];
+}
+function getVisibleBuildings(engine){
+  if(!engine.infiniteMode)return engine.buildings;
+  const all=[];
+  for(const chunk of engine.chunkMgr.chunks.values()){
+    if(chunk.buildings.length)all.push(...chunk.buildings);
+  }
+  return all;
+}
+function getVisibleRewards(engine){
+  if(!engine.infiniteMode)return engine.rewards;
+  const all=[];
+  for(const chunk of engine.chunkMgr.chunks.values()){
+    if(chunk.rewards.length)all.push(...chunk.rewards);
+  }
+  return all;
+}
+function getVisibleTrees(engine){
+  if(!engine.infiniteMode)return engine.trees||[];
+  const all=[];
+  for(const chunk of engine.chunkMgr.chunks.values()){
+    if(chunk.trees.length)all.push(...chunk.trees);
+  }
+  return all;
+}
+function isOccupiedInfinite(engine,tx,ty){
+  if(!engine.infiniteMode){
+    return engine.buildings.some(b=>tx>=b.x&&tx<b.x+b.w&&ty>=b.y&&ty<b.y+2);
+  }
+  const cx=Math.floor(tx/CHUNK_SIZE),cy=Math.floor(ty/CHUNK_SIZE);
+  const chunk=engine.chunkMgr.chunks.get(cx+','+cy);
+  if(!chunk)return false;
+  return chunk.buildings.some(b=>tx>=b.x&&tx<b.x+b.w&&ty>=b.y&&ty<b.y+2);
+}
+// API throttling for POI search
+const API_THROTTLE={queue:[],active:0,maxConcurrent:2,minInterval:300,lastCallTime:0};
+API_THROTTLE.enqueue=function(fn){
+  return new Promise(resolve=>{
+    this.queue.push({resolve,fn});
+    this._process();
+  });
+};
+API_THROTTLE._process=function(){
+  if(this.active>=this.maxConcurrent||this.queue.length===0)return;
+  const now=Date.now(),wait=Math.max(0,this.minInterval-(now-this.lastCallTime));
+  if(wait>0){setTimeout(()=>this._process(),wait);return;}
+  this.active++;this.lastCallTime=Date.now();
+  const{resolve,fn}=this.queue.shift();
+  fn().then(r=>{resolve(r);this.active--;this._process();}).catch(()=>{resolve([]);this.active--;this._process();});
+};
+// POI cache
+const POI_CACHE=new Map();
+const POI_CACHE_TTL=30*60*1000;
+// Search POIs by geographic coordinates
+function chunkPOISearchNearBy(centerLng,centerLat,radius,typeCode){
+  return new Promise(resolve=>{
+    const timeout=setTimeout(()=>resolve([]),3000);
+    try{
+      if(typeof AMap==='undefined'){clearTimeout(timeout);resolve([]);return;}
+      const ps=new AMap.PlaceSearch({pageSize:20,type:typeCode||'',extensions:'base'});
+      ps.searchNearBy('',[centerLng,centerLat],radius,(status,result)=>{
+        clearTimeout(timeout);
+        if(status==='complete'&&result.poiList&&result.poiList.pois)resolve(result.poiList.pois);
+        else resolve([]);
+      });
+    }catch(e){clearTimeout(timeout);resolve([]);}
+  });
+}
+// Load POIs for a chunk
+async function loadChunkPOIs(engine,chunk){
+  const key=chunk.cx+','+chunk.cy;
+  if(chunk.poisLoaded||chunk.poisLoading)return;
+  chunk.poisLoading=true;
+  // Check cache
+  const cached=POI_CACHE.get(key);
+  if(cached&&Date.now()-cached.ts<POI_CACHE_TTL){
+    populateChunkBuildings(engine,chunk,cached.pois);
+    chunk.poisLoaded=true;chunk.poisLoading=false;return;
+  }
+  // Compute chunk center geo
+  const centerGx=chunk.cx*CHUNK_SIZE+CHUNK_SIZE/2;
+  const centerGy=chunk.cy*CHUNK_SIZE+CHUNK_SIZE/2;
+  const geo=gridToGeo(centerGx,centerGy);
+  // Search 3 priority categories via throttle
+  const priorityCats=[
+    {code:'110000',name:'景点'},{code:'050000',name:'美食'},
+    {code:'060000',name:'购物'},{code:'080000',name:'文艺'}
+  ];
+  const allPois=[];
+  try{
+    const results=await Promise.all(priorityCats.map(cat=>
+      API_THROTTLE.enqueue(()=>chunkPOISearchNearBy(geo.lng,geo.lat,500,cat.code))
+    ));
+    priorityCats.forEach((cat,ci)=>{
+      (results[ci]||[]).forEach(poi=>{
+        if(poi.location){
+          const[lng,lat]=poi.location.split(',').map(Number);
+          if(lng&&lat)allPois.push({name:poi.name,type:cat.name,address:poi.address||'',lat,lng});
+        }
+      });
+    });
+  }catch(e){console.warn('Chunk POI load error:',e);}
+  POI_CACHE.set(key,{pois:allPois,ts:Date.now()});
+  populateChunkBuildings(engine,chunk,allPois);
+  chunk.poisLoaded=true;chunk.poisLoading=false;
+}
+// Convert POIs to buildings within a chunk
+function populateChunkBuildings(engine,chunk,pois){
+  const S=CHUNK_SIZE,isGlass=(engine===GX);
+  const rng=mulberry32(chunk.seed+12345);
+  const occupied=new Set();
+  // Mark existing fillers
+  chunk.buildings.forEach(b=>{
+    for(let dy=0;dy<2;dy++)for(let dx=0;dx<b.w;dx++)occupied.add((b.ly+dy)+','+(b.lx+dx));
+  });
+  const poiBuildings=[];
+  pois.forEach((poi,idx)=>{
+    const grid=geoToGrid(poi.lat,poi.lng);
+    const lx=Math.round(grid.gx)-chunk.cx*S;
+    const ly=Math.round(grid.gy)-chunk.cy*S;
+    if(lx<1||lx>=S-3||ly<1||ly>=S-3)return;
+    if(isGlass){
+      const gc=GLASS_COLORS[poi.type]||GLASS_COLORS['default'];
+      const bw=1+Math.floor(rng()*2),bh=20+Math.floor(rng()*50);
+      for(let att=0;att<15;att++){
+        const ox=lx+(att%5)-2,oy=ly+Math.floor(att/5)-1;
+        if(ox<0||oy<0||ox+bw>=S||oy+2>=S)continue;
+        let ok=true;
+        for(let dy=0;dy<2&&ok;dy++)for(let dx=0;dx<bw&&ok;dx++){
+          if(occupied.has((oy+dy)+','+(ox+dx))||chunk.ground[oy+dy][ox+dx]==='water')ok=false;
+        }
+        if(ok){
+          const b={lx:ox,ly:oy,x:chunk.cx*S+ox,y:chunk.cy*S+oy,w:bw,h:bh,gc,
+            name:poi.name,type:poi.type,address:poi.address,poiIdx:idx};
+          poiBuildings.push(b);
+          for(let dy=0;dy<2;dy++)for(let dx=0;dx<bw;dx++)occupied.add((oy+dy)+','+(ox+dx));
+          // Connect to nearest road
+          connectChunkRoad(chunk,ox,oy);
+          break;
+        }
+      }
+    }else{
+      const bt=BLDG_TYPES[poi.type]||BLDG_TYPES['default'];
+      const bw=bt.w[0]+Math.floor(rng()*(bt.w[1]-bt.w[0]+1));
+      const bh=bt.h[0]+Math.floor(rng()*(bt.h[1]-bt.h[0]+1));
+      for(let att=0;att<15;att++){
+        const ox=lx+(att%5)-2,oy=ly+Math.floor(att/5)-1;
+        if(ox<0||oy<0||ox+bw>=S||oy+2>=S)continue;
+        let ok=true;
+        for(let dy=0;dy<2&&ok;dy++)for(let dx=0;dx<bw&&ok;dx++){
+          if(occupied.has((oy+dy)+','+(ox+dx))||chunk.ground[oy+dy][ox+dx]==='water')ok=false;
+        }
+        if(ok){
+          const b={lx:ox,ly:oy,x:chunk.cx*S+ox,y:chunk.cy*S+oy,w:bw,h:bh,
+            color:bt.colors[Math.floor(rng()*bt.colors.length)],roofColor:bt.roofColor,
+            style:bt.style,icon:bt.icon,name:poi.name,type:poi.type,address:poi.address,poiIdx:idx};
+          poiBuildings.push(b);
+          for(let dy=0;dy<2;dy++)for(let dx=0;dx<bw;dx++)occupied.add((oy+dy)+','+(ox+dx));
+          connectChunkRoad(chunk,ox,oy);
+          break;
+        }
+      }
+    }
+  });
+  // Remove fillers that overlap with new POI buildings, then add POI buildings
+  chunk.buildings=[...chunk.buildings.filter(b=>!poiBuildings.some(pb=>Math.abs(pb.lx-b.lx)<4&&Math.abs(pb.ly-b.ly)<4&&!b.name)),...poiBuildings];
+  // Generate rewards near POI buildings
+  let rId=chunk.cx*10000+chunk.cy*100;
+  poiBuildings.forEach((b,bi)=>{
+    if(bi%2===0){
+      const rt=REWARD_TYPES[rId%REWARD_TYPES.length];
+      chunk.rewards.push({id:'c'+rId,x:b.x+b.w+1,y:b.y+1,type:rt,collected:false,
+        bobPhase:rng()*Math.PI*2,fadeAlpha:1,respawning:false,respawnTimer:0,isVehiclePickup:false});
+      rId++;
+    }
+  });
+}
+function connectChunkRoad(chunk,bx,by){
+  const S=CHUNK_SIZE;
+  // Find nearest road
+  let bd=999,brx=-1,bry=-1;
+  for(let y=0;y<S;y++)for(let x=0;x<S;x++){
+    if(chunk.ground[y][x]==='road'){
+      const d=Math.abs(x-bx)+Math.abs(y-by);
+      if(d<bd){bd=d;brx=x;bry=y;}
+    }
+  }
+  if(brx<0)return;
+  // L-shaped path
+  const dx=brx>bx?1:-1;
+  for(let x=bx;x!==brx;x+=dx){if(x>=0&&x<S&&by>=0&&by<S&&chunk.ground[by][x]!=='water')chunk.ground[by][x]='road';}
+  const dy=bry>by?1:-1;
+  for(let y=by;y!==bry;y+=dy){if(brx>=0&&brx<S&&y>=0&&y<S&&chunk.ground[y][brx]!=='water')chunk.ground[y][brx]='road';}
+}
+// === EXPLORATION TRACKING ===
+const EXPLORE_TRACK={visitedChunks:new Set(),totalSteps:0,discoveredPOIs:0,distanceKm:0};
+function trackChunkVisit(cx,cy){
+  const key=cx+','+cy;
+  if(!EXPLORE_TRACK.visitedChunks.has(key)){
+    EXPLORE_TRACK.visitedChunks.add(key);
+    // Distance achievement milestones
+    const count=EXPLORE_TRACK.visitedChunks.size;
+    if(count===10)showToast('探索成就: 漫步者 - 探索了10个区域!');
+    if(count===25)showToast('探索成就: 行者 - 探索了25个区域!');
+    if(count===50)showToast('探索成就: 旅人 - 探索了50个区域!');
+    if(count===100)showToast('探索成就: 冒险家 - 探索了100个区域!');
+  }
+}
+function checkStepMilestones(){
+  const s=EXPLORE_TRACK.totalSteps;
+  if(s===100&&!EXPLORE_TRACK._m100){EXPLORE_TRACK._m100=true;showToast('步行100步! 城市在你脚下');}
+  if(s===500&&!EXPLORE_TRACK._m500){EXPLORE_TRACK._m500=true;showToast('步行500步! 真正的漫步者');}
+  if(s===1000&&!EXPLORE_TRACK._m1k){EXPLORE_TRACK._m1k=true;showToast('步行1000步! 距离约15公里');}
+  if(s===5000&&!EXPLORE_TRACK._m5k){EXPLORE_TRACK._m5k=true;showToast('步行5000步! 城市探索大师');}
+}
+function getExploreStats(){
+  return{chunks:EXPLORE_TRACK.visitedChunks.size,steps:EXPLORE_TRACK.totalSteps,
+    distKm:(EXPLORE_TRACK.totalSteps*0.015).toFixed(2)};
+}
+// Update chunks around player
+function updateChunks(engine){
+  const mgr=engine.chunkMgr;
+  if(!mgr)return;
+  mgr.frameCounter=(mgr.frameCounter||0)+1;
+  if(mgr.frameCounter%6!==0)return; // check every 6 frames
+  const pcx=Math.floor(engine.px/CHUNK_SIZE),pcy=Math.floor(engine.py/CHUNK_SIZE);
+  // Track current chunk visit
+  trackChunkVisit(pcx,pcy);
+  // Load nearby
+  for(let dy=-mgr.LOAD_RADIUS;dy<=mgr.LOAD_RADIUS;dy++){
+    for(let dx=-mgr.LOAD_RADIUS;dx<=mgr.LOAD_RADIUS;dx++){
+      const cx=pcx+dx,cy=pcy+dy,key=cx+','+cy;
+      if(!mgr.chunks.has(key)&&!mgr.loading.has(key)){
+        mgr.loading.add(key);
+        const chunk=createChunk(cx,cy);
+        generateChunkTerrain(chunk);
+        generateChunkFillers(engine,chunk);
+        mgr.chunks.set(key,chunk);
+        mgr.loading.delete(key);
+        // Async POI loading
+        if(typeof AMap!=='undefined'&&!APP.demoMode){
+          loadChunkPOIs(engine,chunk);
+        }
+      }
+    }
+  }
+  // Unload far chunks
+  for(const[key,chunk]of mgr.chunks){
+    const dist=Math.abs(chunk.cx-pcx)+Math.abs(chunk.cy-pcy);
+    if(dist>mgr.UNLOAD_RADIUS){
+      mgr.chunks.delete(key);
+    }
+  }
+}
+// Reverse geocode for HUD
+let _lastGeocodeTm=0,_lastGeocodeLoc='';
+function updateLocationHUD(engine){
+  const now=Date.now();
+  if(now-_lastGeocodeTm<5000)return;
+  _lastGeocodeTm=now;
+  const geo=gridToGeo(engine.px,engine.py);
+  if(typeof AMap==='undefined')return;
+  try{
+    AMap.plugin('AMap.Geocoder',()=>{
+      const gc=new AMap.Geocoder({});
+      gc.getAddress([geo.lng,geo.lat],(status,result)=>{
+        if(status==='complete'&&result.regeocode){
+          _lastGeocodeLoc=result.regeocode.formattedAddress||'';
+        }
+      });
+    });
+  }catch(e){}
+}
+// Initialize infinite mode for an engine
+async function initInfiniteMode(engineType,cityName){
+  const engine=engineType==='px'?PX:GX;
+  // Geocode city center (with timeout to avoid hanging)
+  let originLat=31.23,originLng=121.47;
+  if(typeof AMap!=='undefined'){
+    try{
+      const info=await Promise.race([amapGeocode(cityName),new Promise(r=>setTimeout(()=>r(null),3000))]);
+      if(info){originLat=info.lat;originLng=info.lng;}
+    }catch(e){}
+  }
+  GEO.originLat=originLat;GEO.originLng=originLng;
+  // Adjust degPerTileX for latitude
+  GEO.degPerTileX=0.000135/Math.cos(originLat*Math.PI/180);
+  // Set up engine
+  engine.infiniteMode=true;
+  engine.chunkMgr=createChunkManager();
+  engine.px=0;engine.py=0;
+  engine.camX=0;engine.camY=0;
+  engine.steps=0;engine.score=0;
+  engine.rewards=[];engine.collectedRewards={};engine.vehiclePickups=[];
+  engine.buildings=[];engine.trees=[];engine.pois=[];
+  engine.routePath=[];engine._geoBounds=null;
+  // Generate initial chunks (3x3 around origin)
+  for(let dy=-1;dy<=1;dy++){for(let dx=-1;dx<=1;dx++){
+    const cx=dx,cy=dy,key=cx+','+cy;
+    const chunk=createChunk(cx,cy);
+    generateChunkTerrain(chunk);
+    generateChunkFillers(engine,chunk);
+    engine.chunkMgr.chunks.set(key,chunk);
+    if(typeof AMap!=='undefined'&&!APP.demoMode)loadChunkPOIs(engine,chunk);
+  }}
+  // Place player on nearest road to (0,0)
+  for(let r=0;r<20;r++){
+    for(let dx=-r;dx<=r;dx++){for(let dy=-r;dy<=r;dy++){
+      if(getGround(engine,dx,dy)==='road'){
+        engine.px=dx;engine.py=dy;engine.camX=dx;engine.camY=dy;
+        return;
+      }
+    }}
+  }
+}
+
 // === PIXEL CITY ENGINE ===
 const PX = {
   canvas: null, ctx: null, miniCanvas: null, miniCtx: null,
@@ -2435,6 +3009,8 @@ const PX = {
   // Rewards
   rewards: [], collectedRewards: {}, score: 0,
   vehiclePickups: [],
+  // Infinite mode
+  infiniteMode: false, chunkMgr: null,
   // Colors palette (pixel art)
   SKY_TOP: '#1a1a3e', SKY_BOT: '#2d2d5a',
   GRASS: ['#4a7c59','#5a8c65','#3d6b4a'],
@@ -2924,16 +3500,16 @@ function pixelRender() {
 
   // Determine visible range
   const viewRange = Math.ceil(30 / PX.zoom);
-  const startX = Math.max(0, Math.floor(PX.camX - viewRange));
-  const endX = Math.min(PX.worldW - 1, Math.ceil(PX.camX + viewRange));
-  const startY = Math.max(0, Math.floor(PX.camY - viewRange));
-  const endY = Math.min(PX.worldH - 1, Math.ceil(PX.camY + viewRange));
+  const startX = PX.infiniteMode ? Math.floor(PX.camX - viewRange) : Math.max(0, Math.floor(PX.camX - viewRange));
+  const endX = PX.infiniteMode ? Math.ceil(PX.camX + viewRange) : Math.min(PX.worldW - 1, Math.ceil(PX.camX + viewRange));
+  const startY = PX.infiniteMode ? Math.floor(PX.camY - viewRange) : Math.max(0, Math.floor(PX.camY - viewRange));
+  const endY = PX.infiniteMode ? Math.ceil(PX.camY + viewRange) : Math.min(PX.worldH - 1, Math.ceil(PX.camY + viewRange));
 
   // Draw ground tiles
   for (let y = startY; y <= endY; y++) {
     for (let x = startX; x <= endX; x++) {
       const iso = isoProject(x, y);
-      const tile = PX.ground[y][x];
+      const tile = getGround(PX, x, y);
       if (tile === 'road') {
         drawIsoTile(ctx, iso.sx, iso.sy, PX.ROAD[0], PX.ROAD[1]);
       } else if (tile === 'water') {
@@ -2970,21 +3546,24 @@ function pixelRender() {
   const drawables = [];
 
   // Buildings in view
-  PX.buildings.forEach((b, bi) => {
+  const visBuildings = PX.infiniteMode ? getVisibleBuildings(PX) : PX.buildings;
+  visBuildings.forEach((b, bi) => {
     if (b.x + b.w >= startX && b.x <= endX && b.y + 2 >= startY && b.y <= endY) {
       drawables.push({ type: 'building', obj: b, sortY: b.y + 1, sortX: b.x + b.w / 2 });
     }
   });
 
   // Trees in view
-  PX.trees.forEach(t => {
+  const visTrees = PX.infiniteMode ? getVisibleTrees(PX) : (PX.trees || []);
+  visTrees.forEach(t => {
     if (t.x >= startX && t.x <= endX && t.y >= startY && t.y <= endY) {
       drawables.push({ type: 'tree', obj: t, sortY: t.y, sortX: t.x });
     }
   });
 
   // Rewards in view
-  PX.rewards.forEach(r => {
+  const visRewards = PX.infiniteMode ? getVisibleRewards(PX) : PX.rewards;
+  visRewards.forEach(r => {
     if (!r.collected && r.x >= startX && r.x <= endX && r.y >= startY && r.y <= endY) {
       drawables.push({ type: 'reward', obj: r, sortY: r.y, sortX: r.x });
     }
@@ -3007,13 +3586,23 @@ function pixelRender() {
   ctx.restore();
 
   // HUD updates
-  document.getElementById('hudCoord').textContent = Math.round(PX.px) + ', ' + Math.round(PX.py);
-  document.getElementById('hudBuildings').textContent = PX.buildings.filter(b => b.name).length;
+  if (PX.infiniteMode) {
+    const geo = gridToGeo(PX.px, PX.py);
+    document.getElementById('hudCoord').textContent = (_lastGeocodeLoc || geo.lat.toFixed(4) + ', ' + geo.lng.toFixed(4));
+    document.getElementById('hudBuildings').textContent = getVisibleBuildings(PX).length;
+    updateLocationHUD(PX);
+  } else {
+    document.getElementById('hudCoord').textContent = Math.round(PX.px) + ', ' + Math.round(PX.py);
+    document.getElementById('hudBuildings').textContent = PX.buildings.filter(b => b.name).length;
+  }
   document.getElementById('hudSteps').textContent = PX.steps;
   const pxScoreEl = document.getElementById('hudScore');
   if (pxScoreEl) pxScoreEl.textContent = PX.score + ' 分';
   const pxRwEl = document.getElementById('hudRewards');
-  if (pxRwEl) pxRwEl.textContent = PX.rewards.filter(r => r.collected).length + '/' + PX.rewards.length;
+  if (pxRwEl) {
+    const allRw = PX.infiniteMode ? getVisibleRewards(PX) : PX.rewards;
+    pxRwEl.textContent = allRw.filter(r => r.collected).length + '/' + allRw.length;
+  }
 
   // Minimap
   renderMinimap();
@@ -3042,7 +3631,7 @@ function drawBuilding(ctx, b) {
   const fx2 = iso.sx + (bw - 1) * tw / 2;
   const fy = iso.sy + th / 2;
 
-  ctx.fillStyle = b.color;
+  ctx.fillStyle = b.color || '#636e72';
   // Left face
   ctx.beginPath();
   ctx.moveTo(iso.sx - tw / 2 * bw, iso.sy);
@@ -3103,12 +3692,13 @@ function drawBuilding(ctx, b) {
 
 function drawTree(ctx, t) {
   const iso = isoProject(t.x, t.y);
-  const s = t.size;
+  const s = t.size || 1;
   // Trunk
   ctx.fillStyle = '#8B6914';
   ctx.fillRect(iso.sx - 1, iso.sy - 4 * s, 2, 6 * s);
   // Canopy (diamond pixel shape)
-  ctx.fillStyle = t.color;
+  const tc = t.color || '#4a7c59';
+  ctx.fillStyle = tc;
   const r = 3 + s * 2;
   ctx.beginPath();
   ctx.moveTo(iso.sx, iso.sy - 4 * s - r * 2);
@@ -3118,7 +3708,7 @@ function drawTree(ctx, t) {
   ctx.closePath();
   ctx.fill();
   // Highlight
-  ctx.fillStyle = lightenColor(t.color, 25);
+  ctx.fillStyle = lightenColor(tc, 25);
   ctx.beginPath();
   ctx.moveTo(iso.sx, iso.sy - 4 * s - r * 2);
   ctx.lineTo(iso.sx + r / 2, iso.sy - 4 * s - r * 1.5);
@@ -3376,6 +3966,33 @@ function renderMinimap() {
   mc.fillStyle = '#1a1a2e';
   mc.fillRect(0, 0, mw, mh);
 
+  if (PX.infiniteMode) {
+    // Infinite mode: show area around player
+    const viewTiles = 80;
+    const scale = mw / viewTiles;
+    const startGX = Math.floor(PX.px - viewTiles / 2);
+    const startGY = Math.floor(PX.py - viewTiles / 2);
+    for (let gy = startGY; gy < startGY + viewTiles; gy += 2) {
+      for (let gx = startGX; gx < startGX + viewTiles; gx += 2) {
+        const t = getGround(PX, gx, gy);
+        mc.fillStyle = t === 'road' ? '#555' : t === 'water' ? '#2980b9' : '#2d4a30';
+        mc.fillRect((gx - startGX) * scale, (gy - startGY) * scale, scale * 2, scale * 2);
+      }
+    }
+    const visBlds = getVisibleBuildings(PX);
+    visBlds.forEach(b => {
+      mc.fillStyle = b.name ? (b.roofColor || '#aaa') : '#666';
+      mc.fillRect((b.x - startGX) * scale, (b.y - startGY) * scale, b.w * scale, 2 * scale);
+    });
+    mc.fillStyle = '#ff6b35';
+    mc.fillRect(mw / 2 - 1.5, mh / 2 - 1.5, 3, 3);
+    mc.strokeStyle = 'rgba(255,255,255,.3)';
+    mc.lineWidth = 0.5;
+    const vr = 15 / PX.zoom;
+    mc.strokeRect((mw - vr * 2 * scale) / 2, (mh - vr * 2 * scale) / 2, vr * 2 * scale, vr * 2 * scale);
+    return;
+  }
+
   const scale = mw / PX.worldW;
   // Ground
   for (let y = 0; y < PX.worldH; y += 2) {
@@ -3446,14 +4063,21 @@ function pixelGameLoop() {
 
     // Collision check
     const tileX = Math.round(newX), tileY = Math.round(newY);
-    if (tileX >= 0 && tileX < PX.worldW && tileY >= 0 && tileY < PX.worldH) {
-      const tile = PX.ground[tileY][tileX];
+    if (!PX.infiniteMode && (tileX < 0 || tileX >= PX.worldW || tileY < 0 || tileY >= PX.worldH)) {
+      if (!PX._boundaryToastTime || Date.now() - PX._boundaryToastTime > 8000) {
+        PX._boundaryToastTime = Date.now();
+        showToast('已到达区域边界 · 试试底部「漫游」进入无限模式!');
+      }
+    }
+    if (PX.infiniteMode || (tileX >= 0 && tileX < PX.worldW && tileY >= 0 && tileY < PX.worldH)) {
+      const tile = getGround(PX, tileX, tileY);
       const canWater = VEHICLES[PX.vehicle] && VEHICLES[PX.vehicle].canWater;
-      const blocked = (tile === 'water' && !canWater) || isOccupiedByBuilding(tileX, tileY);
+      const blocked = (tile === 'water' && !canWater) || isOccupiedInfinite(PX, tileX, tileY);
       if (!blocked) {
         // Count steps
         if (Math.floor(PX.px) !== Math.floor(newX) || Math.floor(PX.py) !== Math.floor(newY)) {
           PX.steps++;
+          if(PX.infiniteMode){EXPLORE_TRACK.totalSteps++;checkStepMilestones();}
         }
         PX.px = newX;
         PX.py = newY;
@@ -3462,7 +4086,8 @@ function pixelGameLoop() {
   }
 
   // Pixel reward collection check
-  PX.rewards.forEach(r => {
+  const pxRewList = PX.infiniteMode ? getVisibleRewards(PX) : PX.rewards;
+  pxRewList.forEach(r => {
     if (r.collected) return;
     const dist = Math.abs(r.x - PX.px) + Math.abs(r.y - PX.py);
     if (dist < 1.5) {
@@ -3485,7 +4110,10 @@ function pixelGameLoop() {
   PX.camX += (PX.px - PX.camX) * 0.08;
   PX.camY += (PX.py - PX.camY) * 0.08;
 
-  pixelRender();
+  // Infinite mode: update chunks
+  if (PX.infiniteMode) updateChunks(PX);
+
+  try { pixelRender(); } catch(e) { console.warn('PX render error:', e); }
   PX.animFrame = requestAnimationFrame(pixelGameLoop);
 }
 
@@ -3605,6 +4233,7 @@ function mulberry32(a) {
 }
 
 function lightenColor(hex, amt) {
+  if(!hex)return '#888888';
   hex = hex.replace('#', '');
   if (hex.length === 3) hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
   let r = parseInt(hex.substring(0,2),16);
@@ -3622,6 +4251,7 @@ const GX = {
   buildings:[],ground:null,particles:[],
   rewards:[],routePath:[],collectedRewards:{},score:0,
   vehiclePickups:[],
+  infiniteMode:false,chunkMgr:null,
   camX:30,camY:30,zoom:1.8,targetZoom:1.8,
   px:30,py:30,pDir:0,pMoving:false,steps:0,speed:0.05,
   baseSpeed:0.05,vehicle:'walk',boosting:false,boostEnergy:100,boostMax:100,boostDrain:0.8,boostRegen:0.3,
@@ -4005,14 +4635,14 @@ function glassRender(){
   ctx.scale(GX.zoom,GX.zoom);
 
   const vr=Math.ceil(22/GX.zoom);
-  const sX=Math.max(0,Math.floor(GX.camX-vr)),eX=Math.min(GX.worldW-1,Math.ceil(GX.camX+vr));
-  const sY=Math.max(0,Math.floor(GX.camY-vr)),eY=Math.min(GX.worldH-1,Math.ceil(GX.camY+vr));
+  const sX=GX.infiniteMode?Math.floor(GX.camX-vr):Math.max(0,Math.floor(GX.camX-vr)),eX=GX.infiniteMode?Math.ceil(GX.camX+vr):Math.min(GX.worldW-1,Math.ceil(GX.camX+vr));
+  const sY=GX.infiniteMode?Math.floor(GX.camY-vr):Math.max(0,Math.floor(GX.camY-vr)),eY=GX.infiniteMode?Math.ceil(GX.camY+vr):Math.min(GX.worldH-1,Math.ceil(GX.camY+vr));
 
   // Ground
   const tw=28,th=14;
   for(let y=sY;y<=eY;y++){for(let x=sX;x<=eX;x++){
     const p=glassProject(x,y,0);
-    const tile=GX.ground[y][x];
+    const tile=getGround(GX,x,y);
     ctx.beginPath();
     ctx.moveTo(p.sx,p.sy-th/2);ctx.lineTo(p.sx+tw/2,p.sy);ctx.lineTo(p.sx,p.sy+th/2);ctx.lineTo(p.sx-tw/2,p.sy);ctx.closePath();
     if(tile==='road'){
@@ -4040,8 +4670,10 @@ function glassRender(){
   }}
 
   // Road reflections (subtle)
+  const gxVisBlds=GX.infiniteMode?getVisibleBuildings(GX):GX.buildings;
   ctx.globalAlpha=0.03;
-  GX.buildings.forEach(b=>{
+  gxVisBlds.forEach(b=>{
+    if(!b.gc)return;
     if(b.h>25){
       const p=glassProject(b.x,b.y+2,0);
       const rg=ctx.createRadialGradient(p.sx,p.sy,0,p.sx,p.sy,30);
@@ -4053,11 +4685,12 @@ function glassRender(){
 
   // Depth-sort drawables
   const drawables=[];
-  GX.buildings.forEach(b=>{
+  gxVisBlds.forEach(b=>{
     if(b.x+b.w>=sX&&b.x<=eX&&b.y+2>=sY&&b.y<=eY)
       drawables.push({type:'b',obj:b,sortKey:b.y+b.x*0.5});
   });
-  GX.rewards.forEach(r=>{
+  const gxVisRew=GX.infiniteMode?getVisibleRewards(GX):GX.rewards;
+  gxVisRew.forEach(r=>{
     if(!r.collected&&r.x>=sX&&r.x<=eX&&r.y>=sY&&r.y<=eY)
       drawables.push({type:'r',obj:r,sortKey:r.y+r.x*0.5});
   });
@@ -4088,12 +4721,19 @@ function glassRender(){
   ctx.restore();
 
   // HUD
-  document.getElementById('gHudCoord').textContent=Math.round(GX.px)+', '+Math.round(GX.py);
-  document.getElementById('gHudBuildings').textContent=GX.buildings.filter(b=>b.name).length+' 建筑';
+  if(GX.infiniteMode){
+    const geo2=gridToGeo(GX.px,GX.py);
+    document.getElementById('gHudCoord').textContent=(_lastGeocodeLoc||geo2.lat.toFixed(4)+', '+geo2.lng.toFixed(4));
+    document.getElementById('gHudBuildings').textContent=gxVisBlds.length+' 建筑';
+    updateLocationHUD(GX);
+  }else{
+    document.getElementById('gHudCoord').textContent=Math.round(GX.px)+', '+Math.round(GX.py);
+    document.getElementById('gHudBuildings').textContent=GX.buildings.filter(b=>b.name).length+' 建筑';
+  }
   document.getElementById('gHudSteps').textContent=GX.steps+' 步';
   document.getElementById('gHudScore').textContent=GX.score+' 分';
-  const coll=GX.rewards.filter(r=>r.collected).length;
-  document.getElementById('gHudRewards').textContent=coll+'/'+GX.rewards.length;
+  const coll=gxVisRew.filter(r=>r.collected).length;
+  document.getElementById('gHudRewards').textContent=coll+'/'+gxVisRew.length;
 
   renderGlassMinimap();
 }
@@ -4144,7 +4784,7 @@ function drawGlassReward(ctx,r){
 }
 
 function drawGlassBuilding(ctx,b){
-  const gc=b.gc;
+  const gc=b.gc||{base:'#3a5570',baseL:'#4a7090',baseD:'#2a3a50',glow:'#6a9ac0',edge:'rgba(100,140,180,.4)',accent:'#7ac',sheen:'rgba(170,200,230,.28)'};
   const p0=glassProject(b.x,b.y,0);
   const pTop=glassProject(b.x,b.y,b.h);
   const tw=28,hw=tw/2*b.w;
@@ -4432,6 +5072,32 @@ function drawGlassPlayer(ctx){
 function renderGlassMinimap(){
   const mc=GX.miniCtx,mw=100,mh=100;
   mc.fillStyle='rgba(10,10,20,.9)';mc.fillRect(0,0,mw,mh);
+
+  if(GX.infiniteMode){
+    const viewTiles=80;
+    const s=mw/viewTiles;
+    const sgx=Math.floor(GX.px-viewTiles/2),sgy=Math.floor(GX.py-viewTiles/2);
+    for(let gy=sgy;gy<sgy+viewTiles;gy+=2){for(let gx=sgx;gx<sgx+viewTiles;gx+=2){
+      const t=getGround(GX,gx,gy);
+      mc.fillStyle=t==='road'?'rgba(40,50,70,.8)':t==='water'?'rgba(30,80,140,.6)':'rgba(15,25,20,.6)';
+      mc.fillRect((gx-sgx)*s,(gy-sgy)*s,s*2,s*2);
+    }}
+    const gxMBlds=getVisibleBuildings(GX);
+    gxMBlds.forEach(b=>{
+      mc.fillStyle=b.name?(b.gc?b.gc.glow:'#aaa'):'rgba(60,70,90,.5)';
+      mc.globalAlpha=b.name?0.6:0.3;
+      mc.fillRect((b.x-sgx)*s,(b.y-sgy)*s,b.w*s+1,2*s);
+      mc.globalAlpha=1;
+    });
+    mc.fillStyle='#5cadff';mc.shadowColor='#5cadff';mc.shadowBlur=4;
+    mc.fillRect(mw/2-1.5,mh/2-1.5,3,3);
+    mc.shadowBlur=0;
+    mc.strokeStyle='rgba(92,173,255,.2)';mc.lineWidth=0.5;
+    const vr2=12/GX.zoom;
+    mc.strokeRect((mw-vr2*2*s)/2,(mh-vr2*2*s)/2,vr2*2*s,vr2*2*s);
+    return;
+  }
+
   const s=mw/GX.worldW;
   for(let y=0;y<GX.worldH;y+=2){for(let x=0;x<GX.worldW;x+=2){
     const t=GX.ground[y][x];
@@ -4443,7 +5109,7 @@ function renderGlassMinimap(){
   GX.routePath.forEach(rp=>{mc.fillRect(rp.x*s,rp.y*s,s,s);});
   // Buildings
   GX.buildings.forEach(b=>{
-    mc.fillStyle=b.name?b.gc.glow:'rgba(60,70,90,.5)';
+    mc.fillStyle=b.name?(b.gc?b.gc.glow:'#aaa'):'rgba(60,70,90,.5)';
     mc.globalAlpha=b.name?0.6:0.3;
     mc.fillRect(b.x*s,b.y*s,b.w*s+1,2*s);
     mc.globalAlpha=1;
@@ -4484,19 +5150,28 @@ function glassGameLoop(){
     const nx=GX.px+dx*GX.speed,ny=GX.py+dy*GX.speed;
     if(Math.abs(dy)>Math.abs(dx))GX.pDir=dy>0?0:2;else GX.pDir=dx>0?3:1;
     const tx=Math.round(nx),ty=Math.round(ny);
-    if(tx>=0&&tx<GX.worldW&&ty>=0&&ty<GX.worldH){
-      const tile=GX.ground[ty][tx];
+    if(!GX.infiniteMode&&(tx<0||tx>=GX.worldW||ty<0||ty>=GX.worldH)){
+      if(!GX._boundaryToastTime||Date.now()-GX._boundaryToastTime>8000){
+        GX._boundaryToastTime=Date.now();
+        showToast('已到达区域边界 · 试试底部「漫游」进入无限模式!');
+      }
+    }
+    if(GX.infiniteMode||(tx>=0&&tx<GX.worldW&&ty>=0&&ty<GX.worldH)){
+      const tile=getGround(GX,tx,ty);
       const canWater=VEHICLES[GX.vehicle]&&VEHICLES[GX.vehicle].canWater;
-      if((tile!=='water'||canWater)&&!GX.buildings.some(b=>tx>=b.x&&tx<b.x+b.w&&ty>=b.y&&ty<b.y+2)){
-        if(Math.floor(GX.px)!==Math.floor(nx)||Math.floor(GX.py)!==Math.floor(ny))GX.steps++;
+      if((tile!=='water'||canWater)&&!isOccupiedInfinite(GX,tx,ty)){
+        if(Math.floor(GX.px)!==Math.floor(nx)||Math.floor(GX.py)!==Math.floor(ny)){GX.steps++;if(GX.infiniteMode){EXPLORE_TRACK.totalSteps++;checkStepMilestones();}}
         GX.px=nx;GX.py=ny;
       }
     }
   }
   GX.camX+=(GX.px-GX.camX)*0.06;
   GX.camY+=(GX.py-GX.camY)*0.06;
+  // Infinite mode chunk updates
+  if(GX.infiniteMode)updateChunks(GX);
   // Reward collection check
-  GX.rewards.forEach(r=>{
+  const gxRewLoop=GX.infiniteMode?getVisibleRewards(GX):GX.rewards;
+  gxRewLoop.forEach(r=>{
     if(r.collected)return;
     const dist=Math.abs(r.x-GX.px)+Math.abs(r.y-GX.py);
     if(dist<1.5){
@@ -4514,7 +5189,7 @@ function glassGameLoop(){
   });
   // Reward respawn
   updateRewardRespawns(GX);
-  glassRender();
+  try { glassRender(); } catch(e) { console.warn('GX render error:', e); }
   GX.animFrame=requestAnimationFrame(glassGameLoop);
 }
 

@@ -1290,7 +1290,12 @@ const POI_CATEGORIES = [
 ];
 const DEFAULT_COLORS = ['#ff6b35','#e84393','#a29bfe','#00b894','#fdcb6e','#74b9ff','#fd79a8','#e17055'];
 // Dynamic city data store (augments MOCK_DATA)
-const DYNAMIC_CITIES = {};
+// 修改基线 / Base: index.html (原始版本 2026-03-17)
+// 修改内容 / Changes: DYNAMIC_CITIES 从 localStorage 恢复，实现持久化
+const DYNAMIC_CITIES = JSON.parse(localStorage.getItem('cw_dynamic_cities') || '{}');
+function saveDynamicCities() {
+  try { localStorage.setItem('cw_dynamic_cities', JSON.stringify(DYNAMIC_CITIES)); } catch(e) {}
+}
 let _searchDebounce = null;
 
 function renderCities(filter = '') {
@@ -1425,6 +1430,7 @@ async function discoverCity(cityName) {
       slogan: cityInfo.district || '等你来发现',
       routes: routes
     };
+    saveDynamicCities(); // 持久化 / Persist to localStorage
     if (!CITY_COLORS[cityName]) {
       CITY_COLORS[cityName] = [DEFAULT_COLORS[Math.floor(Math.random()*DEFAULT_COLORS.length)], DEFAULT_COLORS[Math.floor(Math.random()*DEFAULT_COLORS.length)]];
     }
@@ -2037,20 +2043,42 @@ function openMode(id) {
 }
 
 // === FREE ROAM (INFINITE MODE) ===
+// 修改基线 / Base: index.html openFreeroam (原始版本)
+// 修改内容 / Changes: 增加城市搜索输入框 + IP自动定位 + 热门城市快捷入口，使漫游支持任意城市
 function openFreeroam() {
   const city = APP.selectedCity || '上海';
   // Remove any existing overlay first
   const existing = document.getElementById('freeroamOverlay');
   if (existing) existing.remove();
-  // Show engine selection overlay
+  // 收集所有可用城市（预设 + 动态）
+  const allCityNames = [...new Set([...Object.keys(MOCK_DATA), ...Object.keys(DYNAMIC_CITIES)])];
+  const hotCities = ['上海','北京','成都','杭州','长沙','广州','南京','西安','重庆','深圳','武汉','厦门'];
+  // Show engine selection overlay with city picker
   const overlay = document.createElement('div');
   overlay.id = 'freeroamOverlay';
   overlay.style.cssText = 'position:fixed;inset:0;z-index:500;display:flex;align-items:center;justify-content:center;background:rgba(10,10,20,.88);backdrop-filter:blur(12px);';
   overlay.innerHTML = `
-    <div style="background:rgba(20,22,35,.95);border-radius:24px;padding:32px 28px;max-width:340px;width:90%;text-align:center;border:1px solid rgba(255,255,255,.08);box-shadow:0 24px 80px rgba(0,0,0,.5);">
+    <div style="background:rgba(20,22,35,.95);border-radius:24px;padding:32px 28px;max-width:380px;width:92%;text-align:center;border:1px solid rgba(255,255,255,.08);box-shadow:0 24px 80px rgba(0,0,0,.5);max-height:90vh;overflow-y:auto;">
       <div style="font-size:3rem;margin-bottom:8px;">🌍</div>
       <div style="font-family:var(--font-display);font-size:1.6rem;color:#fff;margin-bottom:4px;">无限漫游</div>
-      <div style="font-size:.78rem;color:rgba(255,255,255,.45);margin-bottom:20px;line-height:1.6;">从 <b style="color:var(--accent)">${city}</b> 出发，走向无尽的城市</div>
+      <div style="font-size:.78rem;color:rgba(255,255,255,.45);margin-bottom:14px;line-height:1.6;">输入任意城市名，在像素/3D世界中自由探索</div>
+      <!-- 城市搜索输入框 -->
+      <div style="display:flex;gap:8px;margin-bottom:12px;">
+        <input id="freeroamCityInput" type="text" value="${city}" placeholder="输入城市名..."
+          style="flex:1;padding:12px 16px;border-radius:12px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:#fff;font-size:.95rem;outline:none;font-family:inherit;"
+          onkeydown="if(event.key==='Enter'){_freeroamSetCity(this.value)}" />
+        <button onclick="_freeroamAutoLocate()" id="freeroamLocateBtn"
+          style="padding:0 14px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-size:1.1rem;cursor:pointer;border:none;transition:transform .2s;" title="IP自动定位">
+          📍
+        </button>
+      </div>
+      <!-- 当前选中城市 -->
+      <div id="freeroamCityLabel" style="font-size:.82rem;color:var(--accent);font-weight:700;margin-bottom:12px;">当前: ${city}</div>
+      <!-- 热门城市快捷入口 -->
+      <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-bottom:16px;">
+        ${hotCities.map(c => `<button onclick="_freeroamSetCity('${c}')" style="padding:5px 12px;border-radius:16px;font-size:.72rem;font-weight:600;cursor:pointer;border:1px solid rgba(255,255,255,.1);background:${c===city?'rgba(255,107,53,.2)':'rgba(255,255,255,.04)'};color:${c===city?'var(--accent)':'rgba(255,255,255,.5)'};transition:all .2s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='rgba(255,255,255,.1)'">${c}</button>`).join('')}
+      </div>
+      <!-- 引擎选择 -->
       <div style="display:flex;gap:12px;margin-bottom:16px;">
         <button onclick="startFreeroam('px')" style="flex:1;padding:18px 0;border-radius:16px;background:linear-gradient(135deg,#2d2d5a,#1a1a3e);border:1px solid rgba(255,255,255,.1);color:#fff;font-size:.95rem;font-weight:700;cursor:pointer;transition:all .2s;" onmouseover="this.style.borderColor='var(--accent)';this.style.boxShadow='0 0 20px rgba(255,107,53,.15)'" onmouseout="this.style.borderColor='rgba(255,255,255,.1)';this.style.boxShadow='none'">
           <div style="font-size:2rem;margin-bottom:6px;">🎮</div>像素风格
@@ -2063,6 +2091,45 @@ function openFreeroam() {
     </div>`;
   document.body.appendChild(overlay);
   document.getElementById('creativePanel').classList.remove('active');
+  // Focus input
+  setTimeout(() => document.getElementById('freeroamCityInput')?.select(), 100);
+}
+// 漫游城市选择辅助函数 / Helper: set roaming city
+function _freeroamSetCity(cityName) {
+  cityName = cityName.trim();
+  if (!cityName) return;
+  APP.selectedCity = cityName;
+  const label = document.getElementById('freeroamCityLabel');
+  if (label) label.textContent = '当前: ' + cityName;
+  const input = document.getElementById('freeroamCityInput');
+  if (input) input.value = cityName;
+  showToast('漫游目标: ' + cityName);
+}
+// IP自动定位 / Auto-detect city via IP
+async function _freeroamAutoLocate() {
+  const btn = document.getElementById('freeroamLocateBtn');
+  if (btn) { btn.textContent = '⏳'; btn.style.pointerEvents = 'none'; }
+  try {
+    if (typeof AMap === 'undefined') throw new Error('地图服务未加载');
+    const cityName = await new Promise((resolve, reject) => {
+      const cs = new AMap.CitySearch();
+      cs.getLocalCity(function(status, result) {
+        if (status === 'complete' && result.info === 'OK') {
+          let name = result.city || '';
+          name = name.replace(/[市省区]$/, '');
+          resolve(name);
+        } else { reject('IP定位失败'); }
+      });
+    });
+    if (cityName) {
+      _freeroamSetCity(cityName);
+      showToast('IP定位成功: ' + cityName);
+    }
+  } catch(e) {
+    showToast('定位失败: ' + (e.message || e));
+  } finally {
+    if (btn) { btn.textContent = '📍'; btn.style.pointerEvents = 'auto'; }
+  }
 }
 
 async function startFreeroam(type) {

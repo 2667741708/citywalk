@@ -4187,8 +4187,18 @@ function canPlaceBuilding(x, y, w, occupied) {
   return true;
 }
 
+// 修改基线 / Base: generateFallbackPOIs() 原始版本
+// 修改内容 / Changes: 使用路线中心坐标或城市粗略坐标，不再硬编码上海坐标
+// Use route center or city approximate coords instead of hardcoded Shanghai coords
+const CITY_APPROX_COORDS = {
+  '上海':[31.23,121.47],'北京':[39.91,116.40],'深圳':[22.54,114.06],'广州':[23.13,113.26],
+  '重庆':[29.56,106.55],'成都':[30.57,104.07],'武汉':[30.59,114.30],'西安':[34.26,108.94],
+  '南京':[32.06,118.80],'杭州':[30.27,120.15],'苏州':[31.30,120.59],'青岛':[36.07,120.38],
+  '厦门':[24.48,118.09],'三亚':[18.25,109.50],'大连':[38.91,121.61],'丽江':[26.86,100.23],
+  '桂林':[25.27,110.29],'秦皇岛':[39.93,119.60],'洛阳':[34.62,112.45],'昆明':[25.04,102.71],
+};
+
 function generateFallbackPOIs(cityName) {
-  // Generate procedural POIs when API not available
   const types = ['景点','美食','购物','文艺','网红','住宅办公','交通设施','生活服务','体育休闲','医疗保健','科教文化'];
   const names = {
     '景点': ['中央公园','古塔','博物馆','纪念碑','古城门','文庙','观景台'],
@@ -4204,8 +4214,16 @@ function generateFallbackPOIs(cityName) {
     '科教文化': ['大学城','科技馆','图书馆','实验室','文化中心']
   };
   const pois = [];
-  const baseLat = 31.23 + Math.random() * 0.02;
-  const baseLng = 121.47 + Math.random() * 0.02;
+  // 使用路线中心坐标(如有)或城市粗略坐标或默认 / Use route center, city approx, or default
+  let baseLat, baseLng;
+  if(GX && GX._routeCenter){
+    baseLat = GX._routeCenter.lat;
+    baseLng = GX._routeCenter.lng;
+  } else {
+    const approx = CITY_APPROX_COORDS[cityName] || [31.23, 121.47];
+    baseLat = approx[0]; baseLng = approx[1];
+  }
+  console.warn(`[Fallback POIs] AMap 数据不足, 使用生成数据. 基准坐标: [${baseLat.toFixed(4)}, ${baseLng.toFixed(4)}]`);
   for (let i = 0; i < 50; i++) {
     const type = types[i % types.length];
     const nameList = names[type];
@@ -5215,7 +5233,7 @@ async function initGlassCity(cityName, selectedRoute){
               pageSize: 20,
               type: c.code || '',
             });
-            ps.searchNearBy(c.name, [centerLng, centerLat], 2000, (status, result) => {
+            ps.searchNearBy(c.name, [centerLng, centerLat], 3000, (status, result) => {
               if(status==='complete' && result.poiList && result.poiList.pois){
                 resolve(result.poiList.pois);
               }else{
@@ -5227,9 +5245,15 @@ async function initGlassCity(cityName, selectedRoute){
         cats.forEach((cat,ci)=>{
           (nearbyResults[ci]||[]).forEach(poi=>{
             if(poi.location){
-              const[lng,lat]=poi.location.split?poi.location.split(',').map(Number):[poi.location.lng,poi.location.lat];
-              if(lng&&lat){
-                // 避免重复已有的种子 POI
+              // AMap.LngLat 对象或 "lng,lat" 字符串 / Handle both AMap.LngLat objects and strings
+              let lng, lat;
+              if(typeof poi.location === 'string'){
+                [lng, lat] = poi.location.split(',').map(Number);
+              } else if(typeof poi.location === 'object'){
+                lng = poi.location.lng || poi.location.getLng?.();
+                lat = poi.location.lat || poi.location.getLat?.();
+              }
+              if(lng && lat && !isNaN(lng) && !isNaN(lat)){
                 const dup = poiData.some(p=>Math.abs(p.lat-lat)<0.0001&&Math.abs(p.lng-lng)<0.0001);
                 if(!dup) poiData.push({name:poi.name,type:cat.name,address:poi.address||'',lat,lng});
               }
@@ -5240,11 +5264,18 @@ async function initGlassCity(cityName, selectedRoute){
       }else{
         // 没有选中路线时，降级为全城搜索 / Fallback to whole-city search
         const results=await Promise.all(cats.map(c=>amapPOISearch(c.name,cityName,c.code)));
-        cats.forEach((cat,ci)=>{(results[ci]||[]).forEach(poi=>{if(poi.location){const[lng,lat]=poi.location.split(',').map(Number);if(lng&&lat)poiData.push({name:poi.name,type:cat.name,address:poi.address||'',lat,lng});}});});
+        cats.forEach((cat,ci)=>{(results[ci]||[]).forEach(poi=>{if(poi.location){
+          let lng2,lat2;
+          if(typeof poi.location==='string'){[lng2,lat2]=poi.location.split(',').map(Number);}
+          else if(typeof poi.location==='object'){lng2=poi.location.lng||poi.location.getLng?.();lat2=poi.location.lat||poi.location.getLat?.();}
+          if(lng2&&lat2&&!isNaN(lng2)&&!isNaN(lat2))poiData.push({name:poi.name,type:cat.name,address:poi.address||'',lat:lat2,lng:lng2});
+        }});});
       }
     }catch(e){console.warn('Glass POI fetch:',e);}
   }
   setGlassLoad(45,'分析城市特征...');
+  // 保存路线中心坐标供 fallback 使用 / Store for fallback use
+  if(hasCenter) GX._routeCenter = {lat: centerLat, lng: centerLng};
   if(poiData.length<5)poiData=generateFallbackPOIs(cityName);
   GX.pois=poiData;
 

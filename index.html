@@ -5052,6 +5052,80 @@ const GLASS_COLORS = {
   'default':{base:'#3a4550',baseL:'#506070',baseD:'#252e35',glow:'#8ca0b4',edge:'rgba(120,140,160,.35)',accent:'#8ab',sheen:'rgba(180,200,220,.25)'},
 };
 
+// 修改基线 / Base: 新增代码
+// 修改内容 / Changes: 新增城市特征分析系统和城市专属色板
+// Added city profile analysis system and city-specific palettes
+
+// === 城市特征分析系统 / City Profile Analysis ===
+const CITY_PROFILES = {
+  modern:  { label:'现代都市', heightBase:35, heightVar:55, density:0.45, fillerDensity:0.4, waterRatio:0.05,
+             skyTop:'#020818', skyMid:'#0a1030', skyBot:'#101840',
+             roadColor:'rgba(40,45,55,.9)', groundColor:'rgba(20,25,35,.6)', particleType:'neon',
+             accentGlow:'#3ca0ff'},
+  historic:{ label:'历史古城', heightBase:12, heightVar:20, density:0.35, fillerDensity:0.3, waterRatio:0.03,
+             skyTop:'#0a0810', skyMid:'#1a1020', skyBot:'#201828',
+             roadColor:'rgba(60,45,35,.8)', groundColor:'rgba(35,28,22,.6)', particleType:'lantern',
+             accentGlow:'#ff9844'},
+  cultural:{ label:'文艺之城', heightBase:18, heightVar:30, density:0.32, fillerDensity:0.25, waterRatio:0.08,
+             skyTop:'#080818', skyMid:'#101028', skyBot:'#181838',
+             roadColor:'rgba(35,40,50,.85)', groundColor:'rgba(25,28,35,.55)', particleType:'sakura',
+             accentGlow:'#b464ff'},
+  coastal: { label:'滨海城市', heightBase:22, heightVar:35, density:0.35, fillerDensity:0.3, waterRatio:0.25,
+             skyTop:'#041828', skyMid:'#0a2840', skyBot:'#103858',
+             roadColor:'rgba(30,42,55,.85)', groundColor:'rgba(18,28,38,.55)', particleType:'seagull',
+             accentGlow:'#40e0d0'},
+  nature:  { label:'自然风光', heightBase:10, heightVar:15, density:0.2, fillerDensity:0.15, waterRatio:0.12,
+             skyTop:'#040a10', skyMid:'#081820', skyBot:'#0c2830',
+             roadColor:'rgba(30,45,30,.7)', groundColor:'rgba(15,25,15,.5)', particleType:'firefly',
+             accentGlow:'#50c860'},
+};
+
+// 已知城市映射 (可用 POI 分析结果覆盖)
+const KNOWN_CITY_TYPES = {
+  '上海':'modern','北京':'modern','深圳':'modern','广州':'modern','重庆':'modern','成都':'modern','武汉':'modern',
+  '西安':'historic','南京':'historic','洛阳':'historic','开封':'historic','敦煌':'historic',
+  '杭州':'cultural','苏州':'cultural','丽江':'cultural','大理':'cultural','凤凰':'cultural','景德镇':'cultural',
+  '青岛':'coastal','厦门':'coastal','三亚':'coastal','大连':'coastal','珠海':'coastal','烟台':'coastal','海口':'coastal',
+  '桂林':'nature','张家界':'nature','九寨沟':'nature','黄山':'nature','昆明':'nature',
+};
+
+function analyzeCityProfile(pois, cityName) {
+  // 如果有已知映射，优先使用
+  const knownType = KNOWN_CITY_TYPES[cityName];
+
+  // 统计 POI 类型分布
+  const typeCounts = {};
+  pois.forEach(p => { typeCounts[p.type] = (typeCounts[p.type]||0) + 1; });
+  const total = pois.length || 1;
+
+  // 计算各类占比
+  const scenicRatio = ((typeCounts['景点']||0) + (typeCounts['体育休闲']||0)) / total;
+  const foodShopRatio = ((typeCounts['美食']||0) + (typeCounts['购物']||0) + (typeCounts['网红']||0)) / total;
+  const cultureRatio = ((typeCounts['文艺']||0) + (typeCounts['科教文化']||0)) / total;
+  const businessRatio = ((typeCounts['住宅办公']||0) + (typeCounts['交通设施']||0)) / total;
+
+  // 通过 POI 分布推断城市类型
+  let inferredType = 'modern';
+  if (scenicRatio > 0.4) inferredType = 'nature';
+  else if (cultureRatio > 0.3) inferredType = 'cultural';
+  else if (businessRatio > 0.4 || foodShopRatio > 0.4) inferredType = 'modern';
+  else if (scenicRatio > 0.25 && cultureRatio > 0.15) inferredType = 'historic';
+
+  const profileType = knownType || inferredType;
+  const profile = { ...CITY_PROFILES[profileType] };
+  profile.type = profileType;
+  profile.poiCounts = typeCounts;
+  profile.totalPois = total;
+
+  // 根据 POI 数量动态调整密度
+  if (total > 40) { profile.density = Math.min(profile.density + 0.1, 0.55); profile.fillerDensity += 0.05; }
+  if (total < 10) { profile.density = Math.max(profile.density - 0.1, 0.15); profile.fillerDensity -= 0.05; }
+
+  console.log(`[CityProfile] ${cityName}: ${profile.label} (${profileType}), POIs: ${total}, density: ${profile.density}`);
+  return profile;
+}
+
+
 function openGlassCity(){
   const city=APP.selectedCity||'上海';
   document.getElementById('glassCityTag').textContent=city;
@@ -5101,11 +5175,22 @@ async function initGlassCity(cityName){
       cats.forEach((cat,ci)=>{(results[ci]||[]).forEach(poi=>{if(poi.location){const[lng,lat]=poi.location.split(',').map(Number);if(lng&&lat)poiData.push({name:poi.name,type:cat.name,address:poi.address||'',lat,lng});}});});
     }catch(e){console.warn('Glass POI fetch:',e);}
   }
-  setGlassLoad(45,'生成城市布局...');
+  setGlassLoad(45,'分析城市特征...');
   if(poiData.length<5)poiData=generateFallbackPOIs(cityName);
   GX.pois=poiData;
 
-  buildGlassWorld(poiData);
+  // 修改基线 / Base: initGlassCity() 原始版本
+  // 修改内容 / Changes: 新增城市特征分析，传入 buildGlassWorld
+  // Added city profile analysis, passed to buildGlassWorld
+  GX.cityProfile = analyzeCityProfile(poiData, cityName);
+  GX.weatherParticles = []; // 重置天气粒子
+
+  // 显示城市类型标签
+  const tagEl = document.getElementById('glassCityTag');
+  if(tagEl) tagEl.textContent = `${cityName} · ${GX.cityProfile.label}`;
+
+  setGlassLoad(50,'生成城市布局...');
+  buildGlassWorld(poiData, GX.cityProfile);
 
   // Build guided route using Amap Walking API for real routes
   setGlassLoad(55,'规划步行路线...');
@@ -5268,63 +5353,179 @@ async function initGlassCity(cityName){
 
 function setGlassLoad(pct,txt){document.getElementById('glassLoadBar').style.width=pct+'%';if(txt)document.getElementById('glassLoadText').textContent=txt;}
 
-function buildGlassWorld(pois){
+// 修改基线 / Base: buildGlassWorld() 原始版本
+// 修改内容 / Changes: 重写城市生成: MST自然路网, 密度驱动建筑高度, 城市特征地形
+// Rewritten: MST organic road network, density-driven building heights, city-profile terrain
+
+function buildGlassWorld(pois, profile){
+  profile = profile || CITY_PROFILES['modern'];
   const W=GX.worldW,H=GX.worldH;
   if(!pois.length)return;
   let mnLat=Infinity,mxLat=-Infinity,mnLng=Infinity,mxLng=-Infinity;
   pois.forEach(p=>{mnLat=Math.min(mnLat,p.lat);mxLat=Math.max(mxLat,p.lat);mnLng=Math.min(mnLng,p.lng);mxLng=Math.max(mxLng,p.lng);});
   mnLat-=.002;mxLat+=.002;mnLng-=.002;mxLng+=.002;
   const latR=mxLat-mnLat||.01,lngR=mxLng-mnLng||.01,mg=5,uW=W-mg*2,uH=H-mg*2;
-  // Store geo bounds for route mapping
   GX._geoBounds={mnLat,mxLat,mnLng,mxLng,latR,lngR,mg,uW,uH,W,H};
 
   const gp=pois.map(p=>({...p,gx:Math.round(mg+((p.lng-mnLng)/lngR)*uW),gy:Math.round(mg+(1-(p.lat-mnLat)/latR)*uH)})).filter(p=>p.gx>=mg&&p.gx<W-mg&&p.gy>=mg&&p.gy<H-mg);
 
-  // Roads
-  const cx=Math.round(W/2),cy=Math.round(H/2);
-  for(let x=3;x<W-3;x++){gSet(x,cy,'road');gSet(x,cy-1,'road');if(cy+12<H)gSet(x,cy+12,'road');if(cy-12>=0)gSet(x,cy-12,'road');}
-  for(let y=3;y<H-3;y++){gSet(cx,y,'road');gSet(cx-1,y,'road');if(cx+14<W)gSet(cx+14,y,'road');if(cx-14>=0)gSet(cx-14,y,'road');}
-  gp.forEach(poi=>{
-    let bd=Infinity,brx=cx,bry=cy;
-    for(let y=0;y<H;y++)for(let x=0;x<W;x++){if(GX.ground[y][x]==='road'){const d=Math.abs(x-poi.gx)+Math.abs(y-poi.gy);if(d<bd){bd=d;brx=x;bry=y;}}}
-    const dx2=brx>poi.gx?1:-1;for(let x=poi.gx;x!==brx;x+=dx2)gSet(x,poi.gy,'road');
-    const dy2=bry>poi.gy?1:-1;for(let y=poi.gy;y!==bry;y+=dy2)gSet(brx>poi.gx?brx:poi.gx,y,'road');
-  });
+  // ============ MST 最小生成树路网 / MST Road Network ============
+  // 用 Prim 算法连接所有 POI 点，生成自然路网
+  if(gp.length>=2){
+    const inMST=new Set([0]);
+    const edges=[];
+    while(inMST.size<gp.length){
+      let bestD=Infinity,bestI=-1,bestJ=-1;
+      for(const i of inMST){
+        for(let j=0;j<gp.length;j++){
+          if(inMST.has(j))continue;
+          const d=Math.abs(gp[i].gx-gp[j].gx)+Math.abs(gp[i].gy-gp[j].gy);
+          if(d<bestD){bestD=d;bestI=i;bestJ=j;}
+        }
+      }
+      if(bestJ===-1)break;
+      inMST.add(bestJ);
+      edges.push([bestI,bestJ]);
+    }
+    // 画 MST 路径 (L形连接)
+    edges.forEach(([i,j])=>{
+      const a=gp[i],b=gp[j];
+      // 选择更自然的 L 形转弯点
+      const midX=Math.round((a.gx+b.gx)/2), midY=Math.round((a.gy+b.gy)/2);
+      const useHFirst=Math.random()>0.5;
+      if(useHFirst){
+        const dx=b.gx>a.gx?1:-1;for(let x=a.gx;x!==b.gx;x+=dx){gSet(x,a.gy,'road');gSet(x,a.gy-1,'road');}
+        const dy=b.gy>a.gy?1:-1;for(let y=a.gy;y!==b.gy;y+=dy){gSet(b.gx,y,'road');gSet(b.gx-1,y,'road');}
+      }else{
+        const dy=b.gy>a.gy?1:-1;for(let y=a.gy;y!==b.gy;y+=dy){gSet(a.gx,y,'road');gSet(a.gx-1,y,'road');}
+        const dx=b.gx>a.gx?1:-1;for(let x=a.gx;x!==b.gx;x+=dx){gSet(x,b.gy,'road');gSet(x,b.gy-1,'road');}
+      }
+    });
+    // 添加一些支路 (次要连接，增加路网密度)
+    for(let i=0;i<gp.length;i++){
+      for(let j=i+2;j<gp.length;j++){
+        const d=Math.abs(gp[i].gx-gp[j].gx)+Math.abs(gp[i].gy-gp[j].gy);
+        if(d<15&&Math.random()<0.3){
+          const a=gp[i],b=gp[j];
+          const dx=b.gx>a.gx?1:-1;for(let x=a.gx;x!==b.gx;x+=dx)gSet(x,a.gy,'road');
+          const dy=b.gy>a.gy?1:-1;for(let y=a.gy;y!==b.gy;y+=dy)gSet(b.gx,y,'road');
+        }
+      }
+    }
+  }else{
+    // 极少POI时的降级：基本十字路
+    const cx=Math.round(W/2),cy=Math.round(H/2);
+    for(let x=3;x<W-3;x++){gSet(x,cy,'road');gSet(x,cy-1,'road');}
+    for(let y=3;y<H-3;y++){gSet(cx,y,'road');gSet(cx-1,y,'road');}
+  }
 
-  // Water
-  for(let x=0;x<W;x++){for(let ry=0;ry<2;ry++){const yy=H-4+ry;if(yy<H)GX.ground[yy][x]='water';}}
+  // ============ 地形特征 / Terrain Features ============
+  // 水域: 根据城市类型决定水域范围
+  const waterRows = Math.max(1, Math.round(H * profile.waterRatio));
+  if(profile.type === 'coastal'){
+    // 滨海城市: 底部大片水域 + 左侧海岸线
+    for(let x=0;x<W;x++){for(let ry=0;ry<waterRows;ry++){const yy=H-3-ry;if(yy>=0&&yy<H)GX.ground[yy][x]='water';}}
+    for(let y=Math.round(H*0.4);y<H;y++){for(let rx=0;rx<Math.round(W*0.08);rx++){if(rx<W)GX.ground[y][rx]='water';}}
+  }else if(profile.type === 'nature'){
+    // 自然风光: 随机湖泊
+    for(let lake=0;lake<2;lake++){
+      const lx=mg+Math.round(Math.random()*(W-mg*2)), ly=mg+Math.round(Math.random()*(H-mg*2));
+      const lr=3+Math.round(Math.random()*4);
+      for(let dy=-lr;dy<=lr;dy++){for(let dx=-lr;dx<=lr;dx++){
+        if(dx*dx+dy*dy<=lr*lr){const tx=lx+dx,ty=ly+dy;if(tx>=0&&tx<W&&ty>=0&&ty<H&&GX.ground[ty][tx]==='grass')GX.ground[ty][tx]='water';}
+      }}
+    }
+  }else if(profile.type === 'cultural'){
+    // 文艺城市: 河流穿城
+    const riverY=Math.round(H*0.6);
+    for(let x=0;x<W;x++){
+      const wy=riverY+Math.round(Math.sin(x*0.15)*3);
+      for(let dy=0;dy<3;dy++){const yy=wy+dy;if(yy>=0&&yy<H)GX.ground[yy][x]='water';}
+    }
+  }else{
+    // 默认底部水域
+    for(let x=0;x<W;x++){for(let ry=0;ry<waterRows;ry++){const yy=H-4+ry;if(yy<H)GX.ground[yy][x]='water';}}
+  }
 
-  // Buildings from POIs
+  // ============ POI 建筑 / POI Buildings (density-driven heights) ============
   const occ=new Set();
+
+  // 计算每个POI的局部密度 (周围5格内其他POI数量)
+  gp.forEach(p=>{
+    let nearby=0;
+    gp.forEach(q=>{if(p!==q&&Math.abs(p.gx-q.gx)+Math.abs(p.gy-q.gy)<10)nearby++;});
+    p._localDensity=nearby;
+  });
+  const maxDensity=Math.max(1,...gp.map(p=>p._localDensity));
+
   gp.forEach((poi,idx)=>{
     const gc=GLASS_COLORS[poi.type]||GLASS_COLORS['default'];
-    const bw=1+Math.floor(Math.random()*2);
-    const bh=20+Math.floor(Math.random()*50);
+
+    // 建筑高度 = 基础高度 + 密度加成 + 类型加成
+    const densityFactor = poi._localDensity / maxDensity; // 0~1
+    let typeBonus = 0;
+    if(poi.type==='购物'||poi.type==='住宅办公') typeBonus = 15;
+    else if(poi.type==='景点') typeBonus = profile.type==='historic'? -5 : 10;
+    else if(poi.type==='美食'||poi.type==='网红') typeBonus = 5;
+
+    const bh = Math.round(profile.heightBase + densityFactor * profile.heightVar + typeBonus + Math.random()*10);
+    const bw = 1 + Math.floor(Math.random()*2);
+
     for(let att=0;att<20;att++){
       const ox=poi.gx+(att%5)-2,oy=poi.gy+Math.floor(att/5)-1;
       if(canPlaceG(ox,oy,bw,occ)){
-        GX.buildings.push({x:ox,y:oy,w:bw,h:bh,gc:gc,name:poi.name,type:poi.type,address:poi.address,poiIdx:idx});
+        GX.buildings.push({x:ox,y:oy,w:bw,h:Math.max(8,bh),gc:gc,name:poi.name,type:poi.type,address:poi.address,poiIdx:idx});
         for(let d=0;d<2;d++)for(let dx=0;dx<bw;dx++)occ.add((oy+d)+','+(ox+dx));
         break;
       }
     }
   });
 
-  // Density-aware filler buildings
-  for(let y=mg;y<H-mg;y+=3){for(let x=mg;x<W-mg;x+=3){
-    if(GX.ground[y][x]==='grass'&&!occ.has(y+','+x)&&Math.random()<.3){
-      let nearbyCount=0;
-      GX.buildings.forEach(b=>{if(b.name&&Math.abs(b.x-x)+Math.abs(b.y-y)<10)nearbyCount++;});
-      const density=Math.min(nearbyCount/3,1);
-      const bw=1;const bh=10+Math.floor(Math.random()*(25+density*20));
+  // ============ 填充建筑 / Filler Buildings (profile-driven) ============
+  const fillerStep = profile.type==='modern'? 2 : profile.type==='nature'? 4 : 3;
+  for(let y=mg;y<H-mg;y+=fillerStep){for(let x=mg;x<W-mg;x+=fillerStep){
+    if(GX.ground[y][x]==='grass'&&!occ.has(y+','+x)&&Math.random()<profile.fillerDensity){
+      // 计算到最近POI的距离
+      let minDist=Infinity;
+      gp.forEach(p=>{const d=Math.abs(p.gx-x)+Math.abs(p.gy-y);if(d<minDist)minDist=d;});
+      const nearFactor=Math.max(0,1-minDist/20); // 距POI越近高度越高
+
+      const bw=1;
+      const bh=Math.round(profile.heightBase*0.4 + nearFactor*profile.heightVar*0.6 + Math.random()*8);
       if(canPlaceG(x,y,bw,occ)){
         const fillerTypes=['住宅办公','生活服务','交通设施','医疗保健','default'];
         const ft=fillerTypes[Math.floor(Math.random()*fillerTypes.length)];
-        GX.buildings.push({x,y,w:bw,h:bh,gc:GLASS_COLORS[ft]||GLASS_COLORS['default'],name:'',type:'',address:'',poiIdx:-1});
+        GX.buildings.push({x,y,w:bw,h:Math.max(5,bh),gc:GLASS_COLORS[ft]||GLASS_COLORS['default'],name:'',type:'',address:'',poiIdx:-1});
         for(let d=0;d<2;d++)occ.add((y+d)+','+x);
       }
     }
   }}
+
+  // ============ 城市特色装饰 / City-specific Decorations ============
+  // 存储装饰物位置供渲染使用
+  GX.decorations = [];
+  if(profile.type==='nature'||profile.type==='cultural'){
+    // 添加树木
+    for(let y=mg;y<H-mg;y+=2){for(let x=mg;x<W-mg;x+=2){
+      if(GX.ground[y][x]==='grass'&&!occ.has(y+','+x)&&Math.random()<0.12){
+        GX.decorations.push({type:'tree',x,y,size:3+Math.random()*4});
+      }
+    }}
+  }
+  if(profile.type==='coastal'){
+    // 添加灯塔
+    const waterEdge=[];
+    for(let y=0;y<H;y++){for(let x=0;x<W;x++){
+      if(GX.ground[y][x]==='water'){
+        if((x>0&&GX.ground[y][x-1]==='grass')||(y>0&&GX.ground[y-1]&&GX.ground[y-1][x]==='grass'))
+          waterEdge.push({x,y});
+      }
+    }}
+    if(waterEdge.length>3){
+      const lh=waterEdge[Math.floor(Math.random()*waterEdge.length)];
+      GX.decorations.push({type:'lighthouse',x:lh.x,y:lh.y,size:6});
+    }
+  }
 }
 function gSet(x,y,t){if(x>=0&&x<GX.worldW&&y>=0&&y<GX.worldH)GX.ground[y][x]=t;}
 function canPlaceG(x,y,w,occ){
@@ -5357,13 +5558,13 @@ function glassRender(){
   GX.time+=0.016;
   ctx.clearRect(0,0,cw,ch);
 
-  // 修改基线 / Base: glassRender() 原始天空渲染
-  // 修改内容 / Changes: 根据 APP.currentWeather 动态调整天空颜色和天气粒子效果
-  // Dynamic sky colors and weather particles based on real weather data
+  // 修改基线 / Base: glassRender() 天空渲染 (天气+城市profile)  
+  // 修改内容 / Changes: 天空默认使用城市profile色板，天气仍然覆盖
+  // Sky defaults from city profile palette, weather still overrides
 
-  // Sky - 根据天气动态调整 / Dynamic based on weather
   const w = APP.currentWeather || {};
   const weather = w.weather || '';
+  const prof = GX.cityProfile || CITY_PROFILES['modern'];
   const skyG=ctx.createLinearGradient(0,0,0,ch);
 
   if (weather.includes('雨') || weather.includes('阵雨')) {
@@ -5372,24 +5573,14 @@ function glassRender(){
   } else if (weather.includes('雪')) {
     skyG.addColorStop(0,'#dfe6e9'); skyG.addColorStop(0.3,'#b2bec3');
     skyG.addColorStop(0.6,'#636e72'); skyG.addColorStop(1,'#2d3436');
-  } else if (weather.includes('阴') || weather.includes('多云')) {
-    skyG.addColorStop(0,'#0a0a1a'); skyG.addColorStop(0.3,'#1e272e');
-    skyG.addColorStop(0.6,'#2c3e50'); skyG.addColorStop(1,'#1a1a2e');
-  } else if (weather.includes('晴')) {
-    const hr = new Date().getHours();
-    if (hr >= 6 && hr < 18) {
-      skyG.addColorStop(0,'#0c3483'); skyG.addColorStop(0.3,'#1565c0');
-      skyG.addColorStop(0.6,'#42a5f5'); skyG.addColorStop(1,'#90caf9');
-    } else {
-      skyG.addColorStop(0,'#050510'); skyG.addColorStop(0.3,'#0a0a20');
-      skyG.addColorStop(0.6,'#0d1025'); skyG.addColorStop(1,'#101530');
-    }
   } else if (weather.includes('雾') || weather.includes('霾')) {
     skyG.addColorStop(0,'#636e72'); skyG.addColorStop(0.3,'#b2bec3');
     skyG.addColorStop(0.6,'#dfe6e9'); skyG.addColorStop(1,'#b2bec3');
   } else {
-    skyG.addColorStop(0,'#050510'); skyG.addColorStop(0.3,'#0a0a20');
-    skyG.addColorStop(0.6,'#0d1025'); skyG.addColorStop(1,'#101530');
+    // 使用城市 profile 色板 / Use city profile palette
+    skyG.addColorStop(0, prof.skyTop);
+    skyG.addColorStop(0.4, prof.skyMid);
+    skyG.addColorStop(1, prof.skyBot);
   }
   ctx.fillStyle=skyG;
   ctx.fillRect(0,0,cw,ch);
@@ -5430,18 +5621,79 @@ function glassRender(){
     ctx.globalAlpha = 1;
   }
 
-  // Aurora bands (only when clear/night)
+  // Aurora bands (only when clear/night) - 使用 profile accentGlow
   if (!weather.includes('雨') && !weather.includes('雪') && !weather.includes('雾')) {
     ctx.globalAlpha=0.06;
     for(let i=0;i<3;i++){
       const ay=ch*0.1+i*40+Math.sin(GX.time*0.3+i)*15;
       const ag=ctx.createLinearGradient(0,ay,cw,ay+60);
       ag.addColorStop(0,'transparent');
-      ag.addColorStop(0.3,i===0?'#3ca0ff':i===1?'#b464ff':'#00e0a0');
-      ag.addColorStop(0.7,i===0?'#5cadff':i===1?'#c78cff':'#40ffc0');
+      ag.addColorStop(0.3,i===0?prof.accentGlow:i===1?'#b464ff':'#00e0a0');
+      ag.addColorStop(0.7,i===0?prof.accentGlow+'cc':i===1?'#c78cff':'#40ffc0');
       ag.addColorStop(1,'transparent');
       ctx.fillStyle=ag;
       ctx.fillRect(0,ay,cw,50);
+    }
+    ctx.globalAlpha=1;
+  }
+
+  // === 城市特色粒子 / City-specific Ambient Particles ===
+  if (!GX._cityParticles) GX._cityParticles = [];
+  if (prof.particleType === 'neon' && !weather.includes('雨') && !weather.includes('雪')) {
+    // 霓虹光点 / Neon dots (modern cities)
+    while (GX._cityParticles.length < 25) GX._cityParticles.push({x:Math.random()*cw,y:ch*0.35+Math.random()*ch*0.6,vx:(Math.random()-0.5)*0.3,vy:-0.1-Math.random()*0.3,r:1+Math.random()*2,hue:Math.random()*360});
+    for (const p of GX._cityParticles) {
+      ctx.globalAlpha=0.3+Math.sin(GX.time*3+p.hue)*0.2;
+      ctx.fillStyle=`hsl(${p.hue},80%,60%)`;
+      ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fill();
+      p.x+=p.vx;p.y+=p.vy;if(p.y<ch*0.3||p.x<0||p.x>cw){p.x=Math.random()*cw;p.y=ch*0.9+Math.random()*ch*0.1;}
+    }
+    ctx.globalAlpha=1;
+  } else if (prof.particleType === 'lantern' && !weather.includes('雨')) {
+    // 灯笼 / Lanterns (historic cities)
+    while (GX._cityParticles.length < 12) GX._cityParticles.push({x:Math.random()*cw,y:ch*0.5+Math.random()*ch*0.4,vx:(Math.random()-0.5)*0.2,vy:-0.2-Math.random()*0.3,r:3+Math.random()*3,phase:Math.random()*Math.PI*2});
+    for (const p of GX._cityParticles) {
+      const glow=0.4+Math.sin(GX.time*2+p.phase)*0.2;
+      ctx.globalAlpha=glow;
+      ctx.fillStyle='#ff4500';ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#ff8c00';ctx.beginPath();ctx.arc(p.x,p.y,p.r*0.6,0,Math.PI*2);ctx.fill();
+      p.x+=p.vx+Math.sin(GX.time+p.phase)*0.15;p.y+=p.vy;
+      if(p.y<ch*0.1){p.y=ch*0.9;p.x=Math.random()*cw;}
+    }
+    ctx.globalAlpha=1;
+  } else if (prof.particleType === 'sakura') {
+    // 樱花 / Cherry blossoms (cultural cities)
+    while (GX._cityParticles.length < 30) GX._cityParticles.push({x:Math.random()*cw,y:-10-Math.random()*ch*0.3,vx:0.3+Math.random()*0.5,vy:0.5+Math.random()*1,r:2+Math.random()*3,rot:Math.random()*Math.PI*2});
+    for (const p of GX._cityParticles) {
+      ctx.globalAlpha=0.5;
+      ctx.fillStyle=Math.random()>0.5?'#ffb7c5':'#ff91a4';
+      ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.rot);
+      ctx.beginPath();ctx.ellipse(0,0,p.r,p.r*0.6,0,0,Math.PI*2);ctx.fill();
+      ctx.restore();
+      p.x+=p.vx+Math.sin(GX.time+p.rot)*0.3;p.y+=p.vy;p.rot+=0.02;
+      if(p.y>ch+10||p.x>cw+10){p.x=-10;p.y=-10-Math.random()*50;}
+    }
+    ctx.globalAlpha=1;
+  } else if (prof.particleType === 'seagull') {
+    // 海鸥 / Seagulls (coastal cities)
+    while (GX._cityParticles.length < 8) GX._cityParticles.push({x:Math.random()*cw,y:ch*0.1+Math.random()*ch*0.2,vx:1+Math.random()*1.5,vy:Math.sin(Math.random()*Math.PI)*0.3,wingPhase:Math.random()*Math.PI*2});
+    ctx.strokeStyle='rgba(255,255,255,.5)';ctx.lineWidth=1.5;
+    for (const p of GX._cityParticles) {
+      const wing=Math.sin(GX.time*4+p.wingPhase)*5;
+      ctx.beginPath();ctx.moveTo(p.x-8,p.y+wing);ctx.quadraticCurveTo(p.x,p.y-3,p.x+8,p.y+wing);ctx.stroke();
+      p.x+=p.vx;p.y+=Math.sin(GX.time*0.5+p.wingPhase)*0.4;
+      if(p.x>cw+20){p.x=-20;p.y=ch*0.08+Math.random()*ch*0.15;}
+    }
+  } else if (prof.particleType === 'firefly' && !weather.includes('雨')) {
+    // 萤火虫 / Fireflies (nature cities)
+    while (GX._cityParticles.length < 20) GX._cityParticles.push({x:Math.random()*cw,y:ch*0.4+Math.random()*ch*0.5,vx:(Math.random()-0.5)*0.5,vy:(Math.random()-0.5)*0.5,phase:Math.random()*Math.PI*2});
+    for (const p of GX._cityParticles) {
+      const glow=Math.max(0,Math.sin(GX.time*1.5+p.phase));
+      ctx.globalAlpha=glow*0.7;
+      ctx.fillStyle='#aaff44';ctx.beginPath();ctx.arc(p.x,p.y,2,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='rgba(170,255,68,.15)';ctx.beginPath();ctx.arc(p.x,p.y,6,0,Math.PI*2);ctx.fill();
+      p.x+=p.vx+Math.sin(GX.time+p.phase)*0.3;p.y+=p.vy+Math.cos(GX.time*0.7+p.phase)*0.3;
+      if(p.x<0||p.x>cw)p.vx*=-1;if(p.y<ch*0.3||p.y>ch)p.vy*=-1;
     }
     ctx.globalAlpha=1;
   }
@@ -5457,15 +5709,16 @@ function glassRender(){
   }
   ctx.globalAlpha=1;
 
-  // Far city silhouette
-  ctx.fillStyle='rgba(20,25,40,.8)';
+  // Far city silhouette - profile-driven heights
+  const silH = prof.type==='modern'?60:prof.type==='historic'?25:prof.type==='nature'?15:40;
+  ctx.fillStyle = prof.type==='coastal'?'rgba(15,30,50,.8)':prof.type==='historic'?'rgba(35,25,20,.75)':'rgba(20,25,40,.8)';
   for(let i=0;i<30;i++){
-    const sx=i*(cw/30),bh=15+rng()*40,bw=cw/30-2;
+    const sx=i*(cw/30),bh=5+rng()*silH,bw=cw/30-2;
     ctx.fillRect(sx,ch*0.38-bh,bw,bh);
   }
-  // Horizon glow
+  // Horizon glow - profile accent
   const hg=ctx.createLinearGradient(0,ch*0.35,0,ch*0.42);
-  hg.addColorStop(0,'rgba(60,160,255,.06)');
+  hg.addColorStop(0, prof.accentGlow + '10');
   hg.addColorStop(1,'transparent');
   ctx.fillStyle=hg;
   ctx.fillRect(0,ch*0.35,cw,ch*0.07);
@@ -5490,14 +5743,15 @@ function glassRender(){
     ctx.beginPath();
     ctx.moveTo(p.sx,p.sy-th/2);ctx.lineTo(p.sx+tw/2,p.sy);ctx.lineTo(p.sx,p.sy+th/2);ctx.lineTo(p.sx-tw/2,p.sy);ctx.closePath();
     if(tile==='road'){
-      ctx.fillStyle='rgba(30,35,50,.9)';ctx.fill();
+      ctx.fillStyle=prof.roadColor;ctx.fill();
       ctx.strokeStyle='rgba(60,80,120,.15)';ctx.lineWidth=0.3;ctx.stroke();
     }else if(tile==='water'){
+      const wc = prof.type==='coastal'?[20,100,160]:[30,80,140];
       const wAlpha=0.5+Math.sin(GX.time*2+x*0.5+y*0.3)*0.15;
-      ctx.fillStyle=`rgba(30,80,140,${wAlpha})`;ctx.fill();
+      ctx.fillStyle=`rgba(${wc[0]},${wc[1]},${wc[2]},${wAlpha})`;ctx.fill();
     }else{
-      ctx.fillStyle='rgba(15,25,20,.85)';ctx.fill();
-      if((x+y)%4===0){ctx.fillStyle='rgba(20,40,25,.5)';ctx.fill();}
+      ctx.fillStyle=prof.groundColor;ctx.fill();
+      if((x+y)%4===0){ctx.fillStyle='rgba(20,40,25,.3)';ctx.fill();}
     }
   }}
 

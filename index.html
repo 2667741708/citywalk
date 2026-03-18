@@ -5085,7 +5085,7 @@ const KNOWN_CITY_TYPES = {
   '上海':'modern','北京':'modern','深圳':'modern','广州':'modern','重庆':'modern','成都':'modern','武汉':'modern',
   '西安':'historic','南京':'historic','洛阳':'historic','开封':'historic','敦煌':'historic',
   '杭州':'cultural','苏州':'cultural','丽江':'cultural','大理':'cultural','凤凰':'cultural','景德镇':'cultural',
-  '青岛':'coastal','厦门':'coastal','三亚':'coastal','大连':'coastal','珠海':'coastal','烟台':'coastal','海口':'coastal',
+  '青岛':'coastal','厦门':'coastal','三亚':'coastal','大连':'coastal','珠海':'coastal','烟台':'coastal','海口':'coastal','秦皇岛':'coastal','威海':'coastal','北海':'coastal',
   '桂林':'nature','张家界':'nature','九寨沟':'nature','黄山':'nature','昆明':'nature',
 };
 
@@ -5126,6 +5126,10 @@ function analyzeCityProfile(pois, cityName) {
 }
 
 
+// 修改基线 / Base: openGlassCity() + initGlassCity() 原始版本
+// 修改内容 / Changes: 传递选中路线的POI坐标，使用 searchNearBy 基于路线中心点搜索周边POI
+// Pass selected route POIs, use searchNearBy for area-specific POI data
+
 function openGlassCity(){
   const city=APP.selectedCity||'上海';
   document.getElementById('glassCityTag').textContent=city;
@@ -5134,7 +5138,8 @@ function openGlassCity(){
   document.getElementById('glassLoadBar').style.width='0%';
   document.getElementById('glassLoadText').textContent='正在构建城市...';
   document.getElementById('creativePanel').classList.remove('active');
-  setTimeout(()=>initGlassCity(city),200);
+  // 传递选中路线给 initGlassCity / Pass selected route to initGlassCity
+  setTimeout(()=>initGlassCity(city, APP.selectedRoute),200);
 }
 function closeGlassCity(){
   GX.running=false;
@@ -5143,7 +5148,7 @@ function closeGlassCity(){
   removeGlassListeners();
 }
 
-async function initGlassCity(cityName){
+async function initGlassCity(cityName, selectedRoute){
   GX.cityName=cityName;
   GX.buildings=[];GX.particles=[];GX.pois=[];
   GX.rewards=[];GX.routePath=[];GX.collectedRewards={};GX.score=0;
@@ -5165,14 +5170,78 @@ async function initGlassCity(cityName){
   GX.ground=[];
   for(let y=0;y<GX.worldH;y++){GX.ground[y]=[];for(let x=0;x<GX.worldW;x++)GX.ground[y][x]='grass';}
 
-  setGlassLoad(10,'获取城市数据...');
+  setGlassLoad(10,'获取位置数据...');
   let poiData=[];
+
+  // === 路线 POI 作为种子 / Route POIs as seed data ===
+  let centerLat=0, centerLng=0, hasCenter=false;
+
+  if(selectedRoute && selectedRoute.points && selectedRoute.points.length>0){
+    // 从用户选择的路线中提取真实 POI 坐标
+    selectedRoute.points.forEach(pt=>{
+      if(pt.lat && pt.lng){
+        poiData.push({
+          name: pt.name || pt.label || '路线点',
+          type: pt.type || '景点',
+          address: pt.desc || pt.address || '',
+          lat: pt.lat,
+          lng: pt.lng,
+        });
+        centerLat += pt.lat;
+        centerLng += pt.lng;
+      }
+    });
+    if(poiData.length>0){
+      centerLat /= poiData.length;
+      centerLng /= poiData.length;
+      hasCenter = true;
+      console.log(`[GlassCity] 使用路线中心点: [${centerLat.toFixed(4)}, ${centerLng.toFixed(4)}], 种子POI: ${poiData.length}`);
+    }
+  }
+
+  // === AMap 周边搜索 / AMap NearBy Search ===
   if(typeof AMap!=='undefined'&&!APP.demoMode){
     try{
       const cats=POI_CATEGORIES;
-      setGlassLoad(20,'搜索建筑...');
-      const results=await Promise.all(cats.map(c=>amapPOISearch(c.name,cityName,c.code)));
-      cats.forEach((cat,ci)=>{(results[ci]||[]).forEach(poi=>{if(poi.location){const[lng,lat]=poi.location.split(',').map(Number);if(lng&&lat)poiData.push({name:poi.name,type:cat.name,address:poi.address||'',lat,lng});}});});
+      setGlassLoad(20,'搜索周边建筑...');
+
+      if(hasCenter){
+        // 基于路线中心点的 2km 半径搜索 / 2km radius search around route center
+        const nearbyResults = await Promise.all(cats.map(c => new Promise(resolve => {
+          try{
+            const ps = new AMap.PlaceSearch({
+              city: cityName,
+              citylimit: true,
+              pageSize: 20,
+              type: c.code || '',
+            });
+            ps.searchNearBy(c.name, [centerLng, centerLat], 2000, (status, result) => {
+              if(status==='complete' && result.poiList && result.poiList.pois){
+                resolve(result.poiList.pois);
+              }else{
+                resolve([]);
+              }
+            });
+          }catch(e){resolve([]);}
+        })));
+        cats.forEach((cat,ci)=>{
+          (nearbyResults[ci]||[]).forEach(poi=>{
+            if(poi.location){
+              const[lng,lat]=poi.location.split?poi.location.split(',').map(Number):[poi.location.lng,poi.location.lat];
+              if(lng&&lat){
+                // 避免重复已有的种子 POI
+                const dup = poiData.some(p=>Math.abs(p.lat-lat)<0.0001&&Math.abs(p.lng-lng)<0.0001);
+                if(!dup) poiData.push({name:poi.name,type:cat.name,address:poi.address||'',lat,lng});
+              }
+            }
+          });
+        });
+        console.log(`[GlassCity] NearBy搜索完成, 总POI: ${poiData.length}`);
+      }else{
+        // 没有选中路线时，降级为全城搜索 / Fallback to whole-city search
+        const results=await Promise.all(cats.map(c=>amapPOISearch(c.name,cityName,c.code)));
+        cats.forEach((cat,ci)=>{(results[ci]||[]).forEach(poi=>{if(poi.location){const[lng,lat]=poi.location.split(',').map(Number);if(lng&&lat)poiData.push({name:poi.name,type:cat.name,address:poi.address||'',lat,lng});}});});
+      }
     }catch(e){console.warn('Glass POI fetch:',e);}
   }
   setGlassLoad(45,'分析城市特征...');
@@ -5191,6 +5260,15 @@ async function initGlassCity(cityName){
 
   setGlassLoad(50,'生成城市布局...');
   buildGlassWorld(poiData, GX.cityProfile);
+
+  // 设置玩家起始位置到路线第一个 POI 的位置 / Set player start to first route POI
+  if(GX.buildings.length>0){
+    const startB = GX.buildings.find(b=>b.name) || GX.buildings[0];
+    GX.px = startB.x;
+    GX.py = startB.y + 2; // 站在建筑前
+    GX.camX = GX.px;
+    GX.camY = GX.py;
+  }
 
   // Build guided route using Amap Walking API for real routes
   setGlassLoad(55,'规划步行路线...');

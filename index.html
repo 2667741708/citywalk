@@ -794,7 +794,7 @@ const APP = {
   achievements: JSON.parse(localStorage.getItem('cw_achievements') || '[]'),
   totalCheckins: parseInt(localStorage.getItem('cw_total') || '0'),
   demoMode: false,
-  amapKey: 'd7427bb415e50eb00a01f93581ceb3ac'
+  amapKey: '040c3af03bab9232ab67e0d232838b28'
 };
 // [MOCK_DATA]
 const CITY_COLORS = {
@@ -2078,13 +2078,15 @@ function openFreeroam() {
       <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-bottom:16px;">
         ${hotCities.map(c => `<button onclick="_freeroamSetCity('${c}')" style="padding:5px 12px;border-radius:16px;font-size:.72rem;font-weight:600;cursor:pointer;border:1px solid rgba(255,255,255,.1);background:${c===city?'rgba(255,107,53,.2)':'rgba(255,255,255,.04)'};color:${c===city?'var(--accent)':'rgba(255,255,255,.5)'};transition:all .2s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='rgba(255,255,255,.1)'">${c}</button>`).join('')}
       </div>
-      <!-- 引擎选择 -->
-      <div style="display:flex;gap:12px;margin-bottom:16px;">
-        <button onclick="startFreeroam('px')" style="flex:1;padding:18px 0;border-radius:16px;background:linear-gradient(135deg,#2d2d5a,#1a1a3e);border:1px solid rgba(255,255,255,.1);color:#fff;font-size:.95rem;font-weight:700;cursor:pointer;transition:all .2s;" onmouseover="this.style.borderColor='var(--accent)';this.style.boxShadow='0 0 20px rgba(255,107,53,.15)'" onmouseout="this.style.borderColor='rgba(255,255,255,.1)';this.style.boxShadow='none'">
-          <div style="font-size:2rem;margin-bottom:6px;">🎮</div>像素风格
+      <div style="display:flex;gap:10px;margin-bottom:16px;">
+        <button onclick="startFreeroam('px')" style="flex:1;padding:16px 0;border-radius:16px;background:linear-gradient(135deg,#2d2d5a,#1a1a3e);border:1px solid rgba(255,255,255,.1);color:#fff;font-size:.9rem;font-weight:700;cursor:pointer;transition:all .2s;" onmouseover="this.style.borderColor='var(--accent)';this.style.boxShadow='0 0 20px rgba(255,107,53,.15)'" onmouseout="this.style.borderColor='rgba(255,255,255,.1)';this.style.boxShadow='none'">
+          <div style="font-size:1.8rem;margin-bottom:4px;">🎮</div>像素
         </button>
-        <button onclick="startFreeroam('gx')" style="flex:1;padding:18px 0;border-radius:16px;background:linear-gradient(135deg,#1a2040,#0a0a20);border:1px solid rgba(255,255,255,.1);color:#fff;font-size:.95rem;font-weight:700;cursor:pointer;transition:all .2s;" onmouseover="this.style.borderColor='#5cadff';this.style.boxShadow='0 0 20px rgba(92,173,255,.15)'" onmouseout="this.style.borderColor='rgba(255,255,255,.1)';this.style.boxShadow='none'">
-          <div style="font-size:2rem;margin-bottom:6px;">✨</div>全景风格
+        <button onclick="startFreeroam('gx')" style="flex:1;padding:16px 0;border-radius:16px;background:linear-gradient(135deg,#1a2040,#0a0a20);border:1px solid rgba(255,255,255,.1);color:#fff;font-size:.9rem;font-weight:700;cursor:pointer;transition:all .2s;" onmouseover="this.style.borderColor='#5cadff';this.style.boxShadow='0 0 20px rgba(92,173,255,.15)'" onmouseout="this.style.borderColor='rgba(255,255,255,.1)';this.style.boxShadow='none'">
+          <div style="font-size:1.8rem;margin-bottom:4px;">✨</div>全景
+        </button>
+        <button onclick="startRealRoam()" style="flex:1;padding:16px 0;border-radius:16px;background:linear-gradient(135deg,#1f3d4a,#0f242e);border:1px solid rgba(255,255,255,.1);color:#fff;font-size:.9rem;font-weight:700;cursor:pointer;transition:all .2s;" onmouseover="this.style.borderColor='#00b894';this.style.boxShadow='0 0 20px rgba(0,184,148,.15)'" onmouseout="this.style.borderColor='rgba(255,255,255,.1)';this.style.boxShadow='none'">
+          <div style="font-size:1.8rem;margin-bottom:4px;">🗺️</div>真实地图
         </button>
       </div>
       <button onclick="document.getElementById('freeroamOverlay').remove()" style="padding:8px 24px;border-radius:20px;background:rgba(255,255,255,.06);color:rgba(255,255,255,.4);font-size:.8rem;cursor:pointer;border:none;">取消</button>
@@ -2241,6 +2243,369 @@ async function startFreeroam(type) {
   }
 }
 
+// === REAL MAP ENGINE ===
+// 修改内容 / Changes: 真实地图漫游模式入口与逻辑
+const RX = {
+  map: null, canvas: null, ctx: null,
+  running: false, animFrame: null,
+  // 角色坐标及状态
+  px: 0, py: 0, lat: 0, lng: 0,
+  pDir: 0, pFrame: 0, pFrameTimer: 0, pMoving: false,
+  moveX: 0, moveY: 0, keys: {}, speed: 0.00003, // 经纬度移动速度
+  baseSpeed: 0.00003, vehicle: 'walk', boosting: false, boostEnergy: 100, boostMax: 100, boostDrain: 0.8, boostRegen: 0.3,
+  // 数据缓存
+  pois: [], cityName: '', lastPanTime: 0
+};
+
+async function startRealRoam() {
+  const overlay = document.getElementById('freeroamOverlay');
+  if (overlay) overlay.remove();
+  const city = APP.selectedCity || '上海';
+  
+  // 注入或显示真实地图面板
+  let panel = document.getElementById('realMapPanel');
+  if (!panel) {
+    panel = document.createElement('div');
+    panel.id = 'realMapPanel';
+    panel.style.cssText = 'position:fixed;inset:0;z-index:900;background:#1a1c29;display:none;';
+    panel.innerHTML = `
+      <div style="position:absolute;top:20px;left:20px;z-index:10;display:flex;align-items:center;gap:12px;">
+        <button onclick="closeRealRoam()" style="width:40px;height:40px;border-radius:50%;background:rgba(20,22,35,.8);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.1);color:#fff;font-size:1.2rem;cursor:pointer;display:flex;align-items:center;justify-content:center;">
+          <i class="bi bi-arrow-left"></i>
+        </button>
+        <div style="background:rgba(20,22,35,.8);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.1);padding:6px 16px;border-radius:20px;color:#fff;font-weight:700;display:flex;align-items:center;gap:8px;box-shadow:0 8px 32px rgba(0,0,0,.3);">
+          <span style="font-size:1.2rem;">🗺️</span> <span id="realCityTag">${city} · 真实探索</span>
+        </div>
+      </div>
+      <!-- 高德地图容器 -->
+      <div id="realMapContainer" style="position:absolute;inset:0;background:#2d2d3a;"></div>
+      <!-- 透明Canvas叠加层，用于绘制居中的像素角色 -->
+      <canvas id="realCanvas" style="position:absolute;inset:0;pointer-events:none;z-index:2;"></canvas>
+      
+      <!-- 加载屏 -->
+      <div id="realLoading" style="position:absolute;inset:0;z-index:20;background:rgba(20,22,35,.98);display:flex;align-items:center;justify-content:center;flex-direction:column;">
+        <div style="font-size:3rem;margin-bottom:20px;animation:pulse 1s infinite alternate;">📍</div>
+        <div style="font-family:var(--font-display);font-size:1.4rem;color:#fff;margin-bottom:24px;" id="realLoadText">正在获取真实地理数据...</div>
+        <div style="width:240px;height:6px;background:rgba(255,255,255,.1);border-radius:3px;overflow:hidden;">
+          <div id="realLoadBar" style="height:100%;width:0%;background:linear-gradient(90deg,var(--accent),#00b894);transition:width .3s;border-radius:3px;"></div>
+        </div>
+      </div>
+      
+      <!-- 载具选择器和控制区同PX -->
+      <div id="realVehicleWrap" style="position:absolute;right:20px;bottom:140px;z-index:10;display:flex;flex-direction:column;gap:12px;"></div>
+      <div id="realTouchLeft" style="position:absolute;left:20px;bottom:30px;width:120px;height:120px;z-index:10;"></div>
+      <div id="realTouchRight" style="position:absolute;right:20px;bottom:30px;width:120px;height:120px;z-index:10;"></div>
+    `;
+    document.body.appendChild(panel);
+  }
+  
+  document.getElementById('realCityTag').textContent = city + ' · 真实探索';
+  panel.style.display = 'block';
+  const loadingDiv = document.getElementById('realLoading');
+  loadingDiv.style.display = 'flex';
+  document.getElementById('realLoadBar').style.width = '20%';
+  document.getElementById('realLoadText').textContent = '连接高德卫星路网...';
+  
+  setTimeout(async () => {
+    try {
+      if (typeof AMap === 'undefined') throw new Error("AMap API 未加载");
+      // 获取城市坐标
+      const info = await amapGeocode(city);
+      if (!info) throw new Error("无法获取城市坐标");
+      
+      document.getElementById('realLoadBar').style.width = '50%';
+      document.getElementById('realLoadText').textContent = '渲染真实街道...';
+      
+      RX.lat = info.lat;
+      RX.lng = info.lng;
+      RX.cityName = city;
+      
+      // 初始化地图
+      if(RX.map) { RX.map.destroy(); }
+      RX.map = new AMap.Map('realMapContainer', {
+        center: [RX.lng, RX.lat],
+        zoom: 17,
+        mapStyle: 'amap://styles/darkblue', // 使用暗色主题匹配应用风格
+        showBuildingBlock: true,
+        rotateEnable: true,
+        pitchEnable: true,
+        pitch: 60,
+        rotation: 0,
+        features: ['bg', 'road', 'building'] // 只保留基础元素，隐藏默认POI
+      });
+      
+      RX.canvas = document.getElementById('realCanvas');
+      RX.ctx = RX.canvas.getContext('2d');
+      function resizeRX() {
+        RX.canvas.width = window.innerWidth;
+        RX.canvas.height = window.innerHeight;
+      }
+      resizeRX();
+      window._realResize = resizeRX;
+      window.addEventListener('resize', resizeRX);
+      
+      document.getElementById('realLoadBar').style.width = '80%';
+      document.getElementById('realLoadText').textContent = '搜寻周边兴趣点...';
+      
+      // 预先查询周边的POI
+      try {
+        await Promise.race([
+          loadRealPOIsNearBy(),
+          new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 5000))
+        ]);
+      } catch (err) {
+        console.warn('Load POIs nearby warning or timeout:', err);
+      }
+      
+      document.getElementById('realLoadBar').style.width = '100%';
+      document.getElementById('realLoadText').textContent = '欢迎来到真实的 ' + city;
+      await new Promise(r => setTimeout(r, 400));
+      loadingDiv.style.display = 'none';
+      
+      RX.running = true;
+      RX.vehicle = 'walk';
+      RX.pMoving = false;
+      RX.moveX = 0; RX.moveY = 0;
+      RX.keys = {};
+      
+      setupRealListeners();
+      renderVehicleSelector('real');
+      
+      // 地图加载完成后，保证角色居中
+      RX.px = RX.canvas.width / 2;
+      RX.py = RX.canvas.height / 2;
+      
+      realGameLoop();
+    } catch (e) {
+      console.error('RealRoam init error:', e);
+      document.getElementById('realLoadText').textContent = '初始化失败: ' + e.message;
+      setTimeout(() => { loadingDiv.style.display = 'none'; closeRealRoam(); }, 3000);
+    }
+  }, 300);
+}
+
+function closeRealRoam() {
+  RX.running = false;
+  cancelAnimationFrame(RX.animFrame);
+  if(RX.map) { RX.map.destroy(); RX.map = null; }
+  window.removeEventListener('resize', window._realResize);
+  document.getElementById('realMapPanel').style.display = 'none';
+  if(RX._touchCleaner) RX._touchCleaner();
+}
+
+// --- REAL MAP ENGINE LOGIC ---
+function setupRealListeners() {
+  window.addEventListener('keydown', realKeyDown);
+  window.addEventListener('keyup', realKeyUp);
+  setupRealTouch();
+}
+
+function realKeyDown(e) {
+  if(!RX.running) return;
+  RX.keys[e.key.toLowerCase()] = true;
+  if(e.key === 'Shift') RX.boosting = true;
+  if(e.key === ' ' || e.key === 'e') {
+    // Press Space or E to checkin near POI
+    checkRealPOICheckin();
+  }
+}
+function realKeyUp(e) {
+  if(!RX.running) return;
+  RX.keys[e.key.toLowerCase()] = false;
+  if(e.key === 'Shift') RX.boosting = false;
+}
+
+function setupRealTouch() {
+  const L = document.getElementById('realTouchLeft');
+  const R = document.getElementById('realTouchRight');
+  if(!L || !R) return;
+  
+  let jx=0, jy=0, jAct=false;
+  const lTouch = (e) => {
+    e.preventDefault();
+    const t = e.touches[0] || e.changedTouches[0];
+    const rect = L.getBoundingClientRect();
+    const cx = rect.left + rect.width/2;
+    const cy = rect.top + rect.height/2;
+    let dx = t.clientX - cx, dy = t.clientY - cy;
+    const dist = Math.hypot(dx, dy);
+    const maxR = 40;
+    if(dist>maxR) { dx = dx/dist*maxR; dy = dy/dist*maxR; }
+    jx = dx/maxR; jy = dy/maxR;
+    jAct = true;
+    L.innerHTML = `<div style="position:absolute;left:50%;top:50%;width:80px;height:80px;margin:-40px 0 0 -40px;border-radius:50%;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);"><div style="position:absolute;left:50%;top:50%;width:40px;height:40px;margin:-20px 0 0 -20px;border-radius:50%;background:rgba(255,255,255,.4);transform:translate(${dx}px,${dy}px);"></div></div>`;
+  };
+  const lEnd = (e) => {
+    e.preventDefault(); jAct=false; jx=0; jy=0;
+    L.innerHTML = `<div style="position:absolute;left:50%;top:50%;width:80px;height:80px;margin:-40px 0 0 -40px;border-radius:50%;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);"><div style="position:absolute;left:50%;top:50%;width:40px;height:40px;margin:-20px 0 0 -20px;border-radius:50%;background:rgba(255,255,255,.2);"></div></div>`;
+  };
+  L.addEventListener('touchstart', lTouch, {passive:false});
+  L.addEventListener('touchmove', lTouch, {passive:false});
+  L.addEventListener('touchend', lEnd, {passive:false});
+  lEnd({preventDefault:()=>{}});
+
+  const rTouch = (e) => { e.preventDefault(); RX.boosting=true; R.style.opacity='0.5'; };
+  const rEnd = (e) => { e.preventDefault(); RX.boosting=false; R.style.opacity='1'; checkRealPOICheckin(); };
+  R.innerHTML = `<div style="position:absolute;left:50%;top:50%;width:60px;height:60px;margin:-30px 0 0 -30px;border-radius:50%;background:rgba(255,107,53,.3);border:2px solid rgba(255,107,53,.6);display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.5rem;box-shadow:0 0 15px rgba(255,107,53,.4);">⚡</div>`;
+  R.addEventListener('touchstart', rTouch, {passive:false});
+  R.addEventListener('touchend', rEnd, {passive:false});
+
+  RX._joystick = () => {
+    if(!jAct) return {x:0, y:0};
+    return {x: jx, y: jy};
+  };
+  
+  RX._touchCleaner = () => {
+    L.removeEventListener('touchstart', lTouch); L.removeEventListener('touchmove', lTouch); L.removeEventListener('touchend', lEnd);
+    R.removeEventListener('touchstart', rTouch); R.removeEventListener('touchend', rEnd);
+  };
+}
+
+function updateRealPlayer() {
+  RX.moveX = 0; RX.moveY = 0;
+  if(RX.keys['w'] || RX.keys['arrowup']) RX.moveY = 1;
+  if(RX.keys['s'] || RX.keys['arrowdown']) RX.moveY = -1;
+  if(RX.keys['a'] || RX.keys['arrowleft']) RX.moveX = -1;
+  if(RX.keys['d'] || RX.keys['arrowright']) RX.moveX = 1;
+  
+  if(RX._joystick) {
+    const j = RX._joystick();
+    if(j.x!==0 || j.y!==0) { RX.moveX = j.x; RX.moveY = -j.y; }
+  }
+  
+  RX.pMoving = (Math.abs(RX.moveX)>0.1 || Math.abs(RX.moveY)>0.1);
+  
+  if(RX.pMoving) {
+    if(Math.abs(RX.moveX)>Math.abs(RX.moveY)){ RX.pDir = RX.moveX>0 ? 3 : 1; }
+    else { RX.pDir = RX.moveY>0 ? 2 : 0; }
+    
+    // 载具加速与能量衰减
+    let curSpeed = RX.baseSpeed;
+    if (RX.vehicle === 'bicycle') curSpeed *= 2.5;
+    else if (RX.vehicle === 'scooter') curSpeed *= 3.5;
+    else if(RX.boosting && RX.boostEnergy > 0) {
+      curSpeed *= 2.2;
+      RX.boostEnergy = Math.max(0, RX.boostEnergy - RX.boostDrain);
+    }
+    
+    // 更新经纬度（注意纬度向上是正，所以 Y 取反）
+    RX.lng += RX.moveX * curSpeed;
+    RX.lat -= RX.moveY * curSpeed * Math.cos(RX.lat * Math.PI/180); // 简单球体投影修正
+    
+    RX.pFrameTimer++;
+    if(RX.pFrameTimer > 10) { RX.pFrame = (RX.pFrame + 1) % 4; RX.pFrameTimer = 0; }
+    
+    // 限制每150ms最多panTo一次，防止卡顿
+    const now = Date.now();
+    if(now - RX.lastPanTime > 150 && RX.map) {
+      RX.map.panTo([RX.lng, RX.lat]);
+      RX.lastPanTime = now;
+    }
+  } else {
+    RX.pFrame = 0;
+    if(RX.boostEnergy < RX.boostMax) RX.boostEnergy = Math.min(RX.boostMax, RX.boostEnergy + RX.boostRegen);
+  }
+}
+
+async function loadRealPOIsNearBy() {
+  if(!RX.map) return;
+  const priorityCats=[ {code:'110000',name:'景点'},{code:'050000',name:'美食'},{code:'060000',name:'购物'},{code:'080000',name:'文艺'},{code:'141000',name:'网红'} ];
+  let allPois = [];
+  try {
+      const results = await Promise.all(priorityCats.map(cat => 
+        chunkPOISearchNearBy(RX.lng, RX.lat, 800, cat.code) // 搜索800m范围
+      ));
+      priorityCats.forEach((cat, ci) => {
+          (results[ci] || []).forEach(poi => {
+            if(poi.location) {
+               const [lng,lat] = poi.location.split(',').map(Number);
+               if(lng && lat) allPois.push({id: poi.id, name: poi.name, type: cat.name, address: poi.address, lat, lng, collected: false});
+            }
+          });
+      });
+  } catch(e) { console.warn("Real POI fetch err:", e); }
+  RX.pois = allPois;
+  
+  // 在真实地图上渲染 POI Markers
+  RX.map.clearMap(); // 清除之前的标记
+  allPois.forEach(poi => {
+      const marker = new AMap.Marker({
+          position: [poi.lng, poi.lat],
+          title: poi.name,
+          content: `<div style="background:rgba(0,0,0,.7);color:#fff;padding:4px 8px;border-radius:12px;font-size:12px;border:1px solid rgba(255,255,255,.3);white-space:nowrap;backdrop-filter:blur(4px);pointer-events:none;">📍 ${poi.name}</div>`,
+          offset: new AMap.Pixel(-20, -30)
+      });
+      RX.map.add(marker);
+  });
+}
+
+// 检查并进行打卡判定（距离 < 50米 约0.0005度）
+function checkRealPOICheckin() {
+  if(!RX.pois.length) return;
+  let closest = null, minDist = 0.0005; // ~50m
+  RX.pois.forEach(poi => {
+    if(poi.collected) return;
+    const dLng = Math.abs(poi.lng - RX.lng);
+    const dLat = Math.abs(poi.lat - RX.lat);
+    const dist = Math.hypot(dLng, dLat);
+    if(dist < minDist) { minDist = dist; closest = poi; }
+  });
+  if(closest) {
+    closest.collected = true;
+    checkinPoint('real_map', 0, closest.name); // 复用通用的打卡逻辑
+    createFloatingText(RX.px, RX.py - 30, '+打卡成功! 🎉', '#00b894', 'realCanvas');
+    showToast('已探索：' + closest.name);
+  } else {
+    createFloatingText(RX.px, RX.py - 30, '附近没有可打卡点', '#aaaaaa', 'realCanvas');
+  }
+}
+
+function drawRealHUD() {
+  const ctx = RX.ctx;
+  ctx.save();
+  // Location text
+  ctx.fillStyle = '#fff'; ctx.font = '700 14px var(--font-display)'; ctx.textAlign = 'left';
+  ctx.fillText(`${(RX.lat||0).toFixed(4)}, ${(RX.lng||0).toFixed(4)}`, 40, 90);
+  ctx.fillStyle = 'var(--accent)';
+  ctx.fillText('📍', 20, 90);
+  
+  // Boost Bar
+  ctx.fillStyle='rgba(0,0,0,0.4)'; ctx.fillRect(20, 110, 100, 6);
+  if(RX.boostEnergy>0) { ctx.fillStyle='var(--accent)'; ctx.fillRect(20, 110, Math.max(0, RX.boostEnergy), 6); }
+  ctx.restore();
+}
+
+function realGameLoop() {
+  if(!RX.running) return;
+  RX.animFrame = requestAnimationFrame(realGameLoop);
+  
+  updateRealPlayer();
+  
+  const ctx = RX.ctx;
+  ctx.clearRect(0,0,RX.canvas.width,RX.canvas.height);
+  
+  // 绘制中心像素角色 (居中在屏幕上)
+  drawPixelCharacter(ctx, RX.px, RX.py, RX.pDir, RX.pFrame, RX.vehicle);
+  drawRealHUD();
+  
+  // 绘制漂浮文字
+  for(let i=FloatingTexts.length-1; i>=0; i--) {
+    const ft = FloatingTexts[i];
+    if(ft.ctxId === 'realCanvas' || (!ft.ctxId && ft.canvasId==='realCanvas')) {
+      ft.y -= 0.5; ft.alpha -= 0.015;
+      ctx.fillStyle = ft.color; ctx.globalAlpha = Math.max(0, ft.alpha);
+      ctx.font = '700 16px var(--font-display)'; ctx.textAlign = 'center';
+      ctx.fillText(ft.text, ft.x, ft.y);
+      if(ft.alpha<=0) FloatingTexts.splice(i,1);
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+
+// 修改基线 / Base: index.html HEAD (本地最新版)
+// 修改内容 / Changes: 移除了重复定义的 VEHICLES 常量及相关冗余逻辑，修复了 Identifier 'VEHICLES' has already been declared 导致的 SyntaxError 和加载卡死问题。
+// Removed redundant VEHICLES constant to fix SyntaxError.
+
 // === COLOR WALK ===
 let colorWalkState = JSON.parse(localStorage.getItem('cw_colorwalk') || '{"players":[],"photos":{}}');
 
@@ -2285,7 +2650,7 @@ function renderColorWalk() {
             </div>
             <div class="color-result-photos">
               ${photos.length > 0 ? photos.map(ph => `
-                <img class="photo-thumb" src="${ph}" alt="${p.name}">
+                <img class="photo-thumb" src="${ph}" style="width:100%;height:100%;object-fit:cover;" alt="${p.name}">
               `).join('') : `<div class="empty">${p.emoji} 还没拍照</div>`}
               <button class="color-upload-btn" onclick="colorUpload(${pi})">📸 拍一张${p.name}</button>
             </div>
@@ -5716,100 +6081,15 @@ function renderExploreMap() {
     </div>
     <div class="explore-stat anim-fadeInUp stagger-3">
       <div class="e-num">${EXPLORE_CITIES.length}</div>
-      <div class="e-lbl">总城市</div>
-    </div>
-    <div class="explore-stat anim-fadeInUp stagger-4">
-      <div class="e-num">${Math.round(exploreState.completed.length / EXPLORE_CITIES.length * 100)}%</div>
-      <div class="e-lbl">点亮率</div>
+      <div class="e-lbl">全部城市</div>
     </div>`;
 
-  // Build SVG map
-  const svgW = 500, svgH = 460;
-  let svg = `<svg viewBox="0 0 ${svgW} ${svgH}" xmlns="http://www.w3.org/2000/svg">`;
-  svg += `<defs>
-    <radialGradient id="glowGreen"><stop offset="0%" stop-color="#00b894" stop-opacity=".6"/><stop offset="100%" stop-color="#00b894" stop-opacity="0"/></radialGradient>
-    <radialGradient id="glowOrange"><stop offset="0%" stop-color="#ff6b35" stop-opacity=".5"/><stop offset="100%" stop-color="#ff6b35" stop-opacity="0"/></radialGradient>
-    <filter id="softGlow"><feGaussianBlur stdDeviation="2" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-  </defs>`;
-
-  // Draw background outline hint (simplified China silhouette)
-  svg += `<path d="M100,30 Q140,15 180,20 Q220,10 260,15 Q300,8 350,20 Q400,12 420,30 Q435,50 430,70 Q440,90 425,110 Q410,100 405,120 Q420,130 415,150 Q400,145 395,160 Q410,170 400,190 Q390,180 380,195 Q395,210 385,230 Q370,220 365,240 Q380,250 370,270 Q355,265 350,280 Q365,295 355,310 Q340,300 335,320 Q325,340 310,350 Q295,360 280,355 Q270,370 255,365 Q250,375 240,370 Q235,355 220,350 Q210,365 195,355 Q185,345 170,340 Q160,355 145,350 Q135,340 120,345 Q110,335 105,320 Q95,330 90,315 Q85,300 80,290 Q70,285 75,270 Q65,260 70,245 Q60,235 65,220 Q55,210 60,195 Q50,185 55,170 Q45,160 50,145 Q40,135 55,120 Q50,105 60,90 Q55,75 65,60 Q70,45 85,40 Z" class="province-path" fill="rgba(26,26,46,.03)" stroke="rgba(26,26,46,.06)" stroke-width="1.5"/>`;
-
-  // Draw edges
-  CITY_EDGES.forEach(([a, b]) => {
-    const ca = EXPLORE_CITIES.find(c => c.name === a);
-    const cb = EXPLORE_CITIES.find(c => c.name === b);
-    if (!ca || !cb) return;
-    const ax = ca.x / 100 * svgW, ay = ca.y / 100 * svgH;
-    const bx = cb.x / 100 * svgW, by = cb.y / 100 * svgH;
-    const statusA = getCityExploreStatus(a);
-    const statusB = getCityExploreStatus(b);
-    let edgeClass = 'edge-line';
-    if (statusA === 'completed' && statusB === 'completed') edgeClass += ' completed';
-    else if (statusA !== 'locked' && statusB !== 'locked') edgeClass += ' active';
-    svg += `<line x1="${ax}" y1="${ay}" x2="${bx}" y2="${by}" class="${edgeClass}"/>`;
-  });
-
-  // Draw city nodes
-  EXPLORE_CITIES.forEach(city => {
-    const cx = city.x / 100 * svgW;
-    const cy = city.y / 100 * svgH;
-    const status = getCityExploreStatus(city.name);
-    let nodeClass = 'city-node ' + status;
-
-    svg += `<g class="${nodeClass}" onclick="onExploreCityClick('${city.name}')" data-city="${city.name}">`;
-
-    // Glow effect for unlocked/completed
-    if (status === 'completed') {
-      svg += `<circle class="node-glow" cx="${cx}" cy="${cy}" r="18" fill="url(#glowGreen)"/>`;
-    } else if (status === 'unlocked') {
-      svg += `<circle class="node-glow" cx="${cx}" cy="${cy}" r="18" fill="url(#glowOrange)"/>`;
-    }
-
-    // Ring
-    const ringColor = status === 'completed' ? '#00b894' : status === 'unlocked' ? '#ff6b35' : 'rgba(26,26,46,.15)';
-    svg += `<circle class="node-ring" cx="${cx}" cy="${cy}" r="12" fill="none" stroke="${ringColor}" stroke-width="2"/>`;
-
-    // Core
-    const coreColor = status === 'completed' ? '#00b894' : status === 'unlocked' ? '#ff6b35' : 'rgba(26,26,46,.12)';
-    svg += `<circle class="node-core" cx="${cx}" cy="${cy}" r="8" fill="${coreColor}" filter="${status !== 'locked' ? 'url(#softGlow)' : 'none'}"/>`;
-
-    // Emoji label
-    if (status !== 'locked') {
-      svg += `<text x="${cx}" y="${cy + 3}" text-anchor="middle" font-size="9" fill="#fff" pointer-events="none">${city.emoji}</text>`;
-    }
-
-    // City name label
-    const labelColor = status === 'completed' ? '#00b894' : status === 'unlocked' ? '#ff6b35' : 'rgba(26,26,46,.2)';
-    svg += `<text x="${cx}" y="${cy + 22}" text-anchor="middle" font-size="7" font-weight="600" fill="${labelColor}" font-family="'Noto Sans SC',sans-serif" pointer-events="none">${city.name}</text>`;
-
-    svg += `</g>`;
-  });
-
-  svg += '</svg>';
-  document.getElementById('exploreMapContainer').innerHTML = svg;
-
-  // Render city detail list
-  renderExploreCityList();
-}
-
-function renderExploreCityList() {
+  // City detail cards
   const detail = document.getElementById('exploreCityDetail');
+  let html = '';
   const allCities = {...MOCK_DATA, ...DYNAMIC_CITIES};
 
-  // Show unlocked cities first, then completed
-  const unlockedNotDone = exploreState.unlocked.filter(c => !exploreState.completed.includes(c));
-  const completed = [...exploreState.completed];
-  const cityOrder = [...unlockedNotDone, ...completed];
-
-  if (cityOrder.length === 0) {
-    detail.innerHTML = '<div class="explore-locked-msg">选择一个起始城市开始你的探索之旅！</div>';
-    return;
-  }
-
-  let html = '<div style="font-family:var(--font-display);font-size:1.1rem;margin-bottom:12px;padding-left:4px;">🏙️ 我的城市</div>';
-
-  cityOrder.forEach((cityName, idx) => {
+  exploreState.unlocked.forEach((cityName, idx) => {
     const status = getCityExploreStatus(cityName);
     const cityMeta = EXPLORE_CITIES.find(c => c.name === cityName);
     const data = allCities[cityName];
@@ -5905,6 +6185,8 @@ function createParticles() {
   }
 }
 // [INIT]
+// 修改基线 / Base: index.html HEAD (693dc51)
+// 修改内容 / Changes: 恢复被截断的初始化代码 (enterApp, DOMContentLoaded, AMap script)
 function enterApp() {
   document.getElementById('splashScreen').classList.add('hidden');
   showView('citySelect');
@@ -5919,6 +6201,13 @@ window.addEventListener('DOMContentLoaded', () => {
   }, 1200);
 });
 </script>
-<script src="https://webapi.amap.com/maps?v=2.0&key=d7427bb415e50eb00a01f93581ceb3ac&plugin=AMap.PlaceSearch,AMap.Walking,AMap.Geocoder,AMap.DistrictSearch,AMap.CitySearch,AMap.Geolocation"></script>
+<script type="text/javascript">
+// 修改基线 / Base: index.html (知识库 amap_api_keys.md)
+// 修改内容 / Changes: 添加高德地图安全密钥配置 (2021年12月后必须)
+window._AMapSecurityConfig = {
+    securityJsCode: 'fa5b4914b560026b23e2c7ae1bc757d4',
+}
+</script>
+<script src="https://webapi.amap.com/maps?v=2.0&key=040c3af03bab9232ab67e0d232838b28&plugin=AMap.PlaceSearch,AMap.Walking,AMap.Geocoder,AMap.DistrictSearch,AMap.CitySearch,AMap.Geolocation"></script>
 </body>
 </html>

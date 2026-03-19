@@ -1082,43 +1082,61 @@ const AmapHelper = {
     });
   },
 
+  // 修改基线 / Base: drawRoute 原始版本 (仅首尾步行规划)
+  // 修改内容 / Changes: 逐段调用 AMap.Walking 实现全程真实步行路径
+  // Rewritten to plan walking routes between every consecutive POI pair
   drawRoute(points) {
     if (!this.map || points.length < 2) return;
-    // Draw a polyline connecting all points
+    // 1. 即时显示虚线总览折线 / Instantly show dashed overview polyline
     const path = points.map(p => [p.lng, p.lat]);
     this.polyline = new AMap.Polyline({
       path: path,
       strokeColor: '#ff6b35',
-      strokeWeight: 4,
-      strokeOpacity: 0.8,
+      strokeWeight: 3,
+      strokeOpacity: 0.5,
       strokeStyle: 'dashed',
-      strokeDasharray: [10, 5],
+      strokeDasharray: [8, 6],
       lineJoin: 'round',
       lineCap: 'round'
     });
     this.polyline.setMap(this.map);
 
-    // Try walking route for the first two points as a demo
+    // 2. 逐段规划步行路径 / Plan walking route for each segment
     if (typeof AMap !== 'undefined') {
-      try {
-        const walking = new AMap.Walking({ map: this.map, hideMarkers: true });
-        // Plan walking route between first and last point
-        walking.search(
-          [points[0].lng, points[0].lat],
-          [points[points.length-1].lng, points[points.length-1].lat],
-          (status, result) => {
-            if (status === 'complete') {
-              // Walking route rendered on map automatically
-              // Remove our dashed polyline since real route is shown
-              if (this.polyline) {
-                this.polyline.setMap(null);
-                this.polyline = null;
-              }
+      const self = this;
+      let segmentsLoaded = 0;
+      let totalRealDist = 0;
+      const totalSegments = points.length - 1;
+      
+      for (let i = 0; i < totalSegments; i++) {
+        ((idx) => {
+          setTimeout(() => {
+            try {
+              const walking = new AMap.Walking({ map: self.map, hideMarkers: true });
+              walking.search(
+                [points[idx].lng, points[idx].lat],
+                [points[idx + 1].lng, points[idx + 1].lat],
+                (status, result) => {
+                  segmentsLoaded++;
+                  if (status === 'complete' && result.routes && result.routes.length > 0) {
+                    totalRealDist += result.routes[0].distance; // 米
+                  }
+                  // 所有段加载完成后移除虚线 / Remove dashed line after all segments loaded
+                  if (segmentsLoaded >= totalSegments) {
+                    if (self.polyline) {
+                      self.polyline.setMap(null);
+                      self.polyline = null;
+                    }
+                    console.log(`[Route] 全程步行距离: ${(totalRealDist/1000).toFixed(1)}km (${totalSegments}段)`);
+                  }
+                }
+              );
+            } catch(e) {
+              segmentsLoaded++;
+              console.warn('Walking segment', idx, 'failed:', e);
             }
-          }
-        );
-      } catch(e) {
-        console.warn('Walking route failed:', e);
+          }, idx * 300); // 300ms 间隔避免API限流 / 300ms stagger to avoid rate limiting
+        })(i);
       }
     }
 
@@ -1511,10 +1529,106 @@ function refreshQuickCities() {
     `<button class="quick-chip" onclick="refreshQuickCities()" title="换一批">🔄</button>`;
 }
 
+// === DAG 最短路径 POI 排序算法 / DAG Shortest Path POI Ordering ===
+// 修改基线 / Base: 新增代码
+// 修改内容 / Changes: 新增 Haversine 距离公式 + Bitmask DP 最短哈密顿路径求解器
+// Added Haversine distance formula + Bitmask DP shortest Hamiltonian path solver
+
+// Haversine 公式: 计算两点间地球表面大圆距离 (米)
+// Haversine formula: compute great-circle distance between two lat/lng points (meters)
+function haversineDistance(lat1, lng1, lat2, lng2) {
+  const R = 6371000; // 地球半径(米)
+  const toRad = x => x * Math.PI / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat / 2) ** 2 +
+            Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+// Bitmask DP 求最短哈密顿路径 (精确解, N≤10)
+// Bitmask DP for shortest Hamiltonian path (exact solution, N≤10)
+// 输入: 带 lat/lng 属性的 POI 数组
+// 输出: 重排后的 POI 数组 (最短总步行距离)
+function optimizePOIOrder(points) {
+  const N = points.length;
+  if (N <= 2) return points; // 0-2 个点无需排序
+
+  // 1. 构建距离矩阵 / Build distance matrix
+  const dist = Array.from({ length: N }, () => new Float64Array(N));
+  for (let i = 0; i < N; i++) {
+    for (let j = i + 1; j < N; j++) {
+      const d = haversineDistance(points[i].lat, points[i].lng, points[j].lat, points[j].lng);
+      dist[i][j] = d;
+      dist[j][i] = d;
+    }
+  }
+
+  // 2. DP: dp[mask][i] = 经过 mask 中所有节点、终于节点 i 的最短距离
+  //    DP: dp[mask][i] = shortest distance visiting all nodes in mask, ending at node i
+  const FULL = (1 << N) - 1;
+  const INF = 1e18;
+  const dp = Array.from({ length: 1 << N }, () => new Float64Array(N).fill(INF));
+  const parent = Array.from({ length: 1 << N }, () => new Int8Array(N).fill(-1));
+
+  // 初始状态: 每个节点都可以作为起点
+  for (let i = 0; i < N; i++) {
+    dp[1 << i][i] = 0;
+  }
+
+  // 状态转移
+  for (let mask = 1; mask <= FULL; mask++) {
+    for (let last = 0; last < N; last++) {
+      if (!(mask & (1 << last))) continue; // last 不在集合中
+      if (dp[mask][last] >= INF) continue;
+      for (let next = 0; next < N; next++) {
+        if (mask & (1 << next)) continue; // next 已访问
+        const newMask = mask | (1 << next);
+        const newDist = dp[mask][last] + dist[last][next];
+        if (newDist < dp[newMask][next]) {
+          dp[newMask][next] = newDist;
+          parent[newMask][next] = last;
+        }
+      }
+    }
+  }
+
+  // 3. 回溯最优路径 / Backtrack optimal path
+  let bestEnd = 0, bestDist = dp[FULL][0];
+  for (let i = 1; i < N; i++) {
+    if (dp[FULL][i] < bestDist) {
+      bestDist = dp[FULL][i];
+      bestEnd = i;
+    }
+  }
+
+  const order = [];
+  let mask = FULL, cur = bestEnd;
+  while (cur !== -1) {
+    order.push(cur);
+    const prev = parent[mask][cur];
+    mask ^= (1 << cur);
+    cur = prev;
+  }
+  order.reverse();
+
+  console.log(`[Route] DAG 最短路径: ${bestDist.toFixed(0)}m, 顺序: [${order.join(',')}]`);
+  return order.map(i => points[i]);
+}
+
 // Generate routes by clustering POIs by category and proximity
 function generateRoutesFromPOIs(pois, cityName) {
   const routes = [];
   const prefix = cityName.substring(0,2).toLowerCase() + '_dyn';
+  // 辅助: 计算已排序 POI 序列的总步行距离 (km)
+  // Helper: compute total walking distance of sorted POI sequence (km)
+  function computeRouteDistance(pts) {
+    let total = 0;
+    for (let i = 1; i < pts.length; i++) {
+      total += haversineDistance(pts[i-1].lat, pts[i-1].lng, pts[i].lat, pts[i].lng);
+    }
+    return (total / 1000 * 1.3).toFixed(1); // ×1.3 道路弯曲系数
+  }
 
   // Route 1: Mixed highlights (top rated / first of each category)
   const highlights = [];
@@ -1524,6 +1638,7 @@ function generateRoutesFromPOIs(pois, cityName) {
     catPois.slice(0, 2).forEach(p => { highlights.push(p); seen.add(p.name); });
   });
   if (highlights.length >= 3) {
+    const optPts = optimizePOIOrder(highlights.slice(0, 8));
     routes.push({
       id: prefix + '1',
       name: cityName + '精华漫步',
@@ -1531,9 +1646,9 @@ function generateRoutesFromPOIs(pois, cityName) {
       desc: `由高德地图智能发现的${cityName}精华路线，涵盖景点、美食、文艺等多个打卡点，一条路线体验城市精华。`,
       difficulty: 'easy',
       season: '四季',
-      duration: Math.max(2, Math.round(highlights.length * 0.6)) + '-' + Math.max(3, Math.round(highlights.length * 0.8)) + 'h',
-      distance: (highlights.length * 0.8).toFixed(1) + 'km',
-      points: highlights.slice(0, 8),
+      duration: Math.max(2, Math.round(optPts.length * 0.6)) + '-' + Math.max(3, Math.round(optPts.length * 0.8)) + 'h',
+      distance: computeRouteDistance(optPts) + 'km',
+      points: optPts,
       isGenerated: true
     });
   }
@@ -1543,6 +1658,7 @@ function generateRoutesFromPOIs(pois, cityName) {
   if (scenicPois.length >= 3) {
     const pts = scenicPois.slice(0, 7);
     pts.forEach(p => seen.add(p.name));
+    const optPts = optimizePOIOrder(pts);
     routes.push({
       id: prefix + '2',
       name: cityName + '人文探索',
@@ -1550,9 +1666,9 @@ function generateRoutesFromPOIs(pois, cityName) {
       desc: `探索${cityName}的历史文化底蕴。从景点到文艺空间，感受这座城市的文化脉络。`,
       difficulty: 'medium',
       season: '春秋',
-      duration: Math.max(3, Math.round(pts.length * 0.7)) + '-' + Math.max(4, Math.round(pts.length * 0.9)) + 'h',
-      distance: (pts.length * 0.9).toFixed(1) + 'km',
-      points: pts,
+      duration: Math.max(3, Math.round(optPts.length * 0.7)) + '-' + Math.max(4, Math.round(optPts.length * 0.9)) + 'h',
+      distance: computeRouteDistance(optPts) + 'km',
+      points: optPts,
       isGenerated: true
     });
   }
@@ -1562,6 +1678,7 @@ function generateRoutesFromPOIs(pois, cityName) {
   if (foodPois.length >= 3) {
     const pts = foodPois.slice(0, 6);
     pts.forEach(p => seen.add(p.name));
+    const optPts = optimizePOIOrder(pts);
     routes.push({
       id: prefix + '3',
       name: cityName + '美食暴走',
@@ -1569,9 +1686,9 @@ function generateRoutesFromPOIs(pois, cityName) {
       desc: `${cityName}吃货必走路线！从街头小吃到地道餐厅，一条路线喂饱你的胃。`,
       difficulty: 'easy',
       season: '四季',
-      duration: Math.max(2, Math.round(pts.length * 0.5)) + '-' + Math.max(3, Math.round(pts.length * 0.7)) + 'h',
-      distance: (pts.length * 0.6).toFixed(1) + 'km',
-      points: pts,
+      duration: Math.max(2, Math.round(optPts.length * 0.5)) + '-' + Math.max(3, Math.round(optPts.length * 0.7)) + 'h',
+      distance: computeRouteDistance(optPts) + 'km',
+      points: optPts,
       isGenerated: true
     });
   }
@@ -1580,6 +1697,7 @@ function generateRoutesFromPOIs(pois, cityName) {
   const trendyPois = pois.filter(p => (p.category === '购物' || p.category === '网红') && !seen.has(p.name));
   if (trendyPois.length >= 3) {
     const pts = trendyPois.slice(0, 6);
+    const optPts = optimizePOIOrder(pts);
     routes.push({
       id: prefix + '4',
       name: cityName + '潮流打卡',
@@ -1587,9 +1705,9 @@ function generateRoutesFromPOIs(pois, cityName) {
       desc: `${cityName}的潮流地标和网红打卡点，适合拍照发圈。`,
       difficulty: 'easy',
       season: '四季',
-      duration: Math.max(2, Math.round(pts.length * 0.5)) + '-' + Math.max(3, Math.round(pts.length * 0.6)) + 'h',
-      distance: (pts.length * 0.5).toFixed(1) + 'km',
-      points: pts,
+      duration: Math.max(2, Math.round(optPts.length * 0.5)) + '-' + Math.max(3, Math.round(optPts.length * 0.6)) + 'h',
+      distance: computeRouteDistance(optPts) + 'km',
+      points: optPts,
       isGenerated: true
     });
   }

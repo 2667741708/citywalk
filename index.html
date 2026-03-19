@@ -286,61 +286,9 @@ input{font-family:inherit;border:none;outline:none}
 .mode-card.blind-mode .mode-card-top::before{background:linear-gradient(135deg,#fdcb6e,#e17055)}
 .mode-card.sound-mode .mode-card-top::before{background:linear-gradient(135deg,#a29bfe,#74b9ff)}
 .mode-card.time-mode .mode-card-top::before{background:linear-gradient(135deg,#00b894,#00cec9)}
-.mode-card.pixel-mode .mode-card-top::before{background:linear-gradient(135deg,#6c5ce7,#00b894,#fdcb6e)}
+/* .pixel-mode CSS removed / 像素模式CSS已移除 */
 /* === PIXEL CITY === */
-.pixel-city-panel{position:fixed;inset:0;z-index:220;background:#1a1a2e;display:none;flex-direction:column}
-.pixel-city-panel.active{display:flex}
-.pixel-top-bar{display:flex;align-items:center;gap:10px;padding:10px 16px;background:rgba(26,26,46,.95);border-bottom:1px solid rgba(255,255,255,.06);z-index:5;flex-shrink:0}
-.pixel-top-bar .back-btn{background:rgba(255,255,255,.1);color:#fff}
-.pixel-top-bar .back-btn:hover{background:rgba(255,255,255,.2)}
-.pixel-top-bar h3{flex:1;font-family:var(--font-display);font-size:1.1rem;color:#fff}
-.pixel-city-name-tag{padding:3px 10px;border-radius:10px;font-size:.62rem;font-weight:700;background:linear-gradient(135deg,#6c5ce7,#a29bfe);color:#fff;letter-spacing:.03em}
-.pixel-canvas-wrap{flex:1;position:relative;overflow:hidden;touch-action:none}
-.pixel-canvas-wrap canvas{display:block;width:100%;height:100%;image-rendering:pixelated;image-rendering:crisp-edges}
-.pixel-hud{position:absolute;top:12px;left:12px;display:flex;flex-direction:column;gap:6px;pointer-events:none;z-index:3}
-.pixel-hud-item{background:rgba(26,26,46,.7);backdrop-filter:blur(6px);padding:5px 10px;border-radius:8px;font-size:.62rem;font-weight:600;color:rgba(255,255,255,.8);display:flex;align-items:center;gap:5px;pointer-events:auto}
-.pixel-minimap{position:absolute;top:12px;right:12px;width:90px;height:90px;background:rgba(26,26,46,.65);border:1px solid rgba(255,255,255,.1);border-radius:8px;overflow:hidden;z-index:3}
-.pixel-minimap canvas{width:100%;height:100%;image-rendering:pixelated}
-.pixel-joystick{position:absolute;bottom:28px;left:28px;z-index:4;touch-action:none}
-.pixel-joystick-base{width:100px;height:100px;border-radius:50%;background:rgba(255,255,255,.08);border:2px solid rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center}
-.pixel-joystick-knob{width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.25);border:2px solid rgba(255,255,255,.3);transition:transform .08s ease-out;pointer-events:none}
-.pixel-action-btns{position:absolute;bottom:36px;right:20px;display:flex;flex-direction:column;gap:10px;z-index:4}
-.pixel-action-btn{width:48px;height:48px;border-radius:50%;background:rgba(255,255,255,.1);border:2px solid rgba(255,255,255,.15);color:#fff;font-size:1.1rem;display:flex;align-items:center;justify-content:center;transition:transform .15s,background .15s;cursor:pointer}
-.pixel-action-btn:active{transform:scale(.9);background:rgba(255,255,255,.2)}
-.boost-btn{background:rgba(255,200,50,.15)!important;border-color:rgba(255,200,50,.3)!important}
-.boost-btn:active{background:rgba(255,200,50,.35)!important}
-.boost-bar-wrap{position:absolute;top:58px;left:16px;z-index:5;display:flex;align-items:center;gap:6px;opacity:.85}
-.boost-bar-wrap.glass-boost{top:auto;bottom:100px;left:16px}
-.boost-bar-label{font-size:11px;color:rgba(255,255,255,.6);white-space:nowrap}
-.boost-bar{width:80px;height:6px;background:rgba(255,255,255,.1);border-radius:3px;overflow:hidden}
-.boost-fill{height:100%;background:linear-gradient(90deg,#f39c12,#ffd700);border-radius:3px;transition:width .15s}
-.boost-hint{font-size:9px;color:rgba(255,255,255,.3)}
-.vehicle-selector{position:absolute;top:80px;left:16px;z-index:10;background:rgba(15,15,25,.92);backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:10px;display:none;width:200px;box-shadow:0 12px 40px rgba(0,0,0,.5);max-height:60vh;overflow-y:auto}
-.vehicle-selector.glass-vs{top:auto;bottom:130px}
-.vehicle-selector.active{display:block}
-.vh-title{font-size:11px;color:rgba(255,255,255,.4);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid rgba(255,255,255,.08)}
-.vh-opt{display:flex;align-items:center;gap:8px;padding:8px 6px;border-radius:8px;cursor:pointer;transition:background .15s}
-.vh-opt:hover{background:rgba(255,255,255,.06)}
-.vh-opt.active{background:rgba(92,173,255,.15);border:1px solid rgba(92,173,255,.25)}
-.vh-icon{font-size:20px;width:28px;text-align:center}
-.vh-name{font-size:13px;font-weight:600;color:#fff}
-.vh-desc{font-size:10px;color:rgba(255,255,255,.35);display:none}
-.vh-opt:hover .vh-desc{display:block}
-.vh-opt.locked{cursor:default;opacity:.5}
-.vh-opt.locked:hover{background:transparent}
-.vh-rarity{font-size:9px;margin-left:auto;white-space:nowrap}
-.pixel-poi-popup{position:absolute;z-index:5;background:rgba(26,26,46,.88);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:14px 16px;max-width:240px;display:none;pointer-events:auto;box-shadow:0 8px 32px rgba(0,0,0,.4)}
-.pixel-poi-popup.active{display:block}
-.pixel-poi-popup .pp-name{font-weight:700;font-size:.88rem;color:#fff;margin-bottom:3px}
-.pixel-poi-popup .pp-type{font-size:.65rem;color:rgba(255,255,255,.4);margin-bottom:6px}
-.pixel-poi-popup .pp-desc{font-size:.72rem;color:rgba(255,255,255,.6);line-height:1.5}
-.pixel-poi-popup .pp-close{position:absolute;top:8px;right:10px;color:rgba(255,255,255,.3);font-size:.8rem;cursor:pointer}
-.pixel-loading-overlay{position:absolute;inset:0;background:rgba(26,26,46,.92);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:6;transition:opacity .5s}
-.pixel-loading-overlay.hidden{opacity:0;pointer-events:none}
-.pixel-loading-overlay .pl-icon{font-size:2.5rem;animation:breathe 2s ease-in-out infinite;margin-bottom:12px}
-.pixel-loading-overlay .pl-text{color:rgba(255,255,255,.6);font-size:.85rem;letter-spacing:.05em}
-.pixel-loading-overlay .pl-bar{width:180px;height:4px;background:rgba(255,255,255,.08);border-radius:4px;margin-top:12px;overflow:hidden}
-.pixel-loading-overlay .pl-fill{height:100%;background:linear-gradient(90deg,#6c5ce7,#a29bfe);border-radius:4px;transition:width .3s}
+/* .pixel-* CSS block removed (~53 lines) / 像素面板CSS已移除 */
 /* === 3D GLASS CITY === */
 .mode-card.freeroam-mode .mode-card-top::before{background:linear-gradient(135deg,#ff6b35,#e84393,#6c5ce7)}
 .mode-card.glass-mode .mode-card-top::before{background:linear-gradient(135deg,#0f2027,#203a43,#2c5364)}
@@ -624,58 +572,7 @@ input{font-family:inherit;border:none;outline:none}
     <div class="creative-body" id="blindWalkBody"></div>
   </div>
 
-  <!-- Pixel City Panel -->
-  <div class="pixel-city-panel" id="pixelCityPanel">
-    <div class="pixel-top-bar">
-      <button class="back-btn" onclick="closePixelCity()">←</button>
-      <h3>🎮 像素漫游</h3>
-      <span class="pixel-city-name-tag" id="pixelCityTag">上海</span>
-    </div>
-    <div class="pixel-canvas-wrap" id="pixelCanvasWrap">
-      <canvas id="pixelCanvas"></canvas>
-      <div class="pixel-hud" id="pixelHud">
-        <div class="pixel-hud-item">📍 <span id="hudCoord">0, 0</span></div>
-        <div class="pixel-hud-item">🏢 <span id="hudBuildings">0</span> 建筑</div>
-        <div class="pixel-hud-item">👣 <span id="hudSteps">0</span> 步</div>
-        <div class="pixel-hud-item" style="color:#ffd700">★ <span id="hudScore">0</span></div>
-        <div class="pixel-hud-item" style="color:#ff64b4">◆ <span id="hudRewards">0/0</span></div>
-        <div class="pixel-hud-item" id="pixelVehicleLabel" style="cursor:pointer" onclick="toggleVehiclePanel('px')">🚶 步行</div>
-      </div>
-      <div class="boost-bar-wrap" id="pixelBoostWrap">
-        <div class="boost-bar-label">⚡ 加速</div>
-        <div class="boost-bar"><div class="boost-fill" id="pixelBoostFill" style="width:100%"></div></div>
-        <div class="boost-hint">Shift / 长按加速键</div>
-      </div>
-      <div class="vehicle-selector" id="pixelVehicleSel">
-        <div class="vh-title">选择载具</div>
-      </div>
-      <div class="pixel-minimap" id="pixelMinimap"><canvas id="minimapCanvas"></canvas></div>
-      <div class="pixel-joystick" id="pixelJoystick">
-        <div class="pixel-joystick-base">
-          <div class="pixel-joystick-knob" id="joystickKnob"></div>
-        </div>
-      </div>
-      <div class="pixel-action-btns">
-        <button class="pixel-action-btn boost-btn" ontouchstart="PX.boosting=true;PX.keys['Shift']=true" ontouchend="PX.boosting=false;PX.keys['Shift']=false" onmousedown="PX.boosting=true;PX.keys['Shift']=true" onmouseup="PX.boosting=false;PX.keys['Shift']=false" title="加速">⚡</button>
-        <button class="pixel-action-btn" onclick="toggleVehiclePanel('px')" title="载具">🚗</button>
-        <button class="pixel-action-btn" onclick="pixelInteract()" title="互动">💬</button>
-        <button class="pixel-action-btn" onclick="pixelZoom(1)" title="放大">➕</button>
-        <button class="pixel-action-btn" onclick="pixelZoom(-1)" title="缩小">➖</button>
-        <button class="pixel-action-btn" id="pxGhostBtn" onclick="toggleGhostMode('px')" title="穿越模式:关">👻</button>
-      </div>
-      <div class="pixel-poi-popup" id="pixelPoiPopup">
-        <span class="pp-close" onclick="closePoiPopup()">✕</span>
-        <div class="pp-name" id="ppName"></div>
-        <div class="pp-type" id="ppType"></div>
-        <div class="pp-desc" id="ppDesc"></div>
-      </div>
-      <div class="pixel-loading-overlay" id="pixelLoading">
-        <div class="pl-icon">🏗️</div>
-        <div class="pl-text" id="pixelLoadText">正在生成像素城市...</div>
-        <div class="pl-bar"><div class="pl-fill" id="pixelLoadBar" style="width:0%"></div></div>
-      </div>
-    </div>
-  </div>
+  <!-- Pixel City Panel removed / 像素城市面板已移除 -->
 
   <!-- Glass City Panel (3D全景漫游) -->
   <div class="glass-city-panel" id="glassCityPanel">
@@ -2128,9 +2025,7 @@ const CREATIVE_MODES = [
   {id:'timewalk',icon:'⏳',name:'时间胶囊Walk',en:'TIME CAPSULE WALK',
    desc:'带一张这座城市的老照片出发，找到同一个角度，拍下今天的样子。时间在流淌，城市在呼吸，而你正站在两个时代的交汇点。',
    tags:['怀旧','对比','记录','人文'],cls:'time-mode'},
-  {id:'pixelcity',icon:'🎮',name:'像素漫游',en:'PIXEL CITY',
-   desc:'基于高德地图真实建筑数据，即时生成像素风格的3D城市！操控你的像素小人在城市中自由漫步，探索每一栋建筑，发现隐藏的惊喜。',
-   tags:['沉浸','探索','像素风','3D'],cls:'pixel-mode'},
+  // pixelcity mode removed / 像素城市模式已移除
   {id:'glasscity',icon:'✨',name:'全景漫游',en:'3D GLASS CITY',
    desc:'拟真3D全景城市，玻璃质感的摩天大楼、动态光影与粒子特效。基于高德地图真实建筑数据，沉浸式漫步于一座流光溢彩的未来之城。',
    tags:['高级','全景','奢华','沉浸'],cls:'glass-mode'}
@@ -2247,15 +2142,14 @@ function openFreeroam() {
       <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-bottom:16px;">
         ${hotCities.map(c => `<button onclick="_freeroamSetCity('${c}')" style="padding:5px 12px;border-radius:16px;font-size:.72rem;font-weight:600;cursor:pointer;border:1px solid rgba(255,255,255,.1);background:${c===city?'rgba(255,107,53,.2)':'rgba(255,255,255,.04)'};color:${c===city?'var(--accent)':'rgba(255,255,255,.5)'};transition:all .2s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='rgba(255,255,255,.1)'">${c}</button>`).join('')}
       </div>
-      <div style="display:flex;gap:10px;margin-bottom:16px;">
-        <button onclick="startFreeroam('px')" style="flex:1;padding:16px 0;border-radius:16px;background:linear-gradient(135deg,#2d2d5a,#1a1a3e);border:1px solid rgba(255,255,255,.1);color:#fff;font-size:.9rem;font-weight:700;cursor:pointer;transition:all .2s;" onmouseover="this.style.borderColor='var(--accent)';this.style.boxShadow='0 0 20px rgba(255,107,53,.15)'" onmouseout="this.style.borderColor='rgba(255,255,255,.1)';this.style.boxShadow='none'">
-          <div style="font-size:1.8rem;margin-bottom:4px;">🎮</div>像素
+      <div style="display:flex;gap:12px;margin-bottom:16px;">
+        <button onclick="startFreeroam('gx')" style="flex:1;padding:20px 0;border-radius:18px;background:linear-gradient(135deg,#1a2040,#0a0a20);border:1px solid rgba(255,255,255,.1);color:#fff;font-size:1.05rem;font-weight:700;cursor:pointer;transition:all .3s cubic-bezier(0.4, 0, 0.2, 1);position:relative;overflow:hidden;" onmouseover="this.style.borderColor='#5cadff';this.style.boxShadow='0 0 30px rgba(92,173,255,.2)';this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='rgba(255,255,255,.1)';this.style.boxShadow='none';this.style.transform='translateY(0)'">
+          <div style="position:absolute;inset:0;background:radial-gradient(circle at 50% 0%, rgba(92,173,255,0.15) 0%, transparent 60%);pointer-events:none;"></div>
+          <div style="font-size:2.2rem;margin-bottom:6px;filter:drop-shadow(0 0 10px rgba(92,173,255,0.4));">✨</div>全景
         </button>
-        <button onclick="startFreeroam('gx')" style="flex:1;padding:16px 0;border-radius:16px;background:linear-gradient(135deg,#1a2040,#0a0a20);border:1px solid rgba(255,255,255,.1);color:#fff;font-size:.9rem;font-weight:700;cursor:pointer;transition:all .2s;" onmouseover="this.style.borderColor='#5cadff';this.style.boxShadow='0 0 20px rgba(92,173,255,.15)'" onmouseout="this.style.borderColor='rgba(255,255,255,.1)';this.style.boxShadow='none'">
-          <div style="font-size:1.8rem;margin-bottom:4px;">✨</div>全景
-        </button>
-        <button onclick="startRealRoam()" style="flex:1;padding:16px 0;border-radius:16px;background:linear-gradient(135deg,#1f3d4a,#0f242e);border:1px solid rgba(255,255,255,.1);color:#fff;font-size:.9rem;font-weight:700;cursor:pointer;transition:all .2s;" onmouseover="this.style.borderColor='#00b894';this.style.boxShadow='0 0 20px rgba(0,184,148,.15)'" onmouseout="this.style.borderColor='rgba(255,255,255,.1)';this.style.boxShadow='none'">
-          <div style="font-size:1.8rem;margin-bottom:4px;">🗺️</div>真实地图
+        <button onclick="startRealRoam()" style="flex:1;padding:20px 0;border-radius:18px;background:linear-gradient(135deg,#1f3d4a,#0f242e);border:1px solid rgba(255,255,255,.1);color:#fff;font-size:1.05rem;font-weight:700;cursor:pointer;transition:all .3s cubic-bezier(0.4, 0, 0.2, 1);position:relative;overflow:hidden;" onmouseover="this.style.borderColor='#00b894';this.style.boxShadow='0 0 30px rgba(0,184,148,.2)';this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='rgba(255,255,255,.1)';this.style.boxShadow='none';this.style.transform='translateY(0)'">
+          <div style="position:absolute;inset:0;background:url('https://webapi.amap.com/theme/v1.3/markers/n/mark_b.png') no-repeat center center;opacity:0.05;background-size:cover;pointer-events:none;"></div>
+          <div style="font-size:2.2rem;margin-bottom:6px;filter:drop-shadow(0 0 10px rgba(0,184,148,0.4));">🗺️</div>真实地图
         </button>
       </div>
       <button onclick="document.getElementById('freeroamOverlay').remove()" style="padding:8px 24px;border-radius:20px;background:rgba(255,255,255,.06);color:rgba(255,255,255,.4);font-size:.8rem;cursor:pointer;border:none;">取消</button>
@@ -2308,56 +2202,8 @@ async function startFreeroam(type) {
   if (overlay) overlay.remove();
   const city = APP.selectedCity || '上海';
 
-  if (type === 'px') {
-    // Use pixel city panel
-    document.getElementById('pixelCityTag').textContent = city + ' · 无限';
-    document.getElementById('pixelCityPanel').classList.add('active');
-    document.getElementById('pixelLoading').classList.remove('hidden');
-    document.getElementById('pixelLoadBar').style.width = '0%';
-    document.getElementById('pixelLoadText').textContent = '正在初始化无限世界...';
-    setTimeout(async () => {
-      try {
-        // Setup canvas
-        const wrap = document.getElementById('pixelCanvasWrap');
-        PX.canvas = document.getElementById('pixelCanvas');
-        PX.ctx = PX.canvas.getContext('2d');
-        PX.miniCanvas = document.getElementById('minimapCanvas');
-        PX.miniCtx = PX.miniCanvas.getContext('2d');
-        function resize() {
-          PX.canvas.width = wrap.clientWidth;
-          PX.canvas.height = wrap.clientHeight;
-          PX.miniCanvas.width = 90;
-          PX.miniCanvas.height = 90;
-        }
-        resize();
-        window._pxResize = resize;
-        window.addEventListener('resize', resize);
-
-        document.getElementById('pixelLoadText').textContent = '获取城市坐标...';
-        document.getElementById('pixelLoadBar').style.width = '30%';
-        await initInfiniteMode('px', city);
-        document.getElementById('pixelLoadText').textContent = '生成初始区域...';
-        document.getElementById('pixelLoadBar').style.width = '70%';
-        // Small delay for visual feedback
-        await new Promise(r => setTimeout(r, 300));
-        document.getElementById('pixelLoadBar').style.width = '100%';
-        document.getElementById('pixelLoadText').textContent = '欢迎来到 ' + city + ' · 无限漫游';
-        await new Promise(r => setTimeout(r, 400));
-        document.getElementById('pixelLoading').classList.add('hidden');
-        PX.running = true;
-        PX.vehicle = 'walk';
-        PX.pMoving = false;
-        PX.moveX = 0; PX.moveY = 0;
-        PX.keys = {};
-        setupPixelListeners();
-        renderVehicleSelector('px');
-        pixelGameLoop();
-      } catch(e) {
-        console.error('Freeroam PX init error:', e);
-        document.getElementById('pixelLoadText').textContent = '初始化失败: ' + e.message;
-      }
-    }, 200);
-  } else {
+  // PX branch removed, GX is now the only canvas engine
+  // PX分支已移除，GX现在是唯一的Canvas引擎
     // Use glass city panel
     document.getElementById('glassCityTag').textContent = city + ' · 无限';
     document.getElementById('glassCityPanel').classList.add('active');
@@ -2513,13 +2359,17 @@ async function startRealRoam() {
       window._realResize = resizeRX;
       window.addEventListener('resize', resizeRX);
       
+      // 初始化 POI 网格系统
+      RX.poiGrid = {};
+      RX.pois = [];
+      
       document.getElementById('realLoadBar').style.width = '80%';
       document.getElementById('realLoadText').textContent = '搜寻周边兴趣点...';
       
       // 预先查询周边的POI
       try {
         await Promise.race([
-          loadRealPOIsNearBy(),
+          checkAndLoadRXGrid(),
           new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 5000))
         ]);
       } catch (err) {
@@ -2676,39 +2526,96 @@ function updateRealPlayer() {
   }
 }
 
-async function loadRealPOIsNearBy() {
+// --- RX 引擎 POI 无限加载网格系统 ---
+RX.poiGrid = {}; // key: "x_y", value: array of poi markers
+RX.gridSize = 0.005; // 约500米一个网格
+
+function getRXGridKey(lng, lat) {
+  return Math.floor(lng / RX.gridSize) + '_' + Math.floor(lat / RX.gridSize);
+}
+
+// 检查并自动加载周围的 POI 网格
+async function checkAndLoadRXGrid() {
+  if(!RX.map || !RX.lng || !RX.lat) return;
+  const cx = Math.floor(RX.lng / RX.gridSize);
+  const cy = Math.floor(RX.lat / RX.gridSize);
+  
+  // 检查九宫格
+  for(let i = -1; i <= 1; i++) {
+    for(let j = -1; j <= 1; j++) {
+      const key = (cx + i) + '_' + (cy + j);
+      if(!RX.poiGrid[key] && !RX.poiGrid[key + '_loading']) {
+        RX.poiGrid[key + '_loading'] = true;
+        
+        // 计算网格中心经纬度
+        const gridLng = (cx + i + 0.5) * RX.gridSize;
+        const gridLat = (cy + j + 0.5) * RX.gridSize;
+        
+        loadRealPOIsNearBy(gridLng, gridLat, key);
+      }
+    }
+  }
+  
+  // 清理过远的网格缓存 (距离大于3个网格)
+  Object.keys(RX.poiGrid).forEach(key => {
+    if(key.endsWith('_loading')) return;
+    const [x, y] = key.split('_').map(Number);
+    if(Math.abs(x - cx) > 3 || Math.abs(y - cy) > 3) {
+      // 移除地图上的 marker
+      RX.poiGrid[key].forEach(m => RX.map.remove(m));
+      delete RX.poiGrid[key];
+    }
+  });
+}
+
+async function loadRealPOIsNearBy(lng, lat, gridKey) {
   if(!RX.map) return;
   const priorityCats=[ {code:'110000',name:'景点'},{code:'050000',name:'美食'},{code:'060000',name:'购物'},{code:'080000',name:'文艺'},{code:'141000',name:'网红'} ];
-  let allPois = [];
+  let gridPois = [];
+  
   try {
       const results = await Promise.all(priorityCats.map(cat => 
-        chunkPOISearchNearBy(RX.lng, RX.lat, 800, cat.code) // 搜索800m范围
+        chunkPOISearchNearBy(lng, lat, 600, cat.code) // 搜索600m范围
       ));
+      
       priorityCats.forEach((cat, ci) => {
           (results[ci] || []).forEach(poi => {
             if(poi.location) {
-               // 修改: 兼容 AMap v2.0 LngLat 对象 / Compatible with AMap v2.0 LngLat object
-               let lng, lat;
-               if (typeof poi.location === 'string') { [lng, lat] = poi.location.split(',').map(Number); }
-               else if (typeof poi.location === 'object') { lng = poi.location.lng || poi.location.getLng?.(); lat = poi.location.lat || poi.location.getLat?.(); }
-               if(lng && lat && !isNaN(lng) && !isNaN(lat)) allPois.push({id: poi.id, name: poi.name, type: cat.name, address: poi.address, lat, lng, collected: false});
+               let plng, plat;
+               if (typeof poi.location === 'string') { [plng, plat] = poi.location.split(',').map(Number); }
+               else if (typeof poi.location === 'object') { plng = poi.location.lng || poi.location.getLng?.(); plat = poi.location.lat || poi.location.getLat?.(); }
+               
+               if(plng && plat && !isNaN(plng) && !isNaN(plat)) {
+                 // 去重: 确保全局 pois 数组中没有相同的 id
+                 if (!RX.pois.find(p => p.id === poi.id)) {
+                   const poiObj = {id: poi.id, name: poi.name, type: cat.name, address: poi.address, lat: plat, lng: plng, collected: false};
+                   RX.pois.push(poiObj);
+                   
+                   // 创建 marker
+                   const marker = new AMap.Marker({
+                       position: [plng, plat],
+                       title: poi.name,
+                       content: `<div style="background:rgba(0,0,0,.7);color:#fff;padding:4px 8px;border-radius:12px;font-size:12px;border:1px solid rgba(255,255,255,.3);white-space:nowrap;backdrop-filter:blur(4px);pointer-events:none;transform:scale(0.9);">📍 ${poi.name}</div>`,
+                       offset: new AMap.Pixel(-20, -30)
+                   });
+                   gridPois.push(marker);
+                 }
+               }
             }
           });
       });
-  } catch(e) { console.warn("Real POI fetch err:", e); }
-  RX.pois = allPois;
-  
-  // 在真实地图上渲染 POI Markers
-  RX.map.clearMap(); // 清除之前的标记
-  allPois.forEach(poi => {
-      const marker = new AMap.Marker({
-          position: [poi.lng, poi.lat],
-          title: poi.name,
-          content: `<div style="background:rgba(0,0,0,.7);color:#fff;padding:4px 8px;border-radius:12px;font-size:12px;border:1px solid rgba(255,255,255,.3);white-space:nowrap;backdrop-filter:blur(4px);pointer-events:none;">📍 ${poi.name}</div>`,
-          offset: new AMap.Pixel(-20, -30)
-      });
-      RX.map.add(marker);
-  });
+      
+      // 添加到地图并保存到网格
+      if (gridPois.length > 0) {
+        RX.map.add(gridPois);
+      }
+      RX.poiGrid[gridKey] = gridPois;
+      delete RX.poiGrid[gridKey + '_loading'];
+      
+  } catch(e) { 
+      console.warn("Real POI fetch err:", e); 
+      delete RX.poiGrid[gridKey + '_loading'];
+  }
 }
 
 // 检查并进行打卡判定（距离 < 50米 约0.0005度）
@@ -3937,851 +3844,11 @@ async function initInfiniteMode(engineType,cityName){
   }
 }
 
-// === PIXEL CITY ENGINE ===
-const PX = {
-  canvas: null, ctx: null, miniCanvas: null, miniCtx: null,
-  running: false, animFrame: null,
-  // World
-  tileW: 32, tileH: 16, // iso tile size
-  worldW: 80, worldH: 80, // world grid size
-  buildings: [], trees: [], roads: [],
-  ground: null, // 2D array of tile types
-  // Camera
-  camX: 0, camY: 0, zoom: 1.5, targetZoom: 1.5,
-  // Player
-  px: 40, py: 40, pDir: 0, // 0=down,1=left,2=up,3=right
-  pFrame: 0, pFrameTimer: 0, pMoving: false,
-  steps: 0, speed: 0.06,
-  // Vehicle & boost
-  baseSpeed: 0.06, vehicle: 'walk', boosting: false, boostEnergy: 100, boostMax: 100, boostDrain: 0.8, boostRegen: 0.3,
-  // Input
-  moveX: 0, moveY: 0, keys: {},
-  // POI data
-  pois: [], cityName: '',
-  // Route
-  routePath: [], _geoBounds: null,
-  // Rewards
-  rewards: [], collectedRewards: {}, score: 0,
-  vehiclePickups: [],
-  // Infinite mode
-  infiniteMode: false, chunkMgr: null, ghostMode: false,
-  SKY_TOP: '#1a1a3e', SKY_BOT: '#2d2d5a',
-  GRASS: ['#4a7c59','#5a8c65','#3d6b4a'],
-  ROAD: ['#6b6b7b','#5a5a6a','#7a7a8a'],
-  WATER: ['#3498db','#2980b9','#5dade2'],
-};
+// === PIXEL CITY ENGINE === (已移除 / REMOVED)
+// 修改基线 / Base: index.html v0.4.3 (commit a24200b)
+// 修改内容 / Changes: 完全移除像素漫游引擎代码约845行
+// Completely removed Pixel City engine code (~845 lines)
 
-// ---- Building type definitions by POI category ----
-const BLDG_TYPES = {
-  '景点':    {colors:['#e74c3c','#c0392b','#d4543a'],roofColor:'#ff6b6b',h:[4,7],w:[2,3],icon:'🏛️',style:'pagoda'},
-  '美食':    {colors:['#f39c12','#e67e22','#d4850f'],roofColor:'#ffd93d',h:[2,4],w:[1,2],icon:'🍜',style:'shop'},
-  '购物':    {colors:['#3498db','#2980b9','#5dade2'],roofColor:'#74b9ff',h:[3,6],w:[2,3],icon:'🛍️',style:'modern'},
-  '文艺':    {colors:['#9b59b6','#8e44ad','#a569bd'],roofColor:'#d5a6ff',h:[3,5],w:[2,2],icon:'🎨',style:'art'},
-  '网红':    {colors:['#e84393','#d63384','#fd79a8'],roofColor:'#ff9ff3',h:[3,6],w:[2,3],icon:'📸',style:'modern'},
-  '住宅办公':{colors:['#5b7b9a','#4a6a88','#6c8caa'],roofColor:'#8badc8',h:[5,9],w:[2,3],icon:'🏢',style:'office'},
-  '交通设施':{colors:['#7a7a8a','#666676','#8a8a9a'],roofColor:'#aaaabc',h:[2,3],w:[3,4],icon:'🚉',style:'modern'},
-  '生活服务':{colors:['#2d9e8f','#25877a','#38b5a5'],roofColor:'#5ccfbf',h:[2,4],w:[1,2],icon:'🏪',style:'shop'},
-  '体育休闲':{colors:['#4a9e5a','#3a8a4a','#5ab06a'],roofColor:'#78d088',h:[2,4],w:[3,4],icon:'⛳',style:'modern'},
-  '医疗保健':{colors:['#d0d0d8','#b8b8c4','#e0e0e8'],roofColor:'#f0f0f8',h:[4,7],w:[2,3],icon:'🏥',style:'office'},
-  '科教文化':{colors:['#3a4a60','#2e3e50','#4a5a70'],roofColor:'#6a7a90',h:[3,6],w:[2,3],icon:'🏫',style:'office'},
-  'default': {colors:['#636e72','#535c5f','#748c8d'],roofColor:'#b2bec3',h:[2,5],w:[1,3],icon:'🏢',style:'office'},
-};
-
-      type: type,
-      address: cityName + '市中心',
-      lat: baseLat + (Math.random() - 0.5) * 0.015,
-      lng: baseLng + (Math.random() - 0.5) * 0.015
-    });
-  }
-  return pois;
-}
-
-// ---- Isometric rendering helpers ----
-function isoProject(gx, gy) {
-  // Grid to screen (isometric 2:1)
-  const tw = PX.tileW, th = PX.tileH;
-  return {
-    sx: (gx - gy) * (tw / 2),
-    sy: (gx + gy) * (th / 2)
-  };
-}
-
-function screenToGrid(sx, sy) {
-  const tw = PX.tileW, th = PX.tileH;
-  const gx = (sx / (tw / 2) + sy / (th / 2)) / 2;
-  const gy = (sy / (th / 2) - sx / (tw / 2)) / 2;
-  return { gx: Math.round(gx), gy: Math.round(gy) };
-}
-
-// ---- Main render ----
-function pixelRender() {
-  const ctx = PX.ctx;
-  const cw = PX.canvas.width, ch = PX.canvas.height;
-  ctx.clearRect(0, 0, cw, ch);
-
-  // Sky gradient
-  const skyGrad = ctx.createLinearGradient(0, 0, 0, ch);
-  skyGrad.addColorStop(0, '#0f0f2e');
-  skyGrad.addColorStop(0.4, '#1a1a3e');
-  skyGrad.addColorStop(1, '#2d2d5a');
-  ctx.fillStyle = skyGrad;
-  ctx.fillRect(0, 0, cw, ch);
-
-  // Stars
-  const rng = mulberry32(42);
-  ctx.fillStyle = 'rgba(255,255,255,.3)';
-  for (let i = 0; i < 60; i++) {
-    ctx.fillRect(rng() * cw, rng() * ch * 0.5, 1, 1);
-  }
-
-  // Camera offset
-  const camIso = isoProject(PX.camX, PX.camY);
-  const offX = cw / 2 - camIso.sx * PX.zoom;
-  const offY = ch / 2 - camIso.sy * PX.zoom;
-
-  ctx.save();
-  ctx.translate(offX, offY);
-  ctx.scale(PX.zoom, PX.zoom);
-
-  // Determine visible range
-  const viewRange = Math.ceil(30 / PX.zoom);
-  const startX = PX.infiniteMode ? Math.floor(PX.camX - viewRange) : Math.max(0, Math.floor(PX.camX - viewRange));
-  const endX = PX.infiniteMode ? Math.ceil(PX.camX + viewRange) : Math.min(PX.worldW - 1, Math.ceil(PX.camX + viewRange));
-  const startY = PX.infiniteMode ? Math.floor(PX.camY - viewRange) : Math.max(0, Math.floor(PX.camY - viewRange));
-  const endY = PX.infiniteMode ? Math.ceil(PX.camY + viewRange) : Math.min(PX.worldH - 1, Math.ceil(PX.camY + viewRange));
-
-  // Draw ground tiles
-  for (let y = startY; y <= endY; y++) {
-    for (let x = startX; x <= endX; x++) {
-      const iso = isoProject(x, y);
-      const tile = getGround(PX, x, y);
-      if (tile === 'road') {
-        drawIsoTile(ctx, iso.sx, iso.sy, PX.ROAD[0], PX.ROAD[1]);
-      } else if (tile === 'water') {
-        const wc = PX.WATER[(x + y + Math.floor(Date.now() / 800)) % 3];
-        drawIsoTile(ctx, iso.sx, iso.sy, wc, PX.WATER[1]);
-      } else {
-        const gc = PX.GRASS[(x * 7 + y * 13) % 3];
-        drawIsoTile(ctx, iso.sx, iso.sy, gc, PX.GRASS[2]);
-      }
-    }
-  }
-
-  // Route path overlay on pixel city
-  if (PX.routePath && PX.routePath.length > 0) {
-    const routeSet = new Set(PX.routePath.map(rp => rp.x + ',' + rp.y));
-    for (let y = startY; y <= endY; y++) {
-      for (let x = startX; x <= endX; x++) {
-        if (!routeSet.has(x + ',' + y)) continue;
-        const iso = isoProject(x, y);
-        const pulse = 0.2 + Math.sin(Date.now() * 0.003 + x * 0.4 + y * 0.3) * 0.1;
-        ctx.beginPath();
-        ctx.moveTo(iso.sx, iso.sy - PX.tileH / 2);
-        ctx.lineTo(iso.sx + PX.tileW / 2, iso.sy);
-        ctx.lineTo(iso.sx, iso.sy + PX.tileH / 2);
-        ctx.lineTo(iso.sx - PX.tileW / 2, iso.sy);
-        ctx.closePath();
-        ctx.fillStyle = `rgba(255,200,80,${pulse})`;
-        ctx.fill();
-      }
-    }
-  }
-
-  // Collect all drawable objects for depth sorting
-  const drawables = [];
-
-  // Buildings in view
-  const visBuildings = PX.infiniteMode ? getVisibleBuildings(PX) : PX.buildings;
-  visBuildings.forEach((b, bi) => {
-    if (b.x + b.w >= startX && b.x <= endX && b.y + 2 >= startY && b.y <= endY) {
-      drawables.push({ type: 'building', obj: b, sortY: b.y + 1, sortX: b.x + b.w / 2 });
-    }
-  });
-
-  // Trees in view
-  const visTrees = PX.infiniteMode ? getVisibleTrees(PX) : (PX.trees || []);
-  visTrees.forEach(t => {
-    if (t.x >= startX && t.x <= endX && t.y >= startY && t.y <= endY) {
-      drawables.push({ type: 'tree', obj: t, sortY: t.y, sortX: t.x });
-    }
-  });
-
-  // Rewards in view
-  const visRewards = PX.infiniteMode ? getVisibleRewards(PX) : PX.rewards;
-  visRewards.forEach(r => {
-    if (!r.collected && r.x >= startX && r.x <= endX && r.y >= startY && r.y <= endY) {
-      drawables.push({ type: 'reward', obj: r, sortY: r.y, sortX: r.x });
-    }
-  });
-
-  // Player
-  drawables.push({ type: 'player', sortY: PX.py, sortX: PX.px });
-
-  // Sort by depth (back to front)
-  drawables.sort((a, b) => (a.sortY + a.sortX) - (b.sortY + b.sortX));
-
-  // Draw everything
-  drawables.forEach(d => {
-    if (d.type === 'building') drawBuilding(ctx, d.obj);
-    else if (d.type === 'tree') drawTree(ctx, d.obj);
-    else if (d.type === 'reward') drawPixelReward(ctx, d.obj);
-    else if (d.type === 'player') drawPlayer(ctx);
-  });
-
-  ctx.restore();
-
-  // HUD updates
-  if (PX.infiniteMode) {
-    const geo = gridToGeo(PX.px, PX.py);
-    document.getElementById('hudCoord').textContent = (_lastGeocodeLoc || geo.lat.toFixed(4) + ', ' + geo.lng.toFixed(4));
-    document.getElementById('hudBuildings').textContent = getVisibleBuildings(PX).length;
-    updateLocationHUD(PX);
-  } else {
-    document.getElementById('hudCoord').textContent = Math.round(PX.px) + ', ' + Math.round(PX.py);
-    document.getElementById('hudBuildings').textContent = PX.buildings.filter(b => b.name).length;
-  }
-  document.getElementById('hudSteps').textContent = PX.steps;
-  const pxScoreEl = document.getElementById('hudScore');
-  if (pxScoreEl) pxScoreEl.textContent = PX.score + ' 分';
-  const pxRwEl = document.getElementById('hudRewards');
-  if (pxRwEl) {
-    const allRw = PX.infiniteMode ? getVisibleRewards(PX) : PX.rewards;
-    pxRwEl.textContent = allRw.filter(r => r.collected).length + '/' + allRw.length;
-  }
-
-  // Minimap
-  renderMinimap();
-}
-
-function drawIsoTile(ctx, sx, sy, topColor, sideColor) {
-  const tw = PX.tileW / 2, th = PX.tileH / 2;
-  ctx.beginPath();
-  ctx.moveTo(sx, sy - th);
-  ctx.lineTo(sx + tw, sy);
-  ctx.lineTo(sx, sy + th);
-  ctx.lineTo(sx - tw, sy);
-  ctx.closePath();
-  ctx.fillStyle = topColor;
-  ctx.fill();
-}
-
-function drawBuilding(ctx, b) {
-  const iso = isoProject(b.x, b.y);
-  const tw = PX.tileW, th = PX.tileH;
-  const height = b.h * 6; // pixel height
-  const bw = b.w;
-
-  // Front face
-  const fx1 = iso.sx - tw / 2;
-  const fx2 = iso.sx + (bw - 1) * tw / 2;
-  const fy = iso.sy + th / 2;
-
-  ctx.fillStyle = b.color || '#636e72';
-  // Left face
-  ctx.beginPath();
-  ctx.moveTo(iso.sx - tw / 2 * bw, iso.sy);
-  ctx.lineTo(iso.sx - tw / 2 * bw, iso.sy - height);
-  ctx.lineTo(iso.sx, iso.sy + th / 2 * bw - height);
-  ctx.lineTo(iso.sx, iso.sy + th / 2 * bw);
-  ctx.closePath();
-  ctx.fill();
-
-  // Right face (lighter)
-  ctx.fillStyle = lightenColor(b.color, 20);
-  ctx.beginPath();
-  ctx.moveTo(iso.sx, iso.sy + th / 2 * bw);
-  ctx.lineTo(iso.sx, iso.sy + th / 2 * bw - height);
-  ctx.lineTo(iso.sx + tw / 2 * bw, iso.sy - height);
-  ctx.lineTo(iso.sx + tw / 2 * bw, iso.sy);
-  ctx.closePath();
-  ctx.fill();
-
-  // Top face (roof)
-  ctx.fillStyle = b.roofColor;
-  ctx.beginPath();
-  ctx.moveTo(iso.sx, iso.sy + th / 2 * bw - height);
-  ctx.lineTo(iso.sx - tw / 2 * bw, iso.sy - height);
-  ctx.lineTo(iso.sx, iso.sy - th / 2 * bw - height);
-  ctx.lineTo(iso.sx + tw / 2 * bw, iso.sy - height);
-  ctx.closePath();
-  ctx.fill();
-
-  // Windows
-  if (b.h >= 3) {
-    ctx.fillStyle = 'rgba(255,255,200,.6)';
-    const windowRows = Math.min(b.h - 1, 4);
-    for (let wr = 0; wr < windowRows; wr++) {
-      const wy = iso.sy + th / 2 * bw - 8 - wr * (height / (windowRows + 1));
-      // Left face windows
-      for (let wc = 0; wc < bw; wc++) {
-        ctx.fillRect(iso.sx - tw / 2 * bw + 4 + wc * 8, wy, 3, 3);
-      }
-      // Right face windows
-      for (let wc = 0; wc < bw; wc++) {
-        ctx.fillRect(iso.sx + 4 + wc * 8, wy - wc * 2, 3, 3);
-      }
-    }
-  }
-
-  // POI icon label above building
-  if (b.name && b.icon) {
-    ctx.font = '10px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillStyle = '#fff';
-    ctx.fillText(b.icon, iso.sx, iso.sy - height - 6);
-    ctx.font = '5px "Noto Sans SC",sans-serif';
-    ctx.fillStyle = 'rgba(255,255,255,.7)';
-    ctx.fillText(b.name.substring(0, 6), iso.sx, iso.sy - height + 2);
-  }
-}
-
-function drawTree(ctx, t) {
-  const iso = isoProject(t.x, t.y);
-  const s = t.size || 1;
-  // Trunk
-  ctx.fillStyle = '#8B6914';
-  ctx.fillRect(iso.sx - 1, iso.sy - 4 * s, 2, 6 * s);
-  // Canopy (diamond pixel shape)
-  const tc = t.color || '#4a7c59';
-  ctx.fillStyle = tc;
-  const r = 3 + s * 2;
-  ctx.beginPath();
-  ctx.moveTo(iso.sx, iso.sy - 4 * s - r * 2);
-  ctx.lineTo(iso.sx + r, iso.sy - 4 * s - r);
-  ctx.lineTo(iso.sx, iso.sy - 4 * s);
-  ctx.lineTo(iso.sx - r, iso.sy - 4 * s - r);
-  ctx.closePath();
-  ctx.fill();
-  // Highlight
-  ctx.fillStyle = lightenColor(tc, 25);
-  ctx.beginPath();
-  ctx.moveTo(iso.sx, iso.sy - 4 * s - r * 2);
-  ctx.lineTo(iso.sx + r / 2, iso.sy - 4 * s - r * 1.5);
-  ctx.lineTo(iso.sx, iso.sy - 4 * s - r);
-  ctx.lineTo(iso.sx - r / 2, iso.sy - 4 * s - r * 1.5);
-  ctx.closePath();
-  ctx.fill();
-}
-
-function drawPixelReward(ctx, r) {
-  if (r.collected) return;
-  if (!r.type) r.type = REWARD_TYPES[0];
-  const iso = isoProject(r.x, r.y);
-  const bobH = Math.sin(Date.now() * 0.004 + r.bobPhase) * 3;
-  const sx = iso.sx, sy = iso.sy - 8 + bobH;
-  ctx.save();
-  ctx.globalAlpha = r.fadeAlpha || 1;
-  // Glow on ground
-  ctx.globalAlpha *= 0.3;
-  const grd = ctx.createRadialGradient(iso.sx, iso.sy, 0, iso.sx, iso.sy, 10);
-  grd.addColorStop(0, r.type.color); grd.addColorStop(1, 'transparent');
-  ctx.fillStyle = grd; ctx.fillRect(iso.sx - 10, iso.sy - 5, 20, 10);
-  ctx.globalAlpha = r.fadeAlpha || 1;
-  // Diamond shape
-  const sz = r.isVehiclePickup ? 8 : 5;
-  ctx.beginPath();
-  ctx.moveTo(sx, sy - sz); ctx.lineTo(sx + sz, sy); ctx.lineTo(sx, sy + sz); ctx.lineTo(sx - sz, sy);
-  ctx.closePath();
-  const orbG = ctx.createRadialGradient(sx - 1, sy - 1, 1, sx, sy, sz);
-  orbG.addColorStop(0, '#fff'); orbG.addColorStop(0.4, r.type.color); orbG.addColorStop(1, 'rgba(0,0,0,.3)');
-  ctx.fillStyle = orbG; ctx.fill();
-  ctx.strokeStyle = 'rgba(255,255,255,.5)'; ctx.lineWidth = 0.5; ctx.stroke();
-  // Icon
-  ctx.font = (r.isVehiclePickup ? '10px' : '7px') + ' sans-serif';
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText(r.type.icon, sx, sy);
-  // Vehicle pickup special border
-  if (r.isVehiclePickup) {
-    const v = VEHICLES[r.vehicleKey];
-    const rCol = RARITY_COLORS[v ? v.rarity : 'common'] || '#4ade80';
-    ctx.strokeStyle = rCol; ctx.lineWidth = 1.5;
-    const rot = Date.now() * 0.003;
-    ctx.save(); ctx.translate(sx, sy); ctx.rotate(rot);
-    ctx.strokeRect(-sz - 2, -sz - 2, (sz + 2) * 2, (sz + 2) * 2);
-    ctx.restore();
-    ctx.font = '6px sans-serif'; ctx.fillStyle = rCol; ctx.fillText('NEW', sx, sy - sz - 5);
-  }
-  ctx.restore();
-}
-
-function showPixelRewardToast(rt, isPxMode) {
-  const el = document.createElement('div');
-  el.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(0);z-index:300;padding:14px 28px;border-radius:16px;background:rgba(15,15,25,.85);backdrop-filter:blur(12px);color:#fff;font-size:16px;text-align:center;pointer-events:none;transition:all .4s cubic-bezier(.17,.67,.35,1.3);border:1px solid rgba(255,255,255,.12);box-shadow:0 8px 32px rgba(0,0,0,.4);';
-  el.innerHTML = `<div style="font-size:32px;margin-bottom:4px">${rt.icon}</div><div style="font-weight:700;color:${rt.color}">${rt.name}</div><div style="font-size:13px;opacity:.7;margin-top:2px">+${rt.points} 分</div><div style="font-size:12px;opacity:.5;margin-top:4px">总分: ${PX.score}</div>`;
-  document.body.appendChild(el);
-  requestAnimationFrame(() => { el.style.transform = 'translate(-50%,-50%) scale(1)'; });
-  setTimeout(() => { el.style.opacity = '0'; el.style.transform = 'translate(-50%,-70%) scale(.8)'; }, 1500);
-  setTimeout(() => el.remove(), 2200);
-}
-
-function drawPlayer(ctx) {
-  const iso = isoProject(PX.px, PX.py);
-  const bounce = PX.pMoving ? Math.sin(Date.now() * 0.012) * 2 : 0;
-  const baseY = iso.sy - 2 + bounce;
-  const v = PX.vehicle;
-  const bst = PX.boosting && PX.boostEnergy > 0;
-
-  // Shadow
-  ctx.fillStyle = 'rgba(0,0,0,.2)';
-  ctx.beginPath();
-  const shW = (v === 'car' || v === 'motorcycle') ? 10 : (v === 'bike' || v === 'scooter') ? 7 : (v === 'boat') ? 9 : (v === 'helicopter') ? 0 : 5;
-  ctx.ellipse(iso.sx, iso.sy + 2, shW, 2, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Boost trail
-  if (bst && PX.pMoving) {
-    ctx.globalAlpha = 0.3;
-    const dirOff = [0, 1, 0, -1][PX.pDir]; // dx for trail
-    const dirOffy = [1, 0, -1, 0][PX.pDir]; // dy for trail
-    for (let t = 1; t <= 3; t++) {
-      ctx.globalAlpha = 0.15 / t;
-      ctx.fillStyle = '#ffd700';
-      ctx.beginPath();
-      ctx.arc(iso.sx - dirOff * t * 4, iso.sy + 2 - dirOffy * t * 2, 3 - t * 0.5, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    ctx.globalAlpha = 1;
-  }
-
-  if (v === 'walk') {
-    // Body
-    ctx.fillStyle = '#ff6b35';
-    ctx.fillRect(iso.sx - 3, baseY - 12, 6, 8);
-    // Head
-    ctx.fillStyle = '#fdd';
-    ctx.fillRect(iso.sx - 3, baseY - 18, 6, 6);
-    // Eyes
-    ctx.fillStyle = '#1a1a2e';
-    if (PX.pDir === 0) { ctx.fillRect(iso.sx - 2, baseY - 15, 1.5, 1.5); ctx.fillRect(iso.sx + 1, baseY - 15, 1.5, 1.5); }
-    else if (PX.pDir === 1) { ctx.fillRect(iso.sx - 2, baseY - 15, 1.5, 1.5); }
-    else if (PX.pDir === 3) { ctx.fillRect(iso.sx + 1, baseY - 15, 1.5, 1.5); }
-    // Hair
-    ctx.fillStyle = '#2d2d4a';
-    ctx.fillRect(iso.sx - 3, baseY - 19, 6, 2);
-    // Legs
-    ctx.fillStyle = '#3498db';
-    if (PX.pMoving) {
-      const legOff = Math.sin(Date.now() * 0.015) * 2;
-      ctx.fillRect(iso.sx - 2, baseY - 4, 2, 4 + legOff); ctx.fillRect(iso.sx + 1, baseY - 4, 2, 4 - legOff);
-    } else {
-      ctx.fillRect(iso.sx - 2, baseY - 4, 2, 4); ctx.fillRect(iso.sx + 1, baseY - 4, 2, 4);
-    }
-  } else if (v === 'bike') {
-    // Bike frame
-    ctx.strokeStyle = '#5dade2'; ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.moveTo(iso.sx - 5, baseY - 2); ctx.lineTo(iso.sx, baseY - 8); ctx.lineTo(iso.sx + 5, baseY - 2); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(iso.sx, baseY - 8); ctx.lineTo(iso.sx - 2, baseY - 2); ctx.stroke();
-    // Wheels
-    ctx.strokeStyle = '#aaa'; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.arc(iso.sx - 5, baseY - 1, 3, 0, Math.PI * 2); ctx.stroke();
-    ctx.beginPath(); ctx.arc(iso.sx + 5, baseY - 1, 3, 0, Math.PI * 2); ctx.stroke();
-    if (PX.pMoving) { const sp = Math.sin(Date.now() * 0.02) * 0.3; ctx.fillStyle = '#aaa'; ctx.beginPath(); ctx.arc(iso.sx - 5, baseY - 1, 1, sp, sp + Math.PI); ctx.fill(); ctx.beginPath(); ctx.arc(iso.sx + 5, baseY - 1, 1, sp + Math.PI, sp + Math.PI * 2); ctx.fill(); }
-    // Rider body
-    ctx.fillStyle = '#ff6b35'; ctx.fillRect(iso.sx - 2, baseY - 16, 4, 7);
-    // Head
-    ctx.fillStyle = '#fdd'; ctx.fillRect(iso.sx - 2, baseY - 20, 4, 4);
-    ctx.fillStyle = '#e74c3c'; ctx.fillRect(iso.sx - 2.5, baseY - 21, 5, 2); // helmet
-  } else if (v === 'scooter') {
-    // Scooter deck
-    ctx.fillStyle = '#2ecc71'; ctx.fillRect(iso.sx - 6, baseY - 3, 12, 2);
-    // Handle
-    ctx.strokeStyle = '#888'; ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.moveTo(iso.sx + 4, baseY - 3); ctx.lineTo(iso.sx + 4, baseY - 12); ctx.stroke();
-    ctx.fillStyle = '#555'; ctx.fillRect(iso.sx + 2, baseY - 13, 5, 2);
-    // Wheels
-    ctx.fillStyle = '#333'; ctx.beginPath(); ctx.arc(iso.sx - 5, baseY - 1, 2.5, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(iso.sx + 5, baseY - 1, 2.5, 0, Math.PI * 2); ctx.fill();
-    // Rider
-    ctx.fillStyle = '#ff6b35'; ctx.fillRect(iso.sx - 2, baseY - 15, 4, 7);
-    ctx.fillStyle = '#fdd'; ctx.fillRect(iso.sx - 2, baseY - 19, 4, 4);
-  } else if (v === 'skateboard') {
-    // Board
-    ctx.fillStyle = '#e74c3c'; ctx.fillRect(iso.sx - 5, baseY - 2, 10, 2);
-    ctx.fillStyle = '#c0392b'; ctx.fillRect(iso.sx - 6, baseY - 3, 2, 2); ctx.fillRect(iso.sx + 4, baseY - 3, 2, 2); // kicktails
-    // Wheels
-    ctx.fillStyle = '#333';
-    ctx.fillRect(iso.sx - 4, baseY, 2, 1.5); ctx.fillRect(iso.sx + 2, baseY, 2, 1.5);
-    // Rider
-    ctx.fillStyle = '#ff6b35'; ctx.fillRect(iso.sx - 2, baseY - 13, 4, 7);
-    ctx.fillStyle = '#fdd'; ctx.fillRect(iso.sx - 2, baseY - 17, 4, 4);
-    ctx.fillStyle = '#9b59b6'; ctx.fillRect(iso.sx - 2.5, baseY - 18, 5, 2); // cap
-    // Lean when moving
-    if (PX.pMoving) { ctx.fillStyle = '#3498db'; ctx.fillRect(iso.sx - 3, baseY - 6, 2, 3); ctx.fillRect(iso.sx + 1, baseY - 5, 2, 3); }
-    else { ctx.fillStyle = '#3498db'; ctx.fillRect(iso.sx - 2, baseY - 6, 2, 4); ctx.fillRect(iso.sx + 1, baseY - 6, 2, 4); }
-  } else if (v === 'car') {
-    // Car body
-    ctx.fillStyle = '#e74c3c'; ctx.fillRect(iso.sx - 8, baseY - 6, 16, 6);
-    // Roof
-    ctx.fillStyle = '#c0392b'; ctx.fillRect(iso.sx - 5, baseY - 10, 10, 4);
-    // Windows
-    ctx.fillStyle = 'rgba(135,206,250,.6)'; ctx.fillRect(iso.sx - 4, baseY - 9, 3, 3); ctx.fillRect(iso.sx + 1, baseY - 9, 3, 3);
-    // Wheels
-    ctx.fillStyle = '#222';
-    ctx.beginPath(); ctx.arc(iso.sx - 5, baseY + 1, 2.5, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(iso.sx + 5, baseY + 1, 2.5, 0, Math.PI * 2); ctx.fill();
-    if (PX.pMoving) { ctx.fillStyle = '#666'; const wr = Date.now() * 0.03; ctx.beginPath(); ctx.arc(iso.sx - 5, baseY + 1, 1, wr, wr + 2); ctx.fill(); ctx.beginPath(); ctx.arc(iso.sx + 5, baseY + 1, 1, wr + 1, wr + 3); ctx.fill(); }
-    // Headlights
-    ctx.fillStyle = '#ffd700';
-    if (PX.pDir === 3) { ctx.fillRect(iso.sx + 7, baseY - 4, 2, 2); }
-    else if (PX.pDir === 1) { ctx.fillRect(iso.sx - 9, baseY - 4, 2, 2); }
-    else { ctx.fillRect(iso.sx - 8, baseY - 5, 2, 1.5); ctx.fillRect(iso.sx + 6, baseY - 5, 2, 1.5); }
-  } else if (v === 'motorcycle') {
-    // Motorcycle body
-    ctx.fillStyle = '#6c3483'; ctx.fillRect(iso.sx - 6, baseY - 5, 12, 4);
-    ctx.fillStyle = '#8e44ad'; ctx.fillRect(iso.sx - 3, baseY - 8, 6, 3);
-    // Exhaust
-    ctx.fillStyle = '#888'; ctx.fillRect(iso.sx + 5, baseY - 3, 3, 1.5);
-    // Wheels
-    ctx.fillStyle = '#222';
-    ctx.beginPath(); ctx.arc(iso.sx - 5, baseY, 2.5, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(iso.sx + 5, baseY, 2.5, 0, Math.PI * 2); ctx.fill();
-    if (PX.pMoving) { ctx.fillStyle = '#555'; const wr = Date.now() * 0.04; ctx.beginPath(); ctx.arc(iso.sx - 5, baseY, 1, wr, wr + 2); ctx.fill(); ctx.beginPath(); ctx.arc(iso.sx + 5, baseY, 1, wr + 1, wr + 3); ctx.fill(); }
-    // Rider
-    ctx.fillStyle = '#333'; ctx.fillRect(iso.sx - 2, baseY - 16, 4, 7);
-    ctx.fillStyle = '#fdd'; ctx.fillRect(iso.sx - 2, baseY - 20, 4, 4);
-    ctx.fillStyle = '#2c2c2c'; ctx.fillRect(iso.sx - 2.5, baseY - 21, 5, 2.5); // helmet visor
-    ctx.fillStyle = '#111'; ctx.fillRect(iso.sx - 2, baseY - 18, 4, 1); // visor
-    // Headlight
-    ctx.fillStyle = '#ffd700';
-    if (PX.pDir === 3) ctx.fillRect(iso.sx + 7, baseY - 4, 2, 2);
-    else if (PX.pDir === 1) ctx.fillRect(iso.sx - 9, baseY - 4, 2, 2);
-    else { ctx.fillRect(iso.sx - 6, baseY - 5, 1.5, 1.5); ctx.fillRect(iso.sx + 5, baseY - 5, 1.5, 1.5); }
-  } else if (v === 'boat') {
-    // Hull
-    ctx.fillStyle = '#8B4513'; ctx.beginPath();
-    ctx.moveTo(iso.sx - 8, baseY - 2); ctx.lineTo(iso.sx + 8, baseY - 2);
-    ctx.lineTo(iso.sx + 6, baseY + 3); ctx.lineTo(iso.sx - 6, baseY + 3);
-    ctx.closePath(); ctx.fill();
-    // Water splash
-    if (PX.pMoving) {
-      ctx.fillStyle = 'rgba(100,200,255,.4)';
-      for (let sp = 0; sp < 3; sp++) {
-        const sx2 = iso.sx + (Math.random() - .5) * 14, sy2 = baseY + 2 + Math.random() * 3;
-        ctx.beginPath(); ctx.arc(sx2, sy2, 1 + Math.random(), 0, Math.PI * 2); ctx.fill();
-      }
-    }
-    // Deck
-    ctx.fillStyle = '#A0522D'; ctx.fillRect(iso.sx - 5, baseY - 4, 10, 2);
-    // Rider
-    ctx.fillStyle = '#ff6b35'; ctx.fillRect(iso.sx - 2, baseY - 14, 4, 7);
-    ctx.fillStyle = '#fdd'; ctx.fillRect(iso.sx - 2, baseY - 18, 4, 4);
-    ctx.fillStyle = '#f39c12'; ctx.fillRect(iso.sx - 2.5, baseY - 19, 5, 2); // hat
-  } else if (v === 'helicopter') {
-    // Body
-    ctx.fillStyle = '#2c3e50'; ctx.fillRect(iso.sx - 6, baseY - 7, 12, 5);
-    ctx.fillStyle = '#34495e'; ctx.fillRect(iso.sx - 4, baseY - 10, 8, 3);
-    // Cockpit window
-    ctx.fillStyle = 'rgba(135,206,250,.6)'; ctx.fillRect(iso.sx - 3, baseY - 9, 6, 2);
-    // Tail
-    ctx.fillStyle = '#2c3e50'; ctx.fillRect(iso.sx + 5, baseY - 6, 6, 2);
-    ctx.fillStyle = '#e74c3c'; ctx.fillRect(iso.sx + 10, baseY - 8, 2, 4);
-    // Rotor (spinning)
-    const rotAng = Date.now() * 0.015;
-    ctx.strokeStyle = '#aaa'; ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.moveTo(iso.sx - 10 * Math.cos(rotAng), baseY - 13);
-    ctx.lineTo(iso.sx + 10 * Math.cos(rotAng), baseY - 13);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(iso.sx - 10 * Math.sin(rotAng), baseY - 13);
-    ctx.lineTo(iso.sx + 10 * Math.sin(rotAng), baseY - 13);
-    ctx.stroke();
-    // Rotor hub
-    ctx.fillStyle = '#888'; ctx.beginPath(); ctx.arc(iso.sx, baseY - 13, 2, 0, Math.PI * 2); ctx.fill();
-    // Skids
-    ctx.strokeStyle = '#666'; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(iso.sx - 5, baseY - 2); ctx.lineTo(iso.sx - 7, baseY + 1); ctx.lineTo(iso.sx + 7, baseY + 1); ctx.lineTo(iso.sx + 5, baseY - 2); ctx.stroke();
-    // Shadow is bigger for helicopter (floating effect)
-    ctx.globalAlpha = 0.15; ctx.fillStyle = '#000';
-    ctx.beginPath(); ctx.ellipse(iso.sx, iso.sy + 6, 8, 3, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.globalAlpha = 1;
-  }
-
-  // Name tag
-  const vInfo = VEHICLES[v];
-  ctx.font = '5px "Noto Sans SC",sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillStyle = '#fff';
-  const tagY = (v === 'car' || v === 'motorcycle') ? baseY - 14 : (v === 'helicopter') ? baseY - 18 : baseY - 22;
-  ctx.fillText(vInfo.icon + ' ' + vInfo.name, iso.sx, tagY);
-}
-
-function renderMinimap() {
-  const mc = PX.miniCtx;
-  const mw = 90, mh = 90;
-  mc.fillStyle = '#1a1a2e';
-  mc.fillRect(0, 0, mw, mh);
-
-  if (PX.infiniteMode) {
-    // Infinite mode: show area around player
-    const viewTiles = 80;
-    const scale = mw / viewTiles;
-    const startGX = Math.floor(PX.px - viewTiles / 2);
-    const startGY = Math.floor(PX.py - viewTiles / 2);
-    for (let gy = startGY; gy < startGY + viewTiles; gy += 2) {
-      for (let gx = startGX; gx < startGX + viewTiles; gx += 2) {
-        const t = getGround(PX, gx, gy);
-        mc.fillStyle = t === 'road' ? '#555' : t === 'water' ? '#2980b9' : '#2d4a30';
-        mc.fillRect((gx - startGX) * scale, (gy - startGY) * scale, scale * 2, scale * 2);
-      }
-    }
-    const visBlds = getVisibleBuildings(PX);
-    visBlds.forEach(b => {
-      mc.fillStyle = b.name ? (b.roofColor || '#aaa') : '#666';
-      mc.fillRect((b.x - startGX) * scale, (b.y - startGY) * scale, b.w * scale, 2 * scale);
-    });
-    mc.fillStyle = '#ff6b35';
-    mc.fillRect(mw / 2 - 1.5, mh / 2 - 1.5, 3, 3);
-    mc.strokeStyle = 'rgba(255,255,255,.3)';
-    mc.lineWidth = 0.5;
-    const vr = 15 / PX.zoom;
-    mc.strokeRect((mw - vr * 2 * scale) / 2, (mh - vr * 2 * scale) / 2, vr * 2 * scale, vr * 2 * scale);
-    return;
-  }
-
-  const scale = mw / PX.worldW;
-  // Ground
-  for (let y = 0; y < PX.worldH; y += 2) {
-    for (let x = 0; x < PX.worldW; x += 2) {
-      const t = PX.ground[y][x];
-      mc.fillStyle = t === 'road' ? '#555' : t === 'water' ? '#2980b9' : '#2d4a30';
-      mc.fillRect(x * scale, y * scale, scale * 2, scale * 2);
-    }
-  }
-  // Buildings
-  mc.fillStyle = '#aaa';
-  PX.buildings.forEach(b => {
-    if (b.name) mc.fillStyle = b.roofColor;
-    else mc.fillStyle = '#666';
-    mc.fillRect(b.x * scale, b.y * scale, b.w * scale, 2 * scale);
-  });
-  // Route path on minimap
-  if (PX.routePath && PX.routePath.length > 0) {
-    mc.fillStyle = 'rgba(255,200,80,.5)';
-    PX.routePath.forEach(rp => { mc.fillRect(rp.x * scale, rp.y * scale, scale, scale); });
-  }
-  // Player
-  mc.fillStyle = '#ff6b35';
-  mc.fillRect(PX.px * scale - 1.5, PX.py * scale - 1.5, 3, 3);
-  // View cone
-  mc.strokeStyle = 'rgba(255,255,255,.3)';
-  mc.lineWidth = 0.5;
-  const vr = 15 / PX.zoom;
-  mc.strokeRect((PX.camX - vr) * scale, (PX.camY - vr) * scale, vr * 2 * scale, vr * 2 * scale);
-}
-
-// ---- Game loop ----
-function pixelGameLoop() {
-  if (!PX.running) return;
-
-  // 修改: 延迟3秒后检查玩家是否卡在建筑内(等待异步POI加载)
-  // Check once after 3s delay to allow async POI buildings to load
-  if(!PX._unstuckChecked && PX._startTime && Date.now()-PX._startTime>3000){
-    PX._unstuckChecked=true;
-    unstuckPlayer(PX);
-  }
-  if(!PX._startTime) PX._startTime=Date.now();
-
-  // Smooth zoom
-  PX.zoom += (PX.targetZoom - PX.zoom) * 0.1;
-
-  // Boost key: Shift
-  PX.boosting = !!(PX.keys['Shift'] || PX.keys['ShiftLeft'] || PX.keys['ShiftRight']);
-  updateBoost(PX);
-  // Update boost bar UI
-  const pxBar = document.getElementById('pixelBoostFill');
-  if (pxBar) pxBar.style.width = (PX.boostEnergy / PX.boostMax * 100) + '%';
-
-  // Process input
-  let dx = PX.moveX, dy = PX.moveY;
-  if (PX.keys['ArrowUp'] || PX.keys['w'] || PX.keys['W']) dy -= 1;
-  if (PX.keys['ArrowDown'] || PX.keys['s'] || PX.keys['S']) dy += 1;
-  if (PX.keys['ArrowLeft'] || PX.keys['a'] || PX.keys['A']) dx -= 1;
-  if (PX.keys['ArrowRight'] || PX.keys['d'] || PX.keys['D']) dx += 1;
-
-  // Normalize diagonal
-  if (dx !== 0 && dy !== 0) {
-    const len = Math.sqrt(dx * dx + dy * dy);
-    dx /= len; dy /= len;
-  }
-
-  PX.pMoving = (dx !== 0 || dy !== 0);
-
-  if (PX.pMoving) {
-    const newX = PX.px + dx * PX.speed;
-    const newY = PX.py + dy * PX.speed;
-
-    // Direction
-    if (Math.abs(dy) > Math.abs(dx)) PX.pDir = dy > 0 ? 0 : 2;
-    else PX.pDir = dx > 0 ? 3 : 1;
-
-    // Collision check
-    const tileX = Math.round(newX), tileY = Math.round(newY);
-    if (!PX.infiniteMode && (tileX < 0 || tileX >= PX.worldW || tileY < 0 || tileY >= PX.worldH)) {
-      if (!PX._boundaryToastTime || Date.now() - PX._boundaryToastTime > 8000) {
-        PX._boundaryToastTime = Date.now();
-        showToast('已到达区域边界 · 试试底部「漫游」进入无限模式!');
-      }
-    }
-    if (PX.infiniteMode || (tileX >= 0 && tileX < PX.worldW && tileY >= 0 && tileY < PX.worldH)) {
-      const tile = getGround(PX, tileX, tileY);
-      const canWater = VEHICLES[PX.vehicle] && VEHICLES[PX.vehicle].canWater;
-      const blocked = !PX.ghostMode && ((tile === 'water' && !canWater) || isOccupiedInfinite(PX, tileX, tileY));
-      if (!blocked) {
-        // Count steps
-        if (Math.floor(PX.px) !== Math.floor(newX) || Math.floor(PX.py) !== Math.floor(newY)) {
-          PX.steps++;
-          if(PX.infiniteMode){EXPLORE_TRACK.totalSteps++;checkStepMilestones();}
-        }
-        PX.px = newX;
-        PX.py = newY;
-      }
-    }
-  }
-
-  // Pixel reward collection check
-  const pxRewList = PX.infiniteMode ? getVisibleRewards(PX) : PX.rewards;
-  pxRewList.forEach(r => {
-    if (r.collected) return;
-    const dist = Math.abs(r.x - PX.px) + Math.abs(r.y - PX.py);
-    if (dist < 1.5) {
-      r.collected = true;
-      PX.collectedRewards[r.id] = true;
-      if (r.isVehiclePickup && r.vehicleKey) {
-        unlockVehicle(r.vehicleKey);
-        showVehicleUnlockToast(r.vehicleKey);
-        renderVehicleSelector('px');
-      } else {
-        PX.score += r.type.points;
-        showPixelRewardToast(r.type, true);
-      }
-    }
-  });
-  // Reward respawn
-  updateRewardRespawns(PX);
-
-  // Camera follow player
-  PX.camX += (PX.px - PX.camX) * 0.08;
-  PX.camY += (PX.py - PX.camY) * 0.08;
-
-  // Infinite mode: update chunks
-  if (PX.infiniteMode) updateChunks(PX);
-
-  try { pixelRender(); } catch(e) { console.warn('PX render error:', e); }
-  PX.animFrame = requestAnimationFrame(pixelGameLoop);
-}
-
-function isOccupiedByBuilding(tx, ty) {
-  return PX.buildings.some(b => tx >= b.x && tx < b.x + b.w && ty >= b.y && ty < b.y + 2);
-}
-
-// ---- Input handling ----
-function setupPixelListeners() {
-  window._pxKeyDown = e => { PX.keys[e.key] = true; if(e.key==='g'||e.key==='G')toggleGhostMode('px'); };
-  window._pxKeyUp = e => { PX.keys[e.key] = false; };
-  window.addEventListener('keydown', window._pxKeyDown);
-  window.addEventListener('keyup', window._pxKeyUp);
-
-  // Mouse wheel zoom
-  const pxWrap = document.getElementById('pixelCanvasWrap');
-  window._pxWheel = e => { e.preventDefault(); pixelZoom(e.deltaY < 0 ? 1 : -1); };
-  pxWrap.addEventListener('wheel', window._pxWheel, {passive:false});
-
-  // Joystick touch
-  const joy = document.getElementById('pixelJoystick');
-  const knob = document.getElementById('joystickKnob');
-  let joyActive = false;
-  const joyR = 40;
-
-  function joyMove(cx, cy) {
-    const rect = joy.getBoundingClientRect();
-    const baseX = rect.left + rect.width / 2;
-    const baseY = rect.top + rect.height / 2;
-    let dx = cx - baseX, dy = cy - baseY;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    if (dist > joyR) { dx = dx / dist * joyR; dy = dy / dist * joyR; }
-    knob.style.transform = `translate(${dx}px, ${dy}px)`;
-    PX.moveX = dx / joyR;
-    PX.moveY = dy / joyR;
-    // Deadzone
-    if (Math.abs(PX.moveX) < 0.15) PX.moveX = 0;
-    if (Math.abs(PX.moveY) < 0.15) PX.moveY = 0;
-  }
-
-  window._pxTouchStart = e => {
-    if (e.target.closest('.pixel-joystick')) { joyActive = true; joyMove(e.touches[0].clientX, e.touches[0].clientY); e.preventDefault(); }
-  };
-  window._pxTouchMove = e => {
-    if (joyActive) { joyMove(e.touches[0].clientX, e.touches[0].clientY); e.preventDefault(); }
-  };
-  window._pxTouchEnd = e => {
-    if (joyActive) { joyActive = false; knob.style.transform = 'translate(0,0)'; PX.moveX = 0; PX.moveY = 0; }
-  };
-  joy.addEventListener('touchstart', window._pxTouchStart, {passive: false});
-  window.addEventListener('touchmove', window._pxTouchMove, {passive: false});
-  window.addEventListener('touchend', window._pxTouchEnd);
-
-  // Mouse drag for joystick on desktop
-  let mouseJoy = false;
-  window._pxMouseDown = e => {
-    if (e.target.closest('.pixel-joystick')) { mouseJoy = true; joyMove(e.clientX, e.clientY); }
-  };
-  window._pxMouseMove = e => {
-    if (mouseJoy) joyMove(e.clientX, e.clientY);
-  };
-  window._pxMouseUp = e => {
-    if (mouseJoy) { mouseJoy = false; knob.style.transform = 'translate(0,0)'; PX.moveX = 0; PX.moveY = 0; }
-  };
-  joy.addEventListener('mousedown', window._pxMouseDown);
-  window.addEventListener('mousemove', window._pxMouseMove);
-  window.addEventListener('mouseup', window._pxMouseUp);
-}
-
-function removePixelListeners() {
-  window.removeEventListener('keydown', window._pxKeyDown);
-  window.removeEventListener('keyup', window._pxKeyUp);
-  window.removeEventListener('touchmove', window._pxTouchMove);
-  window.removeEventListener('touchend', window._pxTouchEnd);
-  window.removeEventListener('mousemove', window._pxMouseMove);
-  window.removeEventListener('mouseup', window._pxMouseUp);
-  const pxWrap=document.getElementById('pixelCanvasWrap');
-  if(pxWrap&&window._pxWheel)pxWrap.removeEventListener('wheel',window._pxWheel);
-  PX.keys = {};
-  PX.moveX = 0; PX.moveY = 0;
-}
-
-function pixelZoom(dir) {
-  PX.targetZoom = Math.max(0.6, Math.min(4, PX.targetZoom + dir * 0.3));
-}
-
-function pixelInteract() {
-  // Find nearest POI building to player
-  let nearest = null, bestDist = Infinity;
-  PX.buildings.forEach(b => {
-    if (!b.name) return;
-    const dx = (b.x + b.w / 2) - PX.px;
-    const dy = (b.y + 1) - PX.py;
-    const dist = Math.abs(dx) + Math.abs(dy);
-    if (dist < bestDist) { bestDist = dist; nearest = b; }
-  });
-  if (nearest && bestDist < 5) {
-    const popup = document.getElementById('pixelPoiPopup');
-    document.getElementById('ppName').textContent = nearest.icon + ' ' + nearest.name;
-    document.getElementById('ppType').textContent = nearest.type + (nearest.address ? ' · ' + nearest.address : '');
-    document.getElementById('ppDesc').textContent = '走近看看这里有什么精彩…';
-    popup.style.left = '50%';
-    popup.style.bottom = '140px';
-    popup.style.transform = 'translateX(-50%)';
-    popup.classList.add('active');
-    setTimeout(() => popup.classList.remove('active'), 4000);
-  } else {
-    showToast('附近没有可互动的地点，再走近些吧');
-  }
-}
-
-function closePoiPopup() {
-  document.getElementById('pixelPoiPopup').classList.remove('active');
-}
 
 // Utility: deterministic RNG
 function mulberry32(a) {

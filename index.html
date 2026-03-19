@@ -3215,7 +3215,13 @@ function updateBoost(st) {
 // 修改内容 / Changes: 城市感知种子 + 地形档案 + 基于纬度/城市类型的动态地形生成
 // City-aware seed + terrain profiles + latitude/city-type driven dynamic terrain generation
 const CHUNK_SIZE = 32;
-const GEO = {originLat:31.23,originLng:121.47,degPerTileY:0.000135,degPerTileX:0.000156};
+// 修改基线 / Base: GEO 对象 (commit 3cf6855)
+// 修改内容 / Changes: 新增 waterFeatures(城市级水系数据) 和 densityBase(核心区域POI密度基准)
+// Added waterFeatures (city-level water data) and densityBase (core area POI density baseline)
+const GEO = {originLat:31.23,originLng:121.47,degPerTileY:0.000135,degPerTileX:0.000156,
+  waterFeatures:[],  // 城市级水系特征: [{gridX, gridY, direction:'h'|'v', width:3-8}]
+  densityBase:0.22   // 核心区域建筑生成概率基准
+};
 function gridToGeo(gx,gy){return{lat:GEO.originLat-gy*GEO.degPerTileY,lng:GEO.originLng+gx*GEO.degPerTileX};}
 function geoToGrid(lat,lng){return{gx:(lng-GEO.originLng)/GEO.degPerTileX,gy:(GEO.originLat-lat)/GEO.degPerTileY};}
 
@@ -3295,28 +3301,37 @@ function generateChunkTerrain(chunk){
     }
   }
 
-  // ======== 水系 / Water (概率基于城市档案, 沿海城市更多水域) ========
-  const chunkGeo = gridToGeo(chunk.cx*S+S/2, chunk.cy*S+S/2);
-  // 用区块真实经纬度的小数部分作为额外随机因子
-  const geoNoise = (Math.abs(chunkGeo.lat*1000)%1 + Math.abs(chunkGeo.lng*1000)%1) / 2;
-  const waterThreshold = tp.waterProb + geoNoise * 0.05;
-  const waterRoll = rng();
-  if(waterRoll < waterThreshold){
-    const ry=4+Math.floor(rng()*(S-8));
-    const baseWidth = tp.waterWidth[0];
-    const maxExtra = tp.waterWidth[1] - tp.waterWidth[0];
-    // 沿海城市: 靠近边缘的区块更容易出现大面积水域
-    const edgeFactor = (Math.abs(chunk.cx)+Math.abs(chunk.cy)) < 3 ? 1.5 : 1.0;
-    for(let x=0;x<S;x++){
-      const ww=Math.floor((baseWidth + rng()*maxExtra) * edgeFactor);
-      for(let d=0;d<ww;d++){if(ry+d<S) chunk.ground[ry+d][x]='water';}
+  // ======== 水系 / Water (基于真实地理数据) ========
+  // 修改基线 / Base: generateChunkTerrain 随机水系生成 (commit 3cf6855)
+  // 修改内容 / Changes: 用 GEO.waterFeatures 真实水系替代纯随机水块, 保留 coastal 海洋逻辑
+  // Replaced random water blocks with GEO.waterFeatures real water, kept coastal ocean logic
+  let hasRealWater = false;
+  if (GEO.waterFeatures.length > 0) {
+    GEO.waterFeatures.forEach(river => {
+      if (generateRiverInChunk(chunk, river)) hasRealWater = true;
+    });
+  }
+  // 如果没有真实水系数据，回退到基于概率的随机水系 (但概率减半)
+  // Fallback to probability-based random water if no real data (halved probability)
+  if (!hasRealWater) {
+    const chunkGeo = gridToGeo(chunk.cx*S+S/2, chunk.cy*S+S/2);
+    const geoNoise = (Math.abs(chunkGeo.lat*1000)%1 + Math.abs(chunkGeo.lng*1000)%1) / 2;
+    const waterThreshold = tp.waterProb * 0.5 + geoNoise * 0.03; // 减半随机水概率
+    if (rng() < waterThreshold) {
+      const ry = 4+Math.floor(rng()*(S-8));
+      const baseWidth = tp.waterWidth[0];
+      const maxExtra = tp.waterWidth[1] - tp.waterWidth[0];
+      for (let x=0;x<S;x++) {
+        const ww = Math.floor(baseWidth + rng()*maxExtra);
+        for (let d=0;d<ww;d++) { if(ry+d<S) chunk.ground[ry+d][x]='water'; }
+      }
     }
-    // 沿海城市的外围区块有可能出现大面积海洋
-    if(tp === CITY_TERRAIN_PROFILES.coastal && (Math.abs(chunk.cx)>2 || Math.abs(chunk.cy)>2) && rng()<0.3){
-      const seaStart = rng()>0.5 ? 0 : Math.floor(S*0.6);
-      const seaEnd = seaStart===0 ? Math.floor(S*0.4) : S;
-      for(let y=seaStart;y<seaEnd;y++){for(let x=0;x<S;x++){chunk.ground[y][x]='water';}}
-    }
+  }
+  // 沿海城市的外围区块有可能出现大面积海洋
+  if (tp === CITY_TERRAIN_PROFILES.coastal && (Math.abs(chunk.cx)>2 || Math.abs(chunk.cy)>2) && rng()<0.3) {
+    const seaStart = rng()>0.5 ? 0 : Math.floor(S*0.6);
+    const seaEnd = seaStart===0 ? Math.floor(S*0.4) : S;
+    for(let y=seaStart;y<seaEnd;y++){for(let x=0;x<S;x++){chunk.ground[y][x]='water';}}
   }
 
   // ======== 装饰树木 / Decorative trees (密度基于城市档案) ========
@@ -3353,8 +3368,16 @@ function generateChunkFillers(engine,chunk){
   });
   const isGlass=(engine===GX);
   const catKeys=Object.keys(isGlass?GLASS_COLORS:BLDG_TYPES);
-  for(let ly=2;ly<S-2;ly+=4){for(let lx=2;lx<S-2;lx+=4){
-    if(chunk.ground[ly][lx]==='grass'&&!occupied.has(ly+','+lx)&&rng()<0.22){
+  // 修改基线 / Base: generateChunkFillers (commit 3cf6855)
+  // 修改内容 / Changes: 用 getChunkDensity 替代固定 0.22 概率, 建筑高度随距离递减
+  // Replaced fixed 0.22 probability with getChunkDensity(), building height decreases with distance
+  const density = getChunkDensity(chunk.cx, chunk.cy);
+  const dist = Math.sqrt(chunk.cx * chunk.cx + chunk.cy * chunk.cy);
+  // 建筑高度根据密度调整: 核心区高楼 (30-70), 中等区 (15-35), 郊区 (5-15)
+  const heightMultiplier = Math.max(0.2, 1.0 - dist * 0.06);
+  const stepSize = density > 0.25 ? 3 : (density > 0.15 ? 4 : 6); // 密度高→间距小
+  for(let ly=2;ly<S-2;ly+=stepSize){for(let lx=2;lx<S-2;lx+=stepSize){
+    if(chunk.ground[ly][lx]==='grass'&&!occupied.has(ly+','+lx)&&rng()<density){
       const catName=catKeys[Math.floor(rng()*catKeys.length)];
       if(catName==='default')continue;
       const bw=1+Math.floor(rng()*2);
@@ -3362,10 +3385,10 @@ function generateChunkFillers(engine,chunk){
       const gx=chunk.cx*S+lx,gy=chunk.cy*S+ly;
       if(isGlass){
         const gc=GLASS_COLORS[catName]||GLASS_COLORS['default'];
-        const bh=10+Math.floor(rng()*30);
+        const bh=Math.floor((10+Math.floor(rng()*30)) * heightMultiplier);
         const names=FILLER_NAMES[catName]||FILLER_NAMES['生活服务'];
         const bName=names[Math.floor(rng()*names.length)];
-        chunk.buildings.push({lx,ly,x:gx,y:gy,w:bw,h:bh,gc,name:bName,type:catName,address:'',poiIdx:-1});
+        chunk.buildings.push({lx,ly,x:gx,y:gy,w:bw,h:Math.max(5,bh),gc,name:bName,type:catName,address:'',poiIdx:-1});
       }else{
         const bt=BLDG_TYPES[catName]||BLDG_TYPES['default'];
         const bh=bt.h[0]+Math.floor(rng()*(bt.h[1]-bt.h[0]+1));
@@ -3801,46 +3824,161 @@ function updateLocationHUD(engine){
     });
   }catch(e){}
 }
-// Initialize infinite mode for an engine
-async function initInfiniteMode(engineType,cityName){
-  const engine=engineType==='px'?PX:GX;
-  // Geocode city center (with timeout to avoid hanging)
-  let originLat=31.23,originLng=121.47;
-  if(typeof AMap!=='undefined'){
-    try{
-      const info=await Promise.race([amapGeocode(cityName),new Promise(r=>setTimeout(()=>r(null),3000))]);
-      if(info){originLat=info.lat;originLng=info.lng;}
-    }catch(e){}
-  }
-  GEO.originLat=originLat;GEO.originLng=originLng;
-  // Adjust degPerTileX for latitude
-  GEO.degPerTileX=0.000135/Math.cos(originLat*Math.PI/180);
-  // Set up engine
-  engine.infiniteMode=true;
-  engine.chunkMgr=createChunkManager();
-  engine.px=0;engine.py=0;
-  engine.camX=0;engine.camY=0;
-  engine.steps=0;engine.score=0;
-  engine.rewards=[];engine.collectedRewards={};engine.vehiclePickups=[];
-  engine.buildings=[];engine.trees=[];engine.pois=[];
-  engine.routePath=[];engine._geoBounds=null;
-  // Generate initial chunks (3x3 around origin)
-  for(let dy=-1;dy<=1;dy++){for(let dx=-1;dx<=1;dx++){
-    const cx=dx,cy=dy,key=cx+','+cy;
-    const chunk=createChunk(cx,cy);
-    generateChunkTerrain(chunk);
-    generateChunkFillers(engine,chunk);
-    engine.chunkMgr.chunks.set(key,chunk);
-    if(typeof AMap!=='undefined'&&!APP.demoMode)loadChunkPOIs(engine,chunk);
-  }}
-  // Place player on nearest road to (0,0)
-  for(let r=0;r<20;r++){
-    for(let dx=-r;dx<=r;dx++){for(let dy=-r;dy<=r;dy++){
-      if(getGround(engine,dx,dy)==='road'){
-        engine.px=dx;engine.py=dy;engine.camX=dx;engine.camY=dy;
-        return;
+// 修改基线 / Base: initInfiniteMode (commit 3cf6855)
+// 修改内容 / Changes: 1)修复PX引用 2)新增城市级水系预查询 3)新增建筑密度基准计算 4)新增跨chunk河流连续性
+// Fixed PX ref, added city-level water pre-query, density baseline calc, cross-chunk river continuity
+
+// === 跨 Chunk 河流连续性算法 / Cross-chunk river continuity ===
+function generateRiverInChunk(chunk, river) {
+  const S = CHUNK_SIZE;
+  const chunkStartX = chunk.cx * S;
+  const chunkStartY = chunk.cy * S;
+  const chunkEndX = chunkStartX + S;
+  const chunkEndY = chunkStartY + S;
+  
+  if (river.direction === 'h') {
+    // 横向河流: 检查 river.gridY 是否在当前 chunk 的 Y 范围内
+    if (river.gridY >= chunkStartY && river.gridY < chunkEndY) {
+      const localY = river.gridY - chunkStartY;
+      const rng = mulberry32(chunk.seed + river.gridX * 7 + river.gridY * 13);
+      for (let x = 0; x < S; x++) {
+        const ww = Math.max(2, river.width + Math.floor(rng() * 3) - 1); // 宽度微波动
+        for (let d = -Math.floor(ww/2); d < Math.ceil(ww/2); d++) {
+          const ty = localY + d;
+          if (ty >= 0 && ty < S) {
+            chunk.ground[ty][x] = 'water';
+          }
+        }
       }
-    }}
+      return true;
+    }
+  } else {
+    // 纵向河流: 检查 river.gridX 是否在当前 chunk 的 X 范围内
+    if (river.gridX >= chunkStartX && river.gridX < chunkEndX) {
+      const localX = river.gridX - chunkStartX;
+      const rng = mulberry32(chunk.seed + river.gridX * 11 + river.gridY * 17);
+      for (let y = 0; y < S; y++) {
+        const ww = Math.max(2, river.width + Math.floor(rng() * 3) - 1);
+        for (let d = -Math.floor(ww/2); d < Math.ceil(ww/2); d++) {
+          const tx = localX + d;
+          if (tx >= 0 && tx < S) {
+            chunk.ground[y][tx] = 'water';
+          }
+        }
+      }
+      return true;
+    }
+  }
+  return false;
+}
+
+// === 计算 chunk 的建筑密度系数 / Compute chunk building density factor ===
+function getChunkDensity(cx, cy) {
+  const dist = Math.sqrt(cx * cx + cy * cy);
+  // 核心区密度高，越远越稀疏，最低 10%
+  return GEO.densityBase * Math.max(0.10, 1.0 - dist * 0.08);
+}
+
+// Initialize infinite mode for an engine
+async function initInfiniteMode(engineType, cityName) {
+  const engine = GX; // 仅支持 GX 引擎 (PX 已移除)
+  
+  // Geocode city center (with timeout to avoid hanging)
+  let originLat = 31.23, originLng = 121.47;
+  if (typeof AMap !== 'undefined') {
+    try {
+      const info = await Promise.race([amapGeocode(cityName), new Promise(r => setTimeout(() => r(null), 3000))]);
+      if (info) { originLat = info.lat; originLng = info.lng; }
+    } catch(e) {}
+  }
+  GEO.originLat = originLat;
+  GEO.originLng = originLng;
+  // Adjust degPerTileX for latitude
+  GEO.degPerTileX = 0.000135 / Math.cos(originLat * Math.PI / 180);
+  
+  // === 城市级水系预查询 / City-level water feature pre-query ===
+  GEO.waterFeatures = [];
+  if (typeof AMap !== 'undefined') {
+    try {
+      const waterPois = await Promise.race([
+        chunkPOISearchNearBy(originLng, originLat, 3000, '190000'), // 3km 范围查水系
+        new Promise(r => setTimeout(() => r([]), 4000))
+      ]);
+      
+      if (waterPois && waterPois.length > 0) {
+        waterPois.forEach(wp => {
+          let wlng, wlat;
+          if (typeof wp.location === 'string') { [wlng, wlat] = wp.location.split(',').map(Number); }
+          else if (typeof wp.location === 'object') { wlng = wp.location.lng || wp.location.getLng?.(); wlat = wp.location.lat || wp.location.getLat?.(); }
+          
+          if (wlng && wlat && !isNaN(wlng) && !isNaN(wlat)) {
+            const grid = geoToGrid(wlat, wlng);
+            const gx = Math.round(grid.gx);
+            const gy = Math.round(grid.gy);
+            // 根据水系名称推断方向: 含"江""河"多为横向，含"湖""海"为区域
+            const name = wp.name || '';
+            const isHorizontal = /[江河溪creek river]/.test(name) ? Math.abs(wlng - originLng) > Math.abs(wlat - originLat) : Math.random() > 0.5;
+            const width = 3 + Math.floor(Math.random() * 4); // 3-6 格宽
+            
+            GEO.waterFeatures.push({
+              gridX: gx, gridY: gy,
+              direction: isHorizontal ? 'h' : 'v',
+              width: width,
+              name: name
+            });
+          }
+        });
+        console.log(`[Terrain] 城市 ${cityName} 检测到 ${GEO.waterFeatures.length} 个水系特征:`, GEO.waterFeatures.map(w => w.name).join(', '));
+      }
+    } catch(e) { console.warn('Water feature query failed:', e); }
+  }
+  
+  // === 建筑密度基准计算 / Density baseline from initial POI count ===
+  if (typeof AMap !== 'undefined') {
+    try {
+      const densityPois = await Promise.race([
+        chunkPOISearchNearBy(originLng, originLat, 500, ''), // 500m 全类型
+        new Promise(r => setTimeout(() => r([]), 3000))
+      ]);
+      const poiCount = densityPois ? densityPois.length : 0;
+      // POI 越多 → 核心密度越高 (0.15 ~ 0.35)
+      GEO.densityBase = Math.min(0.35, Math.max(0.15, 0.12 + poiCount * 0.005));
+      console.log(`[Terrain] 核心区 POI 密度基准: ${GEO.densityBase.toFixed(3)} (基于 ${poiCount} 个 POI)`);
+    } catch(e) { GEO.densityBase = 0.22; }
+  }
+  
+  // Set up engine
+  engine.infiniteMode = true;
+  engine.chunkMgr = createChunkManager();
+  engine.px = 0; engine.py = 0;
+  engine.camX = 0; engine.camY = 0;
+  engine.steps = 0; engine.score = 0;
+  engine.rewards = []; engine.collectedRewards = {}; engine.vehiclePickups = [];
+  engine.buildings = []; engine.trees = []; engine.pois = [];
+  engine.routePath = []; engine._geoBounds = null;
+  
+  // Generate initial chunks (3x3 around origin)
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      const cx = dx, cy = dy, key = cx + ',' + cy;
+      const chunk = createChunk(cx, cy);
+      generateChunkTerrain(chunk);
+      generateChunkFillers(engine, chunk);
+      engine.chunkMgr.chunks.set(key, chunk);
+      if (typeof AMap !== 'undefined' && !APP.demoMode) loadChunkPOIs(engine, chunk);
+    }
+  }
+  
+  // Place player on nearest road to (0,0)
+  for (let r = 0; r < 20; r++) {
+    for (let dx = -r; dx <= r; dx++) {
+      for (let dy = -r; dy <= r; dy++) {
+        if (getGround(engine, dx, dy) === 'road') {
+          engine.px = dx; engine.py = dy; engine.camX = dx; engine.camY = dy;
+          return;
+        }
+      }
+    }
   }
 }
 

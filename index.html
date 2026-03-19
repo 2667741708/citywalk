@@ -3803,6 +3803,10 @@ const BLDG_TYPES = {
   'default': {colors:['#636e72','#535c5f','#748c8d'],roofColor:'#b2bec3',h:[2,5],w:[1,3],icon:'🏢',style:'office'},
 };
 
+// 修改基线 / Base: openPixelCity() + initPixelCity() 原始版本
+// 修改内容 / Changes: 传递选中路线POI坐标，使用searchNearBy基于路线中心点搜索，修复LngLat对象解析
+// Pass selected route POIs, use searchNearBy around route center, fix AMap.LngLat object parsing
+
 function openPixelCity() {
   const city = APP.selectedCity || '上海';
   document.getElementById('pixelCityTag').textContent = city;
@@ -3810,10 +3814,9 @@ function openPixelCity() {
   document.getElementById('pixelLoading').classList.remove('hidden');
   document.getElementById('pixelLoadBar').style.width = '0%';
   document.getElementById('pixelLoadText').textContent = '正在获取城市数据...';
-  // Close creative panel
   document.getElementById('creativePanel').classList.remove('active');
-  // Start
-  setTimeout(() => initPixelCity(city), 200);
+  // 传递选中路线 / Pass selected route
+  setTimeout(() => initPixelCity(city, APP.selectedRoute), 200);
 }
 
 function closePixelCity() {
@@ -3823,7 +3826,7 @@ function closePixelCity() {
   removePixelListeners();
 }
 
-async function initPixelCity(cityName) {
+async function initPixelCity(cityName, selectedRoute) {
   PX.cityName = cityName;
   PX.buildings = []; PX.trees = []; PX.roads = []; PX.pois = [];
   PX.routePath = []; PX._geoBounds = null;
@@ -3858,32 +3861,105 @@ async function initPixelCity(cityName) {
     }
   }
 
-  setPixelLoadProgress(10, '正在搜索建筑数据...');
+  setPixelLoadProgress(10, '正在搜索位置数据...');
 
-  // Fetch POI data from Amap
+  // === 路线 POI 作为种子 / Route POIs as seed data ===
   let poiData = [];
+  let centerLat = 0, centerLng = 0, hasCenter = false;
+
+  if (selectedRoute && selectedRoute.points && selectedRoute.points.length > 0) {
+    selectedRoute.points.forEach(pt => {
+      if (pt.lat && pt.lng) {
+        poiData.push({
+          name: pt.name || pt.label || '路线点',
+          type: pt.type || '景点',
+          address: pt.desc || pt.address || '',
+          lat: pt.lat,
+          lng: pt.lng,
+        });
+        centerLat += pt.lat;
+        centerLng += pt.lng;
+      }
+    });
+    if (poiData.length > 0) {
+      centerLat /= poiData.length;
+      centerLng /= poiData.length;
+      hasCenter = true;
+      console.log(`[PixelCity] 使用路线中心点: [${centerLat.toFixed(4)}, ${centerLng.toFixed(4)}], 种子POI: ${poiData.length}`);
+    }
+  }
+
+  // === AMap POI 搜索 / AMap POI Search ===
+  // 辅助函数：解析 AMap POI 的坐标 / Helper: parse AMap POI location
+  function parsePOILocation(loc) {
+    if (!loc) return null;
+    let lng, lat;
+    if (typeof loc === 'string') {
+      [lng, lat] = loc.split(',').map(Number);
+    } else if (typeof loc === 'object') {
+      lng = loc.lng || (loc.getLng && loc.getLng());
+      lat = loc.lat || (loc.getLat && loc.getLat());
+    }
+    return (lng && lat && !isNaN(lng) && !isNaN(lat)) ? { lng, lat } : null;
+  }
+
   if (typeof AMap !== 'undefined' && !APP.demoMode) {
     try {
       const cats = POI_CATEGORIES;
-      setPixelLoadProgress(20, '搜索景点...');
-      const results = await Promise.all(cats.map(c => amapPOISearch(c.name, cityName, c.code)));
-      cats.forEach((cat, ci) => {
-        (results[ci] || []).forEach(poi => {
-          if (poi.location) {
-            const [lng, lat] = poi.location.split(',').map(Number);
-            if (lng && lat) {
-              poiData.push({ name: poi.name, type: cat.name, address: poi.address || '', lat, lng });
+      setPixelLoadProgress(20, '搜索周边建筑...');
+
+      if (hasCenter) {
+        // 基于路线中心点的 3km 半径搜索 / 3km radius search around route center
+        const nearbyResults = await Promise.all(cats.map(c => new Promise(resolve => {
+          try {
+            const ps = new AMap.PlaceSearch({
+              city: cityName,
+              citylimit: true,
+              pageSize: 25,
+              type: c.code || '',
+            });
+            ps.searchNearBy(c.name, [centerLng, centerLat], 3000, (status, result) => {
+              if (status === 'complete' && result.poiList && result.poiList.pois) {
+                resolve(result.poiList.pois);
+              } else {
+                resolve([]);
+              }
+            });
+          } catch(e) { resolve([]); }
+        })));
+        cats.forEach((cat, ci) => {
+          (nearbyResults[ci] || []).forEach(poi => {
+            const loc = parsePOILocation(poi.location);
+            if (loc) {
+              const dup = poiData.some(p => Math.abs(p.lat - loc.lat) < 0.0001 && Math.abs(p.lng - loc.lng) < 0.0001);
+              if (!dup) poiData.push({ name: poi.name, type: cat.name, address: poi.address || '', lat: loc.lat, lng: loc.lng });
             }
-          }
+          });
         });
-      });
+        console.log(`[PixelCity] NearBy搜索完成, 总POI: ${poiData.length}`);
+      } else {
+        // 没有路线时全城搜索 / Fallback: whole-city search
+        const results = await Promise.all(cats.map(c => amapPOISearch(c.name, cityName, c.code)));
+        cats.forEach((cat, ci) => {
+          (results[ci] || []).forEach(poi => {
+            const loc = parsePOILocation(poi.location);
+            if (loc) poiData.push({ name: poi.name, type: cat.name, address: poi.address || '', lat: loc.lat, lng: loc.lng });
+          });
+        });
+        console.log(`[PixelCity] 全城搜索完成, 总POI: ${poiData.length}`);
+      }
     } catch(e) { console.warn('POI fetch for pixel city:', e); }
   }
 
   setPixelLoadProgress(50, '生成城市布局...');
 
-  // If no API data, use fallback mock POIs
+  // 保存路线中心坐标供 fallback 使用
+  if (hasCenter) PX._routeCenter = { lat: centerLat, lng: centerLng };
+  // 将 PX._routeCenter 也存到 GX 供 generateFallbackPOIs 使用
+  if (hasCenter && typeof GX !== 'undefined') GX._routeCenter = { lat: centerLat, lng: centerLng };
+
   if (poiData.length < 5) {
+    console.warn(`[PixelCity] AMap POI不足(${poiData.length}), 使用fallback`);
     poiData = generateFallbackPOIs(cityName);
   }
 

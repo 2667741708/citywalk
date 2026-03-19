@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>AMap POI 诊断测试</title>
+<style>
+body{font-family:monospace;background:#1a1a2e;color:#e0e0e0;padding:20px;}
+.pass{color:#4caf50;font-weight:bold;}
+.fail{color:#f44336;font-weight:bold;}
+.warn{color:#ff9800;}
+.info{color:#64b5f6;}
+pre{background:#0a0a1e;padding:10px;border:1px solid #333;overflow-x:auto;max-height:300px;overflow-y:auto;}
+h2{color:#90caf9;border-bottom:1px solid #333;padding-bottom:5px;}
+button{background:#1565c0;color:#fff;border:none;padding:8px 16px;cursor:pointer;margin:4px;border-radius:4px;}
+button:hover{background:#1976d2;}
+#results{margin-top:10px;}
+</style>
+</head>
+<body>
+<h1>🔬 AMap POI 诊断测试</h1>
+<p>测试 AMap JS API v2.0 POI 搜索功能，验证 poi.location 格式</p>
+<div>
+  <button onclick="runAllTests()">🚀 运行全部测试</button>
+  <button onclick="testCity('秦皇岛')">测试 秦皇岛</button>
+  <button onclick="testCity('上海')">测试 上海</button>
+  <button onclick="testCity('深圳')">测试 深圳</button>
+  <button onclick="testCity('西安')">测试 西安</button>
+  <button onclick="testNearBy(39.9378, 119.5962, '秦皇岛')">测试 NearBy (燕山大学)</button>
+  <button onclick="testNearBy(31.2304, 121.4737, '上海')">测试 NearBy (上海外滩)</button>
+</div>
+<div id="results"></div>
+
+<script>
+const R = document.getElementById('results');
+function log(msg, cls='') { R.innerHTML += `<div class="${cls}">${new Date().toLocaleTimeString()} ${msg}</div>`; }
+function logPre(data) { R.innerHTML += `<pre>${JSON.stringify(data, null, 2)}</pre>`; }
+function hr() { R.innerHTML += '<hr>'; }
+
+// 测试1: AMap SDK 是否加载
+function testAMapLoaded() {
+  hr();
+  log('=== 测试1: AMap SDK 加载状态 ===', 'info');
+  if (typeof AMap === 'undefined') {
+    log('FAIL: AMap SDK 未加载', 'fail');
+    return false;
+  }
+  log(`PASS: AMap SDK 已加载, 版本: ${AMap.version || 'unknown'}`, 'pass');
+  
+  // 检查插件
+  const plugins = ['PlaceSearch', 'Walking', 'Geocoder', 'CitySearch'];
+  plugins.forEach(p => {
+    if (AMap[p]) {
+      log(`  ✓ AMap.${p} 可用`, 'pass');
+    } else {
+      log(`  ✗ AMap.${p} 不可用`, 'fail');
+    }
+  });
+  return true;
+}
+
+// 测试2: PlaceSearch 全城搜索
+async function testCity(cityName) {
+  hr();
+  log(`=== 测试2: PlaceSearch 全城搜索 (${cityName}) ===`, 'info');
+  
+  if (typeof AMap === 'undefined') {
+    log('SKIP: AMap 未加载', 'warn');
+    return;
+  }
+  
+  try {
+    const ps = new AMap.PlaceSearch({
+      city: cityName,
+      citylimit: true,
+      pageSize: 10,
+      type: '110000', // 餐饮类
+    });
+    
+    const result = await new Promise((resolve, reject) => {
+      ps.search('餐厅', (status, result) => {
+        log(`  status: "${status}"`, status === 'complete' ? 'pass' : 'fail');
+        
+        if (status === 'complete' && result.poiList) {
+          log(`  poiList.count: ${result.poiList.count}`, 'pass');
+          log(`  poiList.pois.length: ${result.poiList.pois.length}`, 'pass');
+          
+          if (result.poiList.pois.length > 0) {
+            const poi = result.poiList.pois[0];
+            log(`  --- 第一个POI详情 ---`, 'info');
+            log(`  poi.name: "${poi.name}"`);
+            log(`  poi.address: "${poi.address}"`);
+            log(`  poi.location: ${poi.location}`);
+            log(`  typeof poi.location: "${typeof poi.location}"`, 'warn');
+            
+            // 关键测试：location 格式
+            if (typeof poi.location === 'string') {
+              log(`  RESULT: poi.location 是字符串 (v1.x格式)`, 'warn');
+              const parts = poi.location.split(',');
+              log(`  split结果: lng=${parts[0]}, lat=${parts[1]}`);
+            } else if (typeof poi.location === 'object') {
+              log(`  RESULT: poi.location 是对象 (v2.0格式)`, 'warn');
+              log(`  poi.location.lng: ${poi.location.lng}`);
+              log(`  poi.location.lat: ${poi.location.lat}`);
+              if (poi.location.getLng) {
+                log(`  poi.location.getLng(): ${poi.location.getLng()}`);
+                log(`  poi.location.getLat(): ${poi.location.getLat()}`);
+              }
+              log(`  Object.keys: ${Object.keys(poi.location).join(', ')}`);
+              log(`  JSON.stringify: ${JSON.stringify(poi.location)}`);
+              
+              // 测试 .split 是否存在
+              log(`  poi.location.split: ${typeof poi.location.split}`, poi.location.split ? 'warn' : 'info');
+            }
+            
+            // 显示所有 POI 的坐标解析结果
+            log(`  --- 全部${result.poiList.pois.length}个POI坐标解析 ---`, 'info');
+            result.poiList.pois.forEach((p, i) => {
+              let lng, lat, method = '?';
+              if (typeof p.location === 'string') {
+                [lng, lat] = p.location.split(',').map(Number);
+                method = 'split';
+              } else if (typeof p.location === 'object' && p.location) {
+                if (p.location.getLng) {
+                  lng = p.location.getLng();
+                  lat = p.location.getLat();
+                  method = 'getLng/getLat';
+                } else {
+                  lng = p.location.lng;
+                  lat = p.location.lat;
+                  method = '.lng/.lat';
+                }
+              }
+              const valid = lng && lat && !isNaN(lng) && !isNaN(lat);
+              log(`  [${i}] ${p.name}: ${lng},${lat} (${method}) ${valid ? '✓' : '✗'}`, valid ? 'pass' : 'fail');
+            });
+          }
+          resolve(result);
+        } else {
+          log(`  FAIL: 搜索失败`, 'fail');
+          if (result && result.info) log(`  info: ${result.info}`, 'fail');
+          logPre(result);
+          resolve(null);
+        }
+      });
+    });
+  } catch(e) {
+    log(`  ERROR: ${e.message}`, 'fail');
+  }
+}
+
+// 测试3: searchNearBy 周边搜索
+async function testNearBy(lat, lng, cityName) {
+  hr();
+  log(`=== 测试3: searchNearBy 周边搜索 (${cityName} [${lat},${lng}]) ===`, 'info');
+  
+  if (typeof AMap === 'undefined') {
+    log('SKIP: AMap 未加载', 'warn');
+    return;
+  }
+  
+  try {
+    const ps = new AMap.PlaceSearch({
+      city: cityName,
+      citylimit: true,
+      pageSize: 10,
+      type: '110000',
+    });
+    
+    log(`  调用 searchNearBy('餐厅', [${lng},${lat}], 3000)...`);
+    
+    await new Promise((resolve) => {
+      ps.searchNearBy('餐厅', [lng, lat], 3000, (status, result) => {
+        log(`  status: "${status}"`, status === 'complete' ? 'pass' : 'fail');
+        
+        if (status === 'complete' && result.poiList) {
+          log(`  poiList.count: ${result.poiList.count}`, 'pass');
+          result.poiList.pois.forEach((p, i) => {
+            let plng, plat;
+            if (typeof p.location === 'string') {
+              [plng, plat] = p.location.split(',').map(Number);
+            } else if (p.location && p.location.getLng) {
+              plng = p.location.getLng();
+              plat = p.location.getLat();
+            } else if (p.location) {
+              plng = p.location.lng;
+              plat = p.location.lat;
+            }
+            log(`  [${i}] ${p.name} @ [${plat},${plng}] dist=${p.distance||'?'}m`, 'pass');
+          });
+        } else {
+          log(`  FAIL: NearBy搜索失败`, 'fail');
+          if (result && result.info) log(`  info: ${result.info}`, 'fail');
+        }
+        resolve();
+      });
+    });
+  } catch(e) {
+    log(`  ERROR: ${e.message}`, 'fail');
+  }
+}
+
+// 测试4: APP.selectedRoute 数据检查
+function testSelectedRoute() {
+  hr();
+  log('=== 测试4: APP.selectedRoute 数据检查 ===', 'info');
+  
+  if (typeof APP === 'undefined') {
+    log('SKIP: APP 未定义 (这是独立测试页)', 'warn');
+    return;
+  }
+  
+  if (!APP.selectedRoute) {
+    log('WARN: APP.selectedRoute 为空 (未选择路线)', 'warn');
+    return;
+  }
+  
+  const route = APP.selectedRoute;
+  log(`  路线名: ${route.name || route.label || '未知'}`);
+  log(`  路线点数: ${route.points ? route.points.length : 0}`);
+  
+  if (route.points) {
+    let hasCoords = 0, noCoords = 0;
+    route.points.forEach((pt, i) => {
+      if (pt.lat && pt.lng) {
+        log(`  [${i}] ${pt.name || pt.label}: [${pt.lat}, ${pt.lng}]`, 'pass');
+        hasCoords++;
+      } else {
+        log(`  [${i}] ${pt.name || pt.label}: 无坐标!`, 'fail');
+        noCoords++;
+      }
+    });
+    log(`  有坐标: ${hasCoords}, 无坐标: ${noCoords}`, hasCoords > 0 ? 'pass' : 'fail');
+  }
+}
+
+async function runAllTests() {
+  R.innerHTML = '';
+  log('🔬 开始 AMap POI 诊断测试...', 'info');
+  log(`时间: ${new Date().toISOString()}`, 'info');
+  
+  if (!testAMapLoaded()) {
+    log('AMap 未加载，测试中止', 'fail');
+    return;
+  }
+  
+  await testCity('秦皇岛');
+  await testCity('上海');
+  await testNearBy(39.9378, 119.5962, '秦皇岛');
+  testSelectedRoute();
+  
+  hr();
+  log('🏁 测试完成', 'info');
+}
+</script>
+
+<!-- AMap v2.0 安全配置 must be BEFORE SDK load -->
+<script type="text/javascript">
+window._AMapSecurityConfig = {
+    securityJsCode: 'fa5b4914b560026b23e2c7ae1bc757d4',
+}
+</script>
+<script src="https://webapi.amap.com/maps?v=2.0&key=040c3af03bab9232ab67e0d232838b28&plugin=AMap.PlaceSearch,AMap.Walking,AMap.Geocoder,AMap.CitySearch"></script>
+</body>
+</html>

@@ -1448,8 +1448,11 @@ async function discoverCity(cityName) {
         const pois = poiResults[ci] || [];
         pois.forEach(poi => {
           if (poi.location) {
-            const [lng, lat] = poi.location.split(',').map(Number);
-            if (lng && lat) {
+            // 修改: 兼容 AMap v2.0 LngLat 对象 / Compatible with AMap v2.0 LngLat object
+            let lng, lat;
+            if (typeof poi.location === 'string') { [lng, lat] = poi.location.split(',').map(Number); }
+            else if (typeof poi.location === 'object') { lng = poi.location.lng || poi.location.getLng?.(); lat = poi.location.lat || poi.location.getLat?.(); }
+            if (lng && lat && !isNaN(lng) && !isNaN(lat)) {
               allPOIs.push({
                 name: poi.name, type: cat.name,
                 desc: poi.address || poi.type || cat.name + '打卡点',
@@ -1889,7 +1892,7 @@ function selectRoute(city, routeId) {
 const WEATHER_ICONS = {
   '晴': '☀️', '多云': '⛅', '阴': '☁️', '阵雨': '🌦️', '雷阵雨': '⛈️',
   '小雨': '🌧️', '中雨': '🌧️', '大雨': '🌧️', '暴雨': '🌧️',
-  '雪': '🌨️', '小雪': '🌨️', '中雪': '❄️', '大雪': '❄️', '雾': '🌫️', '霾': '😷',
+  '雪': '🌨️', '小雪': '🌨️', '中雪': '🌨️', '大雪': '❄️', '雾': '🌫️', '霾': '😷',
 };
 async function loadWeatherForCity(city) {
   const container = document.getElementById('detailContent');
@@ -2686,8 +2689,11 @@ async function loadRealPOIsNearBy() {
       priorityCats.forEach((cat, ci) => {
           (results[ci] || []).forEach(poi => {
             if(poi.location) {
-               const [lng,lat] = poi.location.split(',').map(Number);
-               if(lng && lat) allPois.push({id: poi.id, name: poi.name, type: cat.name, address: poi.address, lat, lng, collected: false});
+               // 修改: 兼容 AMap v2.0 LngLat 对象 / Compatible with AMap v2.0 LngLat object
+               let lng, lat;
+               if (typeof poi.location === 'string') { [lng, lat] = poi.location.split(',').map(Number); }
+               else if (typeof poi.location === 'object') { lng = poi.location.lng || poi.location.getLng?.(); lat = poi.location.lat || poi.location.getLat?.(); }
+               if(lng && lat && !isNaN(lng) && !isNaN(lat)) allPois.push({id: poi.id, name: poi.name, type: cat.name, address: poi.address, lat, lng, collected: false});
             }
           });
       });
@@ -3533,8 +3539,11 @@ async function loadChunkPOIs(engine,chunk){
     priorityCats.forEach((cat,ci)=>{
       (results[ci]||[]).forEach(poi=>{
         if(poi.location){
-          const[lng,lat]=poi.location.split(',').map(Number);
-          if(lng&&lat)allPois.push({name:poi.name,type:cat.name,address:poi.address||'',lat,lng});
+          // 修改: 兼容 AMap v2.0 LngLat 对象 / Compatible with AMap v2.0 LngLat object
+          let lng,lat;
+          if(typeof poi.location==='string'){[lng,lat]=poi.location.split(',').map(Number);}
+          else if(typeof poi.location==='object'){lng=poi.location.lng||poi.location.getLng?.();lat=poi.location.lat||poi.location.getLat?.();}
+          if(lng&&lat&&!isNaN(lng)&&!isNaN(lat))allPois.push({name:poi.name,type:cat.name,address:poi.address||'',lat,lng});
         }
       });
     });
@@ -3936,7 +3945,23 @@ async function initPixelCity(cityName, selectedRoute) {
             }
           });
         });
-        console.log(`[PixelCity] NearBy搜索完成, 总POI: ${poiData.length}`);
+        console.log(`[PixelCity] NearBy搜索完成, POI: ${poiData.length}`);
+        
+        // NearBy数据不足时降级为全城搜索 / Fallback to city-wide if NearBy insufficient
+        if (poiData.length < 8) {
+          console.log(`[PixelCity] NearBy数据不足(${poiData.length}), 降级为全城搜索`);
+          const cityResults = await Promise.all(cats.map(c => amapPOISearch(c.name, cityName, c.code)));
+          cityResults.forEach((pois, ci) => {
+            (pois || []).forEach(poi => {
+              const loc = parsePOILocation(poi.location);
+              if (loc) {
+                const dup = poiData.some(p => Math.abs(p.lat - loc.lat) < 0.0001 && Math.abs(p.lng - loc.lng) < 0.0001);
+                if (!dup) poiData.push({ name: poi.name, type: cats[ci].name, address: poi.address || '', lat: loc.lat, lng: loc.lng });
+              }
+            });
+          });
+          console.log(`[PixelCity] 全城补充后, 总POI: ${poiData.length}`);
+        }
       } else {
         // 没有路线时全城搜索 / Fallback: whole-city search
         const results = await Promise.all(cats.map(c => amapPOISearch(c.name, cityName, c.code)));
@@ -5321,7 +5346,6 @@ async function initGlassCity(cityName, selectedRoute){
         cats.forEach((cat,ci)=>{
           (nearbyResults[ci]||[]).forEach(poi=>{
             if(poi.location){
-              // AMap.LngLat 对象或 "lng,lat" 字符串 / Handle both AMap.LngLat objects and strings
               let lng, lat;
               if(typeof poi.location === 'string'){
                 [lng, lat] = poi.location.split(',').map(Number);
@@ -5336,7 +5360,27 @@ async function initGlassCity(cityName, selectedRoute){
             }
           });
         });
-        console.log(`[GlassCity] NearBy搜索完成, 总POI: ${poiData.length}`);
+        console.log(`[GlassCity] NearBy搜索完成, POI: ${poiData.length}`);
+        
+        // NearBy数据不足时降级为全城搜索 / Fallback to city-wide if NearBy insufficient
+        if(poiData.length < 8){
+          console.log(`[GlassCity] NearBy数据不足(${poiData.length}), 降级为全城搜索`);
+          const cityResults = await Promise.all(cats.map(c=>amapPOISearch(c.name,cityName,c.code)));
+          cityResults.forEach((pois,ci)=>{
+            (pois||[]).forEach(poi=>{
+              if(poi.location){
+                let lng2,lat2;
+                if(typeof poi.location==='string'){[lng2,lat2]=poi.location.split(',').map(Number);}
+                else if(typeof poi.location==='object'){lng2=poi.location.lng||poi.location.getLng?.();lat2=poi.location.lat||poi.location.getLat?.();}
+                if(lng2&&lat2&&!isNaN(lng2)&&!isNaN(lat2)){
+                  const dup=poiData.some(p=>Math.abs(p.lat-lat2)<0.0001&&Math.abs(p.lng-lng2)<0.0001);
+                  if(!dup)poiData.push({name:poi.name,type:cats[ci].name,address:poi.address||'',lat:lat2,lng:lng2});
+                }
+              }
+            });
+          });
+          console.log(`[GlassCity] 全城补充后, 总POI: ${poiData.length}`);
+        }
       }else{
         // 没有选中路线时，降级为全城搜索 / Fallback to whole-city search
         const results=await Promise.all(cats.map(c=>amapPOISearch(c.name,cityName,c.code)));

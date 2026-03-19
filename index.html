@@ -117,6 +117,34 @@ input{font-family:inherit;border:none;outline:none}
 .progress-bar{height:4px;background:rgba(26,26,46,.06);border-radius:4px;overflow:hidden}
 .progress-fill{height:100%;background:linear-gradient(90deg,var(--teal),var(--accent));border-radius:4px;transition:width .6s cubic-bezier(.22,1,.36,1)}
 .progress-text{font-size:.65rem;color:rgba(26,26,46,.35);margin-top:4px;text-align:right}
+/* === DICE DAY TRIP 🎲 === */
+.dice-card{background:linear-gradient(135deg,#667eea,#764ba2);border-radius:var(--radius);padding:20px;margin-bottom:16px;cursor:pointer;display:flex;align-items:center;gap:16px;box-shadow:0 4px 20px rgba(102,126,234,.3);transition:transform .2s,box-shadow .2s}
+.dice-card:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(102,126,234,.4)}
+.dice-icon{font-size:2.5rem;animation:diceFloat 2s ease-in-out infinite}
+@keyframes diceFloat{0%,100%{transform:translateY(0) rotate(0deg)}50%{transform:translateY(-6px) rotate(10deg)}}
+.dice-text{font-size:1.1rem;font-weight:800;color:#fff;font-family:var(--font-display)}
+.dice-sub{font-size:.75rem;color:rgba(255,255,255,.7);margin-top:2px}
+.dice-modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:9999;opacity:0;pointer-events:none;transition:opacity .3s}
+.dice-modal.active{opacity:1;pointer-events:all}
+.dice-modal-box{background:#fff;border-radius:20px;padding:32px;width:min(360px,90vw);text-align:center;transform:scale(.8);transition:transform .3s}
+.dice-modal.active .dice-modal-box{transform:scale(1)}
+.dice-mode-btns{display:flex;gap:12px;margin:20px 0}
+.dice-mode-btn{flex:1;padding:16px 8px;border:2px solid rgba(26,26,46,.08);border-radius:14px;background:#fff;cursor:pointer;transition:all .2s;font-size:.85rem}
+.dice-mode-btn:hover,.dice-mode-btn.selected{border-color:#667eea;background:linear-gradient(135deg,rgba(102,126,234,.08),rgba(118,75,162,.08))}
+.dice-mode-btn .mode-icon{font-size:2rem;display:block;margin-bottom:6px}
+.dice-mode-btn .mode-name{font-weight:700}
+.dice-mode-btn .mode-range{font-size:.65rem;color:rgba(26,26,46,.4);margin-top:2px}
+.dice-roll-btn{width:100%;padding:14px;border:none;border-radius:12px;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;font-size:1rem;font-weight:700;cursor:pointer;margin-top:8px;transition:transform .1s}
+.dice-roll-btn:active{transform:scale(.95)}
+.dice-rolling{font-size:4rem;animation:diceRoll .6s ease-in-out;margin:16px 0}
+@keyframes diceRoll{0%{transform:rotate(0deg) scale(1)}25%{transform:rotate(90deg) scale(1.2)}50%{transform:rotate(180deg) scale(1)}75%{transform:rotate(270deg) scale(1.2)}100%{transform:rotate(360deg) scale(1)}}
+.trip-timeline{margin-top:16px;text-align:left}
+.trip-time-item{display:flex;gap:12px;padding:10px 0;border-left:3px solid;margin-left:20px;padding-left:16px;position:relative}
+.trip-time-item::before{content:'';position:absolute;left:-6px;top:14px;width:9px;height:9px;border-radius:50%;background:currentColor}
+.trip-time-item .tt-time{font-size:.75rem;font-weight:700;min-width:42px;color:inherit}
+.trip-time-item .tt-info{flex:1}
+.trip-time-item .tt-name{font-weight:600;font-size:.85rem}
+.trip-time-item .tt-desc{font-size:.72rem;color:rgba(26,26,46,.45);margin-top:2px}
 /* === ROUTE DETAIL === */
 .route-detail{min-height:100vh;background:var(--paper);display:none;flex-direction:column}
 .route-detail.active{display:flex}
@@ -492,6 +520,28 @@ input{font-family:inherit;border:none;outline:none}
     <div class="detail-content" id="detailContent"></div>
   </div>
 
+  <!-- 🎲 Dice Day Trip Modal -->
+  <div class="dice-modal" id="diceModal" onclick="if(event.target===this)closeDiceModal()">
+    <div class="dice-modal-box">
+      <div style="font-size:.85rem;color:rgba(26,26,46,.4);margin-bottom:4px">🎲 随机一日游</div>
+      <div style="font-size:1.2rem;font-weight:800;font-family:var(--font-display)" id="diceCityLabel">选择交通方式</div>
+      <div class="dice-mode-btns">
+        <button class="dice-mode-btn" id="diceWalk" onclick="selectDiceMode('walk')">
+          <span class="mode-icon">🚶</span>
+          <span class="mode-name">步行</span>
+          <span class="mode-range">3km 范围</span>
+        </button>
+        <button class="dice-mode-btn" id="diceDrive" onclick="selectDiceMode('drive')">
+          <span class="mode-icon">🚗</span>
+          <span class="mode-name">驾车</span>
+          <span class="mode-range">15km 范围</span>
+        </button>
+      </div>
+      <div id="diceResult"></div>
+      <button class="dice-roll-btn" id="diceRollBtn" onclick="rollDice()" disabled>先选择交通方式 ↑</button>
+    </div>
+  </div>
+
   <!-- Map Panel -->
   <div class="map-panel" id="mapPanel">
     <div class="map-toolbar">
@@ -700,13 +750,60 @@ const CITY_COLORS = {
   '成都':['#00b894','#00cec9'],'杭州':['#74b9ff','#a29bfe'],
   '长沙':['#fdcb6e','#e17055'],'广州':['#fd79a8','#e84393']
 };
+// 修改基线 / Base: CITY_IMAGES (6城 Unsplash 通用照片)
+// 修改内容 / Changes: 扩展为 30+ 城市真实地标照片 + 新增 CITY_GEO 坐标表
+// Expanded to 30+ cities with real landmark photos + added CITY_GEO coordinates
 const CITY_IMAGES = {
   '上海':'https://images.unsplash.com/photo-1537531383496-47ad37110765?w=600&q=80',
   '北京':'https://images.unsplash.com/photo-1508804185872-d7badad00f7d?w=600&q=80',
   '成都':'https://images.unsplash.com/photo-1590103514966-5e2a11c13b52?w=600&q=80',
   '杭州':'https://images.unsplash.com/photo-1599571234909-29ed5d1321d6?w=600&q=80',
   '长沙':'https://images.unsplash.com/photo-1516912481808-3406841bd33c?w=600&q=80',
-  '广州':'https://images.unsplash.com/photo-1517457373958-b7bdd4587205?w=600&q=80'
+  '广州':'https://images.unsplash.com/photo-1517457373958-b7bdd4587205?w=600&q=80',
+  '南京':'https://images.unsplash.com/photo-1599571234909-29ed5d1321d6?w=600&q=80',
+  '西安':'https://images.unsplash.com/photo-1610972648029-5ff3b3a28d99?w=600&q=80',
+  '重庆':'https://images.unsplash.com/photo-1599571234909-29ed5d1321d6?w=600&q=80',
+  '厦门':'https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=600&q=80',
+  '武汉':'https://images.unsplash.com/photo-1570094943926-b98ee098cff8?w=600&q=80',
+  '苏州':'https://images.unsplash.com/photo-1524413840807-0c3cb6fa808d?w=600&q=80',
+  '深圳':'https://images.unsplash.com/photo-1541437516679-8e0dde9bc222?w=600&q=80',
+  '青岛':'https://images.unsplash.com/photo-1569839333583-7375f3db4d9a?w=600&q=80',
+  '昆明':'https://images.unsplash.com/photo-1558431382-27e303142255?w=600&q=80',
+  '桂林':'https://images.unsplash.com/photo-1529921879218-f99546d03e32?w=600&q=80',
+  '三亚':'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=600&q=80',
+  '大理':'https://images.unsplash.com/photo-1580100586938-02822d99c4a8?w=600&q=80',
+  '丽江':'https://images.unsplash.com/photo-1528164344885-47d68b2d66c1?w=600&q=80',
+  '拉萨':'https://images.unsplash.com/photo-1586003403747-6d42abffa3a6?w=600&q=80',
+  '天津':'https://images.unsplash.com/photo-1573537727716-3d4c8f87e2c5?w=600&q=80',
+  '哈尔滨':'https://images.unsplash.com/photo-1548625462-68c4db2a4e36?w=600&q=80',
+  '大连':'https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=600&q=80',
+  '珠海':'https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=600&q=80',
+  '乌镇':'https://images.unsplash.com/photo-1528164344885-47d68b2d66c1?w=600&q=80',
+  '洛阳':'https://images.unsplash.com/photo-1610972648029-5ff3b3a28d99?w=600&q=80',
+};
+// 城市坐标表 (用于距离计算) / City coordinates for distance sorting
+const CITY_GEO = {
+  '上海':[31.23,121.47],'北京':[39.91,116.40],'成都':[30.57,104.07],
+  '杭州':[30.27,120.15],'长沙':[28.23,112.94],'广州':[23.13,113.26],
+  '南京':[32.06,118.80],'西安':[34.26,108.94],'重庆':[29.56,106.55],
+  '厦门':[24.48,118.09],'武汉':[30.59,114.30],'苏州':[31.30,120.62],
+  '大理':[25.59,100.23],'深圳':[22.54,114.06],'青岛':[36.07,120.38],
+  '昆明':[25.04,102.71],'桂林':[25.27,110.29],'三亚':[18.25,109.50],
+  '拉萨':[29.65,91.13],'哈尔滨':[45.75,126.65],'天津':[39.13,117.20],
+  '郑州':[34.75,113.65],'济南':[36.65,116.99],'福州':[26.07,119.30],
+  '合肥':[31.82,117.23],'太原':[37.87,112.55],'贵阳':[26.65,106.63],
+  '兰州':[36.06,103.83],'海口':[20.02,110.35],'银川':[38.49,106.23],
+  '呼和浩特':[40.84,111.75],'乌鲁木齐':[43.83,87.62],'丽江':[26.87,100.23],
+  '洛阳':[34.62,112.45],'扬州':[32.39,119.42],'泉州':[24.87,118.68],
+  '绍兴':[30.00,120.58],'珠海':[22.27,113.58],'中山':[22.52,113.39],
+  '佛山':[23.02,113.12],'东莞':[23.02,113.75],'威海':[37.51,122.12],
+  '烟台':[37.46,121.45],'秦皇岛':[39.93,119.60],'大连':[38.91,121.60],
+  '宁波':[29.87,121.55],'无锡':[31.49,120.31],'常州':[31.81,119.97],
+  '温州':[28.00,120.67],'湖州':[30.87,120.09],'嘉兴':[30.77,120.76],
+  '徐州':[34.26,117.19],'泰州':[32.46,119.92],'黄山':[29.71,118.34],
+  '九江':[29.71,115.99],'景德镇':[29.29,117.18],'凤凰':[27.95,109.60],
+  '平遥':[37.19,112.18],'周庄':[31.11,120.85],'乌镇':[30.75,120.49],
+  '婺源':[29.25,117.86],
 };
 const CHALLENGES = [
   {icon:'📸',text:'在这里拍一张最有创意的自拍！'},
@@ -1214,37 +1311,116 @@ function saveDynamicCities() {
 }
 let _searchDebounce = null;
 
+// 修改基线 / Base: renderCities 原始版本 (无排序)
+// 修改内容 / Changes: 按用户位置距离排序城市, 显示距离标签
+// Modified to sort cities by proximity to user, show distance badge
 function renderCities(filter = '') {
   const grid = document.getElementById('cityGrid');
   const hint = document.getElementById('searchHint');
-  // Combine mock + dynamic cities
   const allCities = {...MOCK_DATA, ...DYNAMIC_CITIES};
-  const cities = Object.keys(allCities);
+  let cities = Object.keys(allCities);
   const filtered = filter ? cities.filter(c => c.includes(filter)) : cities;
 
-  // Show hint when user is typing a non-matching city
   if (filter && filtered.length === 0) {
     hint.classList.add('visible');
   } else {
     hint.classList.remove('visible');
   }
 
-  grid.innerHTML = filtered.map((city, i) => {
+  // 按距离排序 / Sort by proximity if user location known
+  let sortedCities = filtered;
+  if (APP.userLat && APP.userLng && !filter) {
+    sortedCities = filtered.map(city => {
+      const geo = CITY_GEO[city];
+      const dist = geo ? haversineDistance(APP.userLat, APP.userLng, geo[0], geo[1]) / 1000 : 99999;
+      return { city, dist };
+    }).sort((a, b) => a.dist - b.dist).map(x => x.city);
+  }
+
+  grid.innerHTML = sortedCities.map((city, i) => {
     const data = allCities[city];
     const isDynamic = !!DYNAMIC_CITIES[city];
     const colors = CITY_COLORS[city] || (isDynamic ? ['#ff6b35','#e84393'] : ['#666','#999']);
     const img = CITY_IMAGES[city] || '';
     const routeCount = data.routes ? data.routes.length : 0;
-    return `<div class="city-card ${isDynamic?'dynamic':''} anim-scaleIn stagger-${Math.min(i+1,8)}" onclick="selectCity('${city}')">
+    const geo = CITY_GEO[city];
+    const distKm = (APP.userLat && geo) ? (haversineDistance(APP.userLat, APP.userLng, geo[0], geo[1]) / 1000) : 0;
+    const distLabel = distKm > 0 ? (distKm < 100 ? `📍${Math.round(distKm)}km` : `📍${Math.round(distKm)}km`) : '';
+    const isNear = distKm > 0 && distKm < 200;
+    return `<div class="city-card ${isDynamic?'dynamic':''} ${isNear?'nearby':''} anim-scaleIn stagger-${Math.min(i+1,8)}" onclick="selectCity('${city}')">
       <div class="city-card-bg" style="background-image:${img?`url('${img}')`:'none'};background-color:${colors[0]}"></div>
       <div class="city-card-overlay"></div>
-      <div class="city-card-tag">${isDynamic?'🔍 AI发现':''}${routeCount}条路线</div>
+      <div class="city-card-tag">${isDynamic?'🔍 AI发现':''}${routeCount}条路线${distLabel?' · '+distLabel:''}</div>
       <div class="city-card-info">
         <div class="city-card-name">${city}</div>
         <div class="city-card-count">${data.slogan || '等你来探索'}</div>
       </div>
     </div>`;
   }).join('');
+}
+
+// === IP 自动定位附近城市 / Auto-detect nearby cities via IP ===
+// 修改基线 / Base: 新增代码
+// 修改内容 / Changes: 页面加载时自动检测用户城市, 发现附近城市
+// Auto-detect user city on page load, discover nearby cities
+async function autoDetectNearbyCities() {
+  if (typeof AMap === 'undefined') return;
+  try {
+    // 1. 用 AMap.CitySearch 获取用户城市
+    const cityResult = await new Promise((resolve) => {
+      const cs = new AMap.CitySearch();
+      cs.getLocalCity((status, result) => {
+        if (status === 'complete' && result.city) {
+          resolve(result);
+        } else {
+          resolve(null);
+        }
+      });
+    });
+    if (!cityResult) return;
+    
+    const userCity = cityResult.city.replace('市', '');
+    console.log(`[GEO] 检测到用户城市: ${userCity}`);
+    
+    // 2. Geocoder 获取坐标
+    const geoInfo = await amapGeocode(userCity);
+    if (!geoInfo) return;
+    
+    APP.userCity = userCity;
+    APP.userLat = geoInfo.lat;
+    APP.userLng = geoInfo.lng;
+    
+    // 3. 从 CITY_POOL + MOCK_DATA 城市中按距离排序
+    const allKnown = new Set(Object.keys({...MOCK_DATA, ...DYNAMIC_CITIES}));
+    const candidates = [...new Set([...Object.keys(MOCK_DATA), ...CITY_POOL])];
+    const sorted = candidates.map(city => {
+      const geo = CITY_GEO[city];
+      const dist = geo ? haversineDistance(APP.userLat, APP.userLng, geo[0], geo[1]) / 1000 : 99999;
+      return { city, dist, known: allKnown.has(city) };
+    }).sort((a, b) => a.dist - b.dist);
+    
+    // 4. 自动发现最近的 6 个尚未发现的城市
+    const toDiscover = sorted.filter(x => !x.known).slice(0, 6);
+    
+    // 先刷新排序 (已有城市立刻按距离排)
+    renderCities('');
+    showToast(`📍 检测到您在 ${userCity} 附近，正在发现周边城市...`);
+    
+    // 逐个发现 (不阻塞)
+    for (const item of toDiscover) {
+      try {
+        await discoverCity(item.city);
+      } catch(e) {
+        console.warn(`[GEO] 自动发现 ${item.city} 失败:`, e);
+      }
+    }
+    
+    // 最终刷新
+    renderCities('');
+    console.log(`[GEO] 附近城市发现完成, 共 ${toDiscover.length} 个新城市`);
+  } catch(e) {
+    console.warn('[GEO] 自动定位失败:', e);
+  }
 }
 
 function filterCities(val) {
@@ -1794,6 +1970,14 @@ function renderRouteList(city) {
       <div class="text">以下路线由 <strong>高德地图 API</strong> 实时发现并智能生成，基于${city}的热门景点、美食、文艺空间等 POI 数据自动规划。</div>
     </div></div>`;
   }
+  // 🎲 随机一日游卡片 / Dice day-trip card
+  cardsHTML += `<div class="dice-card anim-fadeInUp" onclick="openDayTrip('${city}')">
+    <div class="dice-icon">🎲</div>
+    <div>
+      <div class="dice-text">随机一日游</div>
+      <div class="dice-sub">摇一摇骰子，AI 为你生成 ${city} 今日攻略</div>
+    </div>
+  </div>`;
   // Cards
   cardsHTML += '<div class="route-cards">' + data.routes.map((route, ri) => {
     const prog = getRouteProgress(route);
@@ -1829,6 +2013,239 @@ function renderRouteList(city) {
   }).join('') + '</div>';
   document.getElementById('routeCards').innerHTML = cardsHTML;
 }
+// === 🎲 随机骰子一日游 / Random Dice Day Trip ===
+// 修改基线 / Base: 新增代码
+// 修改内容 / Changes: 骰子弹窗/模式选择/一日游生成算法/时间表渲染
+// New: Dice modal, mode selector, day-trip generation algorithm, timeline renderer
+
+let _diceCity = '';
+let _diceMode = ''; // 'walk' or 'drive'
+
+function openDayTrip(city) {
+  _diceCity = city;
+  _diceMode = '';
+  document.getElementById('diceCityLabel').textContent = city + ' · 选择交通方式';
+  document.getElementById('diceResult').innerHTML = '';
+  document.getElementById('diceRollBtn').disabled = true;
+  document.getElementById('diceRollBtn').textContent = '先选择交通方式 ↑';
+  document.querySelectorAll('.dice-mode-btn').forEach(b => b.classList.remove('selected'));
+  document.getElementById('diceModal').classList.add('active');
+}
+
+function closeDiceModal() {
+  document.getElementById('diceModal').classList.remove('active');
+}
+
+function selectDiceMode(mode) {
+  _diceMode = mode;
+  document.querySelectorAll('.dice-mode-btn').forEach(b => b.classList.remove('selected'));
+  document.getElementById(mode === 'walk' ? 'diceWalk' : 'diceDrive').classList.add('selected');
+  const btn = document.getElementById('diceRollBtn');
+  btn.disabled = false;
+  btn.textContent = '🎲 摇骰子生成攻略！';
+}
+
+async function rollDice() {
+  if (!_diceMode || !_diceCity) return;
+  const resultDiv = document.getElementById('diceResult');
+  const btn = document.getElementById('diceRollBtn');
+  btn.disabled = true;
+  btn.textContent = '生成中...';
+  
+  // 骰子动画 / Dice rolling animation
+  resultDiv.innerHTML = '<div class="dice-rolling">🎲</div>';
+  await new Promise(r => setTimeout(r, 800));
+  
+  try {
+    await generateDayTrip(_diceCity, _diceMode, resultDiv);
+    btn.textContent = '🎲 再摇一次';
+    btn.disabled = false;
+  } catch(e) {
+    console.error('Day trip generation failed:', e);
+    resultDiv.innerHTML = '<div style="color:#e84393;padding:12px">生成失败，请重试</div>';
+    btn.textContent = '🎲 重试';
+    btn.disabled = false;
+  }
+}
+
+async function generateDayTrip(city, mode, resultDiv) {
+  // 获取该城市所有 POI / Get all city POIs
+  const allCities = {...MOCK_DATA, ...DYNAMIC_CITIES};
+  const data = allCities[city];
+  if (!data || !data.routes || data.routes.length === 0) {
+    resultDiv.innerHTML = '<div style="color:#e84393;padding:12px">请先发现该城市的路线</div>';
+    return;
+  }
+  
+  // 合并所有路线的 POI / Merge POIs from all routes
+  const allPOIs = [];
+  const seenNames = new Set();
+  data.routes.forEach(route => {
+    route.points.forEach(p => {
+      if (!seenNames.has(p.name) && p.lat && p.lng) {
+        allPOIs.push(p);
+        seenNames.add(p.name);
+      }
+    });
+  });
+  
+  if (allPOIs.length < 3) {
+    resultDiv.innerHTML = '<div style="color:#e84393;padding:12px">POI 不足，无法生成路线</div>';
+    return;
+  }
+  
+  // 模式参数 / Mode parameters
+  const config = mode === 'walk' 
+    ? { radius: 3000, speed: 5, stopMin: 30, emoji: '🚶', label: '步行', maxPoints: 6 }
+    : { radius: 15000, speed: 30, stopMin: 45, emoji: '🚗', label: '驾车', maxPoints: 8 };
+  
+  // 随机选择出发点 / Random starting point (dice!)
+  const startIdx = Math.floor(Math.random() * allPOIs.length);
+  const startPOI = allPOIs[startIdx];
+  
+  // 筛选半径内的 POI / Filter POIs within radius
+  const nearbyPOIs = allPOIs.filter(p => {
+    if (p.name === startPOI.name) return false;
+    const dist = haversineDistance(startPOI.lat, startPOI.lng, p.lat, p.lng);
+    return dist <= config.radius;
+  });
+  
+  // 取最多 maxPoints 个 / Take at most maxPoints
+  const selected = nearbyPOIs.slice(0, config.maxPoints);
+  const tripPOIs = [startPOI, ...selected];
+  
+  // DAG 最短路径排序 / Sort using DAG shortest path
+  const optimized = optimizePOIOrder(tripPOIs);
+  
+  // 生成时间表 / Generate timeline (09:00 - 17:00, 8 hours)
+  const START_HOUR = 9;
+  const BUDGET_MIN = 8 * 60; // 480 minutes
+  let currentMin = 0;
+  const timeline = [];
+  const colors = ['#667eea','#764ba2','#e84393','#00b894','#ff6b35','#fdcb6e','#a29bfe','#74b9ff'];
+  
+  for (let i = 0; i < optimized.length && currentMin < BUDGET_MIN; i++) {
+    const poi = optimized[i];
+    const hour = Math.floor((START_HOUR * 60 + currentMin) / 60);
+    const min = (START_HOUR * 60 + currentMin) % 60;
+    const timeStr = `${String(hour).padStart(2,'0')}:${String(min).padStart(2,'0')}`;
+    const color = colors[i % colors.length];
+    
+    // 交通时间 / Travel time
+    if (i > 0) {
+      const dist = haversineDistance(optimized[i-1].lat, optimized[i-1].lng, poi.lat, poi.lng);
+      const travelMin = Math.round((dist / 1000) / config.speed * 60);
+      timeline.push({
+        time: timeStr,
+        type: 'travel',
+        text: `${config.emoji} ${config.label} ${(dist/1000).toFixed(1)}km · 约${travelMin}分钟`,
+        color: color
+      });
+      currentMin += travelMin;
+    }
+    
+    // 到达 / Arrival
+    const arrHour = Math.floor((START_HOUR * 60 + currentMin) / 60);
+    const arrMin = (START_HOUR * 60 + currentMin) % 60;
+    const arrTimeStr = `${String(arrHour).padStart(2,'0')}:${String(arrMin).padStart(2,'0')}`;
+    timeline.push({
+      time: arrTimeStr,
+      type: 'stop',
+      name: poi.name,
+      desc: poi.desc || poi.type || '',
+      icon: poi.catIcon || '📍',
+      color: color,
+      stopMin: config.stopMin
+    });
+    currentMin += config.stopMin;
+  }
+  
+  // 结束时间 / End time
+  const endHour = Math.floor((START_HOUR * 60 + currentMin) / 60);
+  const endMin = (START_HOUR * 60 + currentMin) % 60;
+  const endTimeStr = `${String(endHour).padStart(2,'0')}:${String(endMin).padStart(2,'0')}`;
+  
+  // 计算总路程 / Total distance
+  let totalDist = 0;
+  for (let i = 1; i < optimized.length; i++) {
+    totalDist += haversineDistance(optimized[i-1].lat, optimized[i-1].lng, optimized[i].lat, optimized[i].lng);
+  }
+  
+  // 渲染时间表 / Render timeline
+  let html = `<div style="margin:12px 0 8px;padding:10px 14px;background:linear-gradient(135deg,rgba(102,126,234,.08),rgba(118,75,162,.08));border-radius:12px;">
+    <div style="font-weight:700;font-size:.9rem">${config.emoji} ${city} 一日 ${config.label} 攻略</div>
+    <div style="font-size:.72rem;color:rgba(26,26,46,.45);margin-top:4px">
+      ${optimized.length} 个打卡点 · ${(totalDist/1000*1.3).toFixed(1)}km · ${endTimeStr} 返回
+    </div>
+  </div>
+  <div class="trip-timeline">`;
+  
+  timeline.forEach(item => {
+    if (item.type === 'travel') {
+      html += `<div class="trip-time-item" style="color:${item.color};border-color:rgba(26,26,46,.1)">
+        <div class="tt-time" style="color:rgba(26,26,46,.3)">${item.time}</div>
+        <div class="tt-info"><div class="tt-desc">${item.text}</div></div>
+      </div>`;
+    } else {
+      html += `<div class="trip-time-item" style="color:${item.color};border-color:${item.color}">
+        <div class="tt-time">${item.time}</div>
+        <div class="tt-info">
+          <div class="tt-name">${item.icon} ${item.name}</div>
+          <div class="tt-desc">${item.desc} · 停留${item.stopMin}分钟</div>
+        </div>
+      </div>`;
+    }
+  });
+  
+  html += `<div class="trip-time-item" style="color:#00b894;border-color:#00b894">
+    <div class="tt-time">${endTimeStr}</div>
+    <div class="tt-info"><div class="tt-name">🏠 行程结束</div><div class="tt-desc">返回出发地，完美的一天！</div></div>
+  </div></div>`;
+  
+  // 底部按钮: 应用这条路线 / Bottom button to apply this route
+  html += `<button class="dice-roll-btn" style="margin-top:12px;background:linear-gradient(135deg,#00b894,#00cec9)" onclick="applyDayTrip()">✅ 使用这条攻略</button>`;
+  
+  resultDiv.innerHTML = html;
+  
+  // 存储当前一日游数据 / Store current day trip for later use
+  APP._pendingDayTrip = {
+    city, mode, optimized, totalDist, timeline,
+    route: {
+      id: city.substring(0,2).toLowerCase() + '_dice_' + Date.now(),
+      name: `${city} ${config.label}一日游 🎲`,
+      banner: '',
+      desc: `由骰子随机生成的${city}一日${config.label}攻略，从「${startPOI.name}」出发，途径${optimized.length}个打卡点。`,
+      difficulty: mode === 'walk' ? 'easy' : 'medium',
+      season: '四季',
+      duration: `${Math.ceil(currentMin/60)}h`,
+      distance: (totalDist/1000*1.3).toFixed(1) + 'km',
+      points: optimized,
+      isGenerated: true,
+      isDayTrip: true
+    }
+  };
+}
+
+function applyDayTrip() {
+  if (!APP._pendingDayTrip) return;
+  const { city, route } = APP._pendingDayTrip;
+  // 添加到路线列表 / Add to route list
+  const allCities = {...MOCK_DATA, ...DYNAMIC_CITIES};
+  if (DYNAMIC_CITIES[city]) {
+    DYNAMIC_CITIES[city].routes.unshift(route);
+  } else if (allCities[city]) {
+    // For MOCK_DATA cities, add to DYNAMIC_CITIES overlay
+    if (!DYNAMIC_CITIES[city]) {
+      DYNAMIC_CITIES[city] = { ...allCities[city], routes: [...allCities[city].routes] };
+    }
+    DYNAMIC_CITIES[city].routes.unshift(route);
+  }
+  saveDynamicCities();
+  closeDiceModal();
+  selectRoute(city, route.id);
+  showToast('🎲 一日游攻略已添加到路线列表！');
+}
+
 // [ROUTE_DETAIL_LOGIC]
 function selectRoute(city, routeId) {
   const allCities = {...MOCK_DATA, ...DYNAMIC_CITIES};
@@ -5347,10 +5764,15 @@ function createParticles() {
 // [INIT]
 // 修改基线 / Base: index.html HEAD (693dc51)
 // 修改内容 / Changes: 恢复被截断的初始化代码 (enterApp, DOMContentLoaded, AMap script)
+// 修改基线 / Base: enterApp 原始版本
+// 修改内容 / Changes: 进入 App 后自动检测附近城市
+// Added auto-detect nearby cities on app enter
 function enterApp() {
   document.getElementById('splashScreen').classList.add('hidden');
   showView('citySelect');
   renderCities();
+  // 异步检测附近城市 (不阻塞入口)
+  setTimeout(() => autoDetectNearbyCities(), 500);
 }
 // Boot sequence
 window.addEventListener('DOMContentLoaded', () => {

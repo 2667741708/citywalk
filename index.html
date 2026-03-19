@@ -293,6 +293,7 @@ input{font-family:inherit;border:none;outline:none}
 .mode-card.freeroam-mode .mode-card-top::before{background:linear-gradient(135deg,#ff6b35,#e84393,#6c5ce7)}
 .mode-card.glass-mode .mode-card-top::before{background:linear-gradient(135deg,#0f2027,#203a43,#2c5364)}
 .glass-city-panel{position:fixed;inset:0;z-index:225;background:#0a0a1a;display:none;flex-direction:column}
+#glassCanvas{position:absolute;top:0;left:0;display:block;width:100%;height:100%}
 .glass-city-panel.active{display:flex}
 .glass-top-bar{display:flex;align-items:center;gap:10px;padding:10px 16px;background:rgba(10,10,26,.7);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-bottom:1px solid rgba(255,255,255,.04);z-index:5;flex-shrink:0}
 .glass-top-bar .back-btn{background:rgba(255,255,255,.06);color:rgba(255,255,255,.7);border:1px solid rgba(255,255,255,.06)}
@@ -2210,6 +2211,8 @@ async function startFreeroam(type) {
     document.getElementById('glassLoading').classList.remove('hidden');
     document.getElementById('glassLoadBar').style.width = '0%';
     document.getElementById('glassLoadText').textContent = '正在初始化无限世界...';
+    if(document.activeElement) document.activeElement.blur();
+    window.focus();
     setTimeout(async () => {
       try {
         const wrap = document.getElementById('glassCanvasWrap');
@@ -3966,6 +3969,7 @@ async function initInfiniteMode(engineType, cityName) {
       generateChunkFillers(engine, chunk);
       engine.chunkMgr.chunks.set(key, chunk);
       if (typeof AMap !== 'undefined' && !APP.demoMode) loadChunkPOIs(engine, chunk);
+      await new Promise(r => setTimeout(r, 15)); // Yield CPU to let loading UI paint
     }
   }
   
@@ -4078,42 +4082,7 @@ const KNOWN_CITY_TYPES = {
   '桂林':'nature','张家界':'nature','九寨沟':'nature','黄山':'nature','昆明':'nature',
 };
 
-function analyzeCityProfile(pois, cityName) {
-  // 如果有已知映射，优先使用
-  const knownType = KNOWN_CITY_TYPES[cityName];
 
-  // 统计 POI 类型分布
-  const typeCounts = {};
-  pois.forEach(p => { typeCounts[p.type] = (typeCounts[p.type]||0) + 1; });
-  const total = pois.length || 1;
-
-  // 计算各类占比
-  const scenicRatio = ((typeCounts['景点']||0) + (typeCounts['体育休闲']||0)) / total;
-  const foodShopRatio = ((typeCounts['美食']||0) + (typeCounts['购物']||0) + (typeCounts['网红']||0)) / total;
-  const cultureRatio = ((typeCounts['文艺']||0) + (typeCounts['科教文化']||0)) / total;
-  const businessRatio = ((typeCounts['住宅办公']||0) + (typeCounts['交通设施']||0)) / total;
-
-  // 通过 POI 分布推断城市类型
-  let inferredType = 'modern';
-  if (scenicRatio > 0.4) inferredType = 'nature';
-  else if (cultureRatio > 0.3) inferredType = 'cultural';
-  else if (businessRatio > 0.4 || foodShopRatio > 0.4) inferredType = 'modern';
-  else if (scenicRatio > 0.25 && cultureRatio > 0.15) inferredType = 'historic';
-
-  const profileType = knownType || inferredType;
-  const profile = { ...CITY_PROFILES[profileType] };
-  profile.type = profileType;
-  profile.poiCounts = typeCounts;
-  profile.totalPois = total;
-
-  // 根据 POI 数量动态调整密度
-    const tx=x+dx,ty=y+dy;
-    if(tx<0||tx>=GX.worldW||ty<0||ty>=GX.worldH)return false;
-    if(GX.ground[ty][tx]==='road'||GX.ground[ty][tx]==='water')return false;
-    if(occ.has(ty+','+tx))return false;
-  }
-  return true;
-}
 
 // --- 3D Projection ---
 function glassProject(gx,gy,gz){

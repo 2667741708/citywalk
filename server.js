@@ -267,12 +267,24 @@ app.post('/api/xhs/detail', async (req, res) => {
 });
 
 // ============================================================
-// 4. 启动服务 / Start Server
+// 4. 3D漫游概念页路由 / 3D Roam Concept Route
+// 修改基线 / Base: server.js 路由部分
+// 修改内容 / Changes: 添加 /roam3d 路由指向 roam3d.html
+// Added /roam3d route alias for 3D roaming concept page
+// ============================================================
+
+app.get('/roam3d', (req, res) => {
+  res.sendFile(path.join(__dirname, 'roam3d.html'));
+});
+
+// ============================================================
+// 5. 启动服务 / Start Server
 // ============================================================
 
 app.listen(PORT, () => {
   console.log(`\n🚶 CityWalk 后端服务已启动`);
   console.log(`   地址: http://localhost:${PORT}`);
+  console.log(`   3D漫游: http://localhost:${PORT}/roam3d`);
   console.log(`   天气: GET  /api/weather?city=上海`);
   console.log(`   路线: POST /api/routes/generate {city: "上海"}`);
   console.log(`   小红书: GET /api/xhs/search?keyword=上海citywalk`);

@@ -3304,46 +3304,119 @@ function updateBoost(st) {
 }
 
 // === INFINITE WORLD CHUNK SYSTEM ===
+// 修改基线 / Base: index.html INFINITE WORLD CHUNK SYSTEM 原始版本
+// 修改内容 / Changes: 城市感知种子 + 地形档案 + 基于纬度/城市类型的动态地形生成
+// City-aware seed + terrain profiles + latitude/city-type driven dynamic terrain generation
 const CHUNK_SIZE = 32;
 const GEO = {originLat:31.23,originLng:121.47,degPerTileY:0.000135,degPerTileX:0.000156};
 function gridToGeo(gx,gy){return{lat:GEO.originLat-gy*GEO.degPerTileY,lng:GEO.originLng+gx*GEO.degPerTileX};}
 function geoToGrid(lat,lng){return{gx:(lng-GEO.originLng)/GEO.degPerTileX,gy:(GEO.originLat-lat)/GEO.degPerTileY};}
-function chunkSeed(cx,cy){return((cx*73856093)^(cy*19349663))>>>0;}
+
+// 城市感知种子: 将城市经纬度编入哈希，使不同城市产生不同地形
+// City-aware seed: incorporate city lat/lng into hash so different cities produce different terrain
+function chunkSeed(cx,cy){
+  const cityHash = (Math.floor(GEO.originLat*1e5)*73) ^ (Math.floor(GEO.originLng*1e5)*137);
+  return(((cx*73856093)^(cy*19349663))^cityHash)>>>0;
+}
+
+// 地形档案: 不同类型城市的地形参数 / Terrain profiles for different city types
+const CITY_TERRAIN_PROFILES = {
+  modern:   { mainRoadGap: 12, secRoadMin: 2, secRoadMax: 4, waterProb: 0.10, waterWidth: [2,3], treeDensity: 0.06, treeStep: 4, roadCurve: false },
+  historic: { mainRoadGap: 14, secRoadMin: 1, secRoadMax: 2, waterProb: 0.15, waterWidth: [2,4], treeDensity: 0.14, treeStep: 3, roadCurve: true },
+  cultural: { mainRoadGap: 13, secRoadMin: 1, secRoadMax: 3, waterProb: 0.12, waterWidth: [2,3], treeDensity: 0.16, treeStep: 3, roadCurve: true },
+  coastal:  { mainRoadGap: 12, secRoadMin: 2, secRoadMax: 3, waterProb: 0.30, waterWidth: [3,6], treeDensity: 0.08, treeStep: 4, roadCurve: false },
+  nature:   { mainRoadGap: 16, secRoadMin: 0, secRoadMax: 1, waterProb: 0.18, waterWidth: [3,5], treeDensity: 0.25, treeStep: 2, roadCurve: true },
+};
+
+// 获取当前城市的地形档案 / Get terrain profile for current city
+function getTerrainProfile(){
+  const cityName = APP.selectedCity || '';
+  const knownType = typeof KNOWN_CITY_TYPES!=='undefined' ? KNOWN_CITY_TYPES[cityName] : null;
+  // 如果已知城市类型，直接使用；否则根据纬度推断
+  if(knownType && CITY_TERRAIN_PROFILES[knownType]) return CITY_TERRAIN_PROFILES[knownType];
+  // 纬度推断: 高纬度→自然, 低纬度→现代(密集), 中纬度→文化
+  const lat = Math.abs(GEO.originLat);
+  if(lat > 40) return CITY_TERRAIN_PROFILES.nature;
+  if(lat > 33) return CITY_TERRAIN_PROFILES.cultural;
+  if(lat < 25) return CITY_TERRAIN_PROFILES.modern;
+  return CITY_TERRAIN_PROFILES.modern;
+}
+
 function createChunkManager(){
   return{chunks:new Map(),loading:new Set(),LOAD_RADIUS:2,UNLOAD_RADIUS:4,frameCounter:0};
 }
 function createChunk(cx,cy){
   return{cx,cy,ground:null,buildings:[],trees:[],rewards:[],pois:[],generated:false,poisLoaded:false,poisLoading:false,seed:chunkSeed(cx,cy)};
 }
+
 function generateChunkTerrain(chunk){
   const S=CHUNK_SIZE,rng=mulberry32(chunk.seed);
+  const tp = getTerrainProfile();
   chunk.ground=[];
   for(let y=0;y<S;y++){chunk.ground[y]=[];for(let x=0;x<S;x++)chunk.ground[y][x]='grass';}
-  // Main roads at fixed local positions (seamless across chunks)
-  const mainRoads=[10,22];
+
+  // ======== 主干道 / Main roads (城市类型决定间距) ========
+  const gap = tp.mainRoadGap;
+  // 使用种子偏移主干道位置，使不同区块的主干道位置略有变化但仍能对齐
+  const roadOffset = Math.floor(rng() * 3);
+  const mainRoads = [];
+  for(let r = gap - roadOffset; r < S; r += gap) { if(r >= 2 && r < S-1) mainRoads.push(r); }
   mainRoads.forEach(r=>{
-    for(let x=0;x<S;x++){if(r<S)chunk.ground[r][x]='road';}
-    for(let y=0;y<S;y++){if(r<S)chunk.ground[y][r]='road';}
+    for(let x=0;x<S;x++){chunk.ground[r][x]='road';}
+    for(let y=0;y<S;y++){chunk.ground[y][r]='road';}
   });
-  // Secondary roads (seeded random, edge-to-edge)
-  const numSec=1+Math.floor(rng()*2);
+
+  // ======== 次级道路 / Secondary roads (密度由城市档案决定) ========
+  const numSec = tp.secRoadMin + Math.floor(rng() * (tp.secRoadMax - tp.secRoadMin + 1));
   for(let s=0;s<numSec;s++){
-    const isH=rng()>0.5,pos=2+Math.floor(rng()*(S-4));
-    if(isH){for(let x=0;x<S;x++)chunk.ground[pos][x]='road';}
-    else{for(let y=0;y<S;y++)chunk.ground[y][pos]='road';}
-  }
-  // Water: ~1 in 7 chunks have a river segment
-  if(((chunk.cx+chunk.cy*3)&7)===0){
-    const ry=8+Math.floor(rng()*14);
-    for(let x=0;x<S;x++){
-      const ww=2+Math.floor(rng()*2);
-      for(let d=0;d<ww;d++){if(ry+d<S)chunk.ground[ry+d][x]='water';}
+    const isH=rng()>0.5, pos=2+Math.floor(rng()*(S-4));
+    if(tp.roadCurve && rng() < 0.4){
+      // 弯曲道路(历史/文化/自然城市) / Curved roads for historic/cultural/nature cities
+      let curY = pos;
+      for(let x=0;x<S;x++){
+        if(isH){
+          if(curY>=0 && curY<S) chunk.ground[curY][x]='road';
+          if(rng()<0.15) curY += (rng()>0.5?1:-1); // 随机弯曲
+          curY = Math.max(1, Math.min(S-2, curY));
+        } else {
+          if(x>=0 && x<S) chunk.ground[x][pos]='road';
+        }
+      }
+    } else {
+      if(isH){for(let x=0;x<S;x++)chunk.ground[pos][x]='road';}
+      else{for(let y=0;y<S;y++)chunk.ground[y][pos]='road';}
     }
   }
-  // Decorative trees in grass areas
+
+  // ======== 水系 / Water (概率基于城市档案, 沿海城市更多水域) ========
+  const chunkGeo = gridToGeo(chunk.cx*S+S/2, chunk.cy*S+S/2);
+  // 用区块真实经纬度的小数部分作为额外随机因子
+  const geoNoise = (Math.abs(chunkGeo.lat*1000)%1 + Math.abs(chunkGeo.lng*1000)%1) / 2;
+  const waterThreshold = tp.waterProb + geoNoise * 0.05;
+  const waterRoll = rng();
+  if(waterRoll < waterThreshold){
+    const ry=4+Math.floor(rng()*(S-8));
+    const baseWidth = tp.waterWidth[0];
+    const maxExtra = tp.waterWidth[1] - tp.waterWidth[0];
+    // 沿海城市: 靠近边缘的区块更容易出现大面积水域
+    const edgeFactor = (Math.abs(chunk.cx)+Math.abs(chunk.cy)) < 3 ? 1.5 : 1.0;
+    for(let x=0;x<S;x++){
+      const ww=Math.floor((baseWidth + rng()*maxExtra) * edgeFactor);
+      for(let d=0;d<ww;d++){if(ry+d<S) chunk.ground[ry+d][x]='water';}
+    }
+    // 沿海城市的外围区块有可能出现大面积海洋
+    if(tp === CITY_TERRAIN_PROFILES.coastal && (Math.abs(chunk.cx)>2 || Math.abs(chunk.cy)>2) && rng()<0.3){
+      const seaStart = rng()>0.5 ? 0 : Math.floor(S*0.6);
+      const seaEnd = seaStart===0 ? Math.floor(S*0.4) : S;
+      for(let y=seaStart;y<seaEnd;y++){for(let x=0;x<S;x++){chunk.ground[y][x]='water';}}
+    }
+  }
+
+  // ======== 装饰树木 / Decorative trees (密度基于城市档案) ========
   const TREE_COLORS=['#4a7c59','#5a8c65','#3d6b4a','#2d8e5e','#3a9960'];
-  for(let y=1;y<S-1;y+=3){for(let x=1;x<S-1;x+=3){
-    if(chunk.ground[y][x]==='grass'&&rng()<0.12){
+  const step = tp.treeStep;
+  for(let y=1;y<S-1;y+=step){for(let x=1;x<S-1;x+=step){
+    if(chunk.ground[y][x]==='grass'&&rng()<tp.treeDensity){
       chunk.trees.push({lx:x,ly:y,x:chunk.cx*S+x,y:chunk.cy*S+y,h:2+Math.floor(rng()*3),type:Math.floor(rng()*3),
         size:1+Math.floor(rng()*2),color:TREE_COLORS[Math.floor(rng()*TREE_COLORS.length)]});
     }
@@ -3468,6 +3541,29 @@ function isOccupiedInfinite(engine,tx,ty){
   if(!chunk)return false;
   return chunk.buildings.some(b=>tx>=b.x&&tx<b.x+b.w&&ty>=b.y&&ty<b.y+2);
 }
+// 修改: 检测玩家是否卡在建筑内，自动移到最近道路
+// Auto-unstuck: if player is inside a building, teleport to nearest road
+function unstuckPlayer(engine){
+  const ptx=Math.round(engine.px),pty=Math.round(engine.py);
+  if(!isOccupiedInfinite(engine,ptx,pty))return; // not stuck
+  console.log(`[Unstuck] 玩家卡在建筑内 (${ptx},${pty}), 寻找最近道路...`);
+  for(let r=1;r<15;r++){
+    for(let dx=-r;dx<=r;dx++){for(let dy=-r;dy<=r;dy++){
+      if(Math.abs(dx)!==r&&Math.abs(dy)!==r)continue; // only check ring
+      const tx=ptx+dx,ty=pty+dy;
+      const g=getGround(engine,tx,ty);
+      if((g==='road'||g==='grass')&&!isOccupiedInfinite(engine,tx,ty)){
+        engine.px=tx;engine.py=ty;
+        console.log(`[Unstuck] 已移动到 (${tx},${ty}) [${g}]`);
+        return;
+      }
+    }}
+  }
+  // 极端情况: 开启穿越模式 / Extreme case: enable ghost mode
+  engine.ghostMode=true;
+  console.log('[Unstuck] 无法找到空地, 已开启穿越模式');
+  showToast('已自动开启穿越模式');
+}
 function toggleGhostMode(engineType){
   const engine=engineType==='px'?PX:GX;
   engine.ghostMode=!engine.ghostMode;
@@ -3524,10 +3620,14 @@ async function loadChunkPOIs(engine,chunk){
   const centerGx=chunk.cx*CHUNK_SIZE+CHUNK_SIZE/2;
   const centerGy=chunk.cy*CHUNK_SIZE+CHUNK_SIZE/2;
   const geo=gridToGeo(centerGx,centerGy);
-  // Search 3 priority categories via throttle
+  // Search priority categories + water bodies via throttle
+  // 修改基线 / Base: loadChunkPOIs 原始版本
+  // 修改内容 / Changes: 增加水系 POI 查询 (190000), 用于真实河流检测
+  // Added water body POI query (190000) for real river/lake detection
   const priorityCats=[
     {code:'110000',name:'景点'},{code:'050000',name:'美食'},
-    {code:'060000',name:'购物'},{code:'080000',name:'文艺'}
+    {code:'060000',name:'购物'},{code:'080000',name:'文艺'},
+    {code:'190000',name:'水系'}
   ];
   const allPois=[];
   try{
@@ -3548,9 +3648,77 @@ async function loadChunkPOIs(engine,chunk){
   }catch(e){console.warn('Chunk POI load error:',e);}
   POI_CACHE.set(key,{pois:allPois,ts:Date.now()});
   populateChunkBuildings(engine,chunk,allPois);
+  // 修改: 基于 POI 密度和水系检测二次修正地形
+  // Refine terrain based on POI density and water body detection
+  refineChunkTerrain(chunk, allPois);
   chunk.poisLoaded=true;chunk.poisLoading=false;
 }
 // Convert POIs to buildings within a chunk
+// 修改基线 / Base: populateChunkBuildings 之前
+// 修改内容 / Changes: 新增 refineChunkTerrain 函数 — POI 密度驱动路网 + 水系 POI 驱动河流
+// Added refineChunkTerrain — POI density drives road refinement + water POI drives river placement
+
+function refineChunkTerrain(chunk, pois){
+  if(!chunk.ground) return;
+  const S = CHUNK_SIZE;
+
+  // 1. 水系 POI → 在对应方向生成河流
+  const waterPois = pois.filter(p => p.type === '水系');
+  if(waterPois.length > 0){
+    const centerGeo = gridToGeo(chunk.cx*S+S/2, chunk.cy*S+S/2);
+    waterPois.forEach(wp => {
+      // 计算水系 POI 相对于区块中心的方向
+      const dlat = wp.lat - centerGeo.lat;
+      const dlng = wp.lng - centerGeo.lng;
+      // 将经纬度偏移转换为区块内的大致位置
+      const localY = Math.floor(S/2 - dlat / GEO.degPerTileY);
+      const localX = Math.floor(S/2 + dlng / GEO.degPerTileX);
+      // 在该方向生成水域（宽度2-4格）
+      const wy = Math.max(2, Math.min(S-4, localY));
+      const ww = 2 + Math.floor(Math.random()*3);
+      const isHorizontal = Math.abs(dlng) > Math.abs(dlat);
+      if(isHorizontal){
+        // 横向河流
+        for(let x=0;x<S;x++){
+          for(let d=0;d<ww;d++){
+            const ty = wy + d;
+            if(ty>=0 && ty<S) chunk.ground[ty][x]='water';
+          }
+        }
+      } else {
+        // 纵向河流
+        const wx = Math.max(2, Math.min(S-4, localX));
+        for(let y=0;y<S;y++){
+          for(let d=0;d<ww;d++){
+            const tx = wx + d;
+            if(tx>=0 && tx<S) chunk.ground[y][tx]='water';
+          }
+        }
+      }
+    });
+    console.log(`[Terrain] 区块(${chunk.cx},${chunk.cy}) 检测到${waterPois.length}个水系POI, 已生成河流`);
+  }
+
+  // 2. POI 密度 → 加密路网
+  const nonWaterPois = pois.filter(p => p.type !== '水系');
+  if(nonWaterPois.length > 12){
+    // POI 很多的区域：增加一条额外的小路
+    const rng = mulberry32(chunk.seed + 55555);
+    const pos = 3 + Math.floor(rng() * (S-6));
+    const isH = rng() > 0.5;
+    if(isH){for(let x=0;x<S;x++){if(chunk.ground[pos][x]==='grass')chunk.ground[pos][x]='road';}}
+    else{for(let y=0;y<S;y++){if(chunk.ground[y][pos]==='grass')chunk.ground[y][pos]='road';}}
+  } else if(nonWaterPois.length < 3){
+    // POI 很少的区域：将部分道路变回绿地（模拟公园）
+    const rng = mulberry32(chunk.seed + 66666);
+    for(let y=0;y<S;y++){for(let x=0;x<S;x++){
+      if(chunk.ground[y][x]==='road' && rng()<0.15){
+        chunk.ground[y][x]='grass';
+      }
+    }}
+  }
+}
+
 function populateChunkBuildings(engine,chunk,pois){
   const S=CHUNK_SIZE,isGlass=(engine===GX);
   const rng=mulberry32(chunk.seed+12345);
@@ -3559,6 +3727,15 @@ function populateChunkBuildings(engine,chunk,pois){
   chunk.buildings.forEach(b=>{
     for(let dy=0;dy<2;dy++)for(let dx=0;dx<b.w;dx++)occupied.add((b.ly+dy)+','+(b.lx+dx));
   });
+  // 修改: 标记玩家位置为已占用，防止异步建筑放置在玩家身上
+  // Mark player position as occupied to prevent async buildings from trapping player
+  const plx=Math.round(engine.px)-chunk.cx*S, ply=Math.round(engine.py)-chunk.cy*S;
+  if(plx>=0&&plx<S&&ply>=0&&ply<S){
+    for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){
+      const sx=plx+dx,sy=ply+dy;
+      if(sx>=0&&sx<S&&sy>=0&&sy<S)occupied.add(sy+','+sx);
+    }
+  }
   const poiBuildings=[];
   pois.forEach((poi,idx)=>{
     const grid=geoToGrid(poi.lat,poi.lng);
@@ -4396,6 +4573,14 @@ function renderMinimap() {
 // ---- Game loop ----
 function pixelGameLoop() {
   if (!PX.running) return;
+
+  // 修改: 延迟3秒后检查玩家是否卡在建筑内(等待异步POI加载)
+  // Check once after 3s delay to allow async POI buildings to load
+  if(!PX._unstuckChecked && PX._startTime && Date.now()-PX._startTime>3000){
+    PX._unstuckChecked=true;
+    unstuckPlayer(PX);
+  }
+  if(!PX._startTime) PX._startTime=Date.now();
 
   // Smooth zoom
   PX.zoom += (PX.targetZoom - PX.zoom) * 0.1;
@@ -5419,6 +5604,13 @@ function renderGlassMinimap(){
 // --- Game Loop ---
 function glassGameLoop(){
   if(!GX.running)return;
+  // 修改: 延迟3秒后检查玩家是否卡在建筑内
+  // Check once after 3s delay to allow async POI buildings to load
+  if(!GX._unstuckChecked && GX._startTime && Date.now()-GX._startTime>3000){
+    GX._unstuckChecked=true;
+    unstuckPlayer(GX);
+  }
+  if(!GX._startTime) GX._startTime=Date.now();
   GX.zoom+=(GX.targetZoom-GX.zoom)*0.1;
   // Boost key: Shift
   GX.boosting=!!(GX.keys['Shift']||GX.keys['ShiftLeft']||GX.keys['ShiftRight']);

@@ -3473,9 +3473,9 @@ function renderBlindWalk() {
       </div>
     </div>
     <div class="dice-container">
-      <div class="dice-visual" id="diceVisual" onclick="rollDice()">🎲</div>
+      <div class="dice-visual" id="blindDiceVisual" onclick="rollBlindDice()">🎲</div>
       <div style="font-size:.75rem;color:rgba(26,26,46,.3);">点击骰子开始</div>
-      <div class="dice-result" id="diceResult"></div>
+      <div class="dice-result" id="blindDiceResult"></div>
     </div>
     ${blindWalkHistory.length > 0 ? `
       <div class="dice-history">
@@ -3493,8 +3493,10 @@ function renderBlindWalk() {
       </div>
     ` : ''}`;
 }
-function rollDice() {
-  const dice = document.getElementById('diceVisual');
+// 修改基线 / Base: rollDice → rollBlindDice 重命名以避免与骰子一日游冲突
+// Renamed: rollDice → rollBlindDice to avoid collision with dice day-trip feature
+function rollBlindDice() {
+  const dice = document.getElementById('blindDiceVisual');
   dice.classList.remove('rolling');
   void dice.offsetWidth;
   dice.classList.add('rolling');
@@ -3502,7 +3504,7 @@ function rollDice() {
     const result = BLIND_DIRECTIONS[Math.floor(Math.random() * BLIND_DIRECTIONS.length)];
     dice.textContent = result.emoji;
     dice.classList.remove('rolling');
-    document.getElementById('diceResult').innerHTML = `
+    document.getElementById('blindDiceResult').innerHTML = `
       <h4>${result.dir}！</h4>
       <p>${result.desc}</p>
     `;

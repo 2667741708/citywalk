@@ -277,18 +277,22 @@ app.get('/roam3d', (req, res) => {
   res.sendFile(path.join(__dirname, 'roam3d.html'));
 });
 
-// ============================================================
-// 5. 启动服务 / Start Server
-// ============================================================
+// 修改基线 / Base: server.js 启动部分
+// 修改内容 / Changes: 条件启动 + 导出 app 用于 Vercel Serverless
+// Conditional listen + export app for Vercel Serverless deployment
+if (!process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`\n🚶 CityWalk 后端服务已启动`);
+    console.log(`   地址: http://localhost:${PORT}`);
+    console.log(`   3D漫游: http://localhost:${PORT}/roam3d`);
+    console.log(`   天气: GET  /api/weather?city=上海`);
+    console.log(`   路线: POST /api/routes/generate {city: "上海"}`);
+    console.log(`   小红书: GET /api/xhs/search?keyword=上海citywalk`);
+    console.log(`   Gemini:   ${GEMINI_API_KEY ? '✓' : '✗'}`);
+    console.log(`   Deepseek: ${DEEPSEEK_API_KEY ? '✓' : '✗'}`);
+    console.log(`   小红书 MCP: ${XHS_MCP_URL}\n`);
+  });
+}
 
-app.listen(PORT, () => {
-  console.log(`\n🚶 CityWalk 后端服务已启动`);
-  console.log(`   地址: http://localhost:${PORT}`);
-  console.log(`   3D漫游: http://localhost:${PORT}/roam3d`);
-  console.log(`   天气: GET  /api/weather?city=上海`);
-  console.log(`   路线: POST /api/routes/generate {city: "上海"}`);
-  console.log(`   小红书: GET /api/xhs/search?keyword=上海citywalk`);
-  console.log(`   Gemini:   ${GEMINI_API_KEY ? '✓' : '✗'}`);
-  console.log(`   Deepseek: ${DEEPSEEK_API_KEY ? '✓' : '✗'}`);
-  console.log(`   小红书 MCP: ${XHS_MCP_URL}\n`);
-});
+// Vercel Serverless: 导出 Express app
+module.exports = app;

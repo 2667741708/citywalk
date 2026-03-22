@@ -4155,13 +4155,13 @@ function isOccupiedInfinite(engine,tx,ty){
   if(!chunk)return false;
   return chunk.buildings.some(b=>tx>=b.x&&tx<b.x+b.w&&ty>=b.y&&ty<b.y+2);
 }
-// 修改: 检测玩家是否卡在建筑内，自动移到最近道路
-// Auto-unstuck: if player is inside a building, teleport to nearest road
+// 修改基线 / Base: unstuckPlayer (原始版本)
+// 修改内容 / Changes: 将搜索半径从 15 扩大到 30，增加主动脱困概率
 function unstuckPlayer(engine){
   const ptx=Math.round(engine.px),pty=Math.round(engine.py);
   if(!isOccupiedInfinite(engine,ptx,pty))return; // not stuck
   console.log(`[Unstuck] 玩家卡在建筑内 (${ptx},${pty}), 寻找最近道路...`);
-  for(let r=1;r<15;r++){
+  for(let r=1;r<30;r++){
     for(let dx=-r;dx<=r;dx++){for(let dy=-r;dy<=r;dy++){
       if(Math.abs(dx)!==r&&Math.abs(dy)!==r)continue; // only check ring
       const tx=ptx+dx,ty=pty+dy;
@@ -5459,13 +5459,23 @@ function renderGlassMinimap(){
 // --- Game Loop ---
 function glassGameLoop(){
   if(!GX.running)return;
-  // 修改: 延迟3秒后检查玩家是否卡在建筑内
-  // Check once after 3s delay to allow async POI buildings to load
-  if(!GX._unstuckChecked && GX._startTime && Date.now()-GX._startTime>3000){
-    GX._unstuckChecked=true;
-    unstuckPlayer(GX);
-  }
+  // 修改基线 / Base: glassGameLoop (持续防卡死 + 无界漫游 + 跳跃)
+  // 修改内容 / Changes: 
+  // 1. 每 5 秒持续检测是否卡死
+  // 2. 移除硬边界，允许向外延伸探索
+  // 3. 增加滑动机制及按住空格时的“跨栏跳跃”
+  
   if(!GX._startTime) GX._startTime=Date.now();
+  if(Date.now()-GX._startTime>3000){
+    if(!GX._lastStuckCheck) GX._lastStuckCheck=Date.now();
+    if(Date.now()-GX._lastStuckCheck>5000){
+      GX._lastStuckCheck=Date.now();
+      if(GX.pMoving && isOccupiedInfinite(GX,Math.round(GX.px),Math.round(GX.py))){
+        unstuckPlayer(GX);
+      }
+    }
+  }
+
   GX.zoom+=(GX.targetZoom-GX.zoom)*0.1;
   // Boost key: Shift
   GX.boosting=!!(GX.keys['Shift']||GX.keys['ShiftLeft']||GX.keys['ShiftRight']);
@@ -5483,18 +5493,52 @@ function glassGameLoop(){
     const nx=GX.px+dx*GX.speed,ny=GX.py+dy*GX.speed;
     if(Math.abs(dy)>Math.abs(dx))GX.pDir=dy>0?0:2;else GX.pDir=dx>0?3:1;
     const tx=Math.round(nx),ty=Math.round(ny);
-    if(!GX.infiniteMode&&(tx<0||tx>=GX.worldW||ty<0||ty>=GX.worldH)){
-      if(!GX._boundaryToastTime||Date.now()-GX._boundaryToastTime>8000){
-        GX._boundaryToastTime=Date.now();
-        showToast('已到达区域边界 · 试试底部「漫游」进入无限模式!');
+    
+    // 允许任何模式无限制扩张 (移除 tx<0 等边界条件)
+    const tile=getGround(GX,tx,ty);
+    const canWater=VEHICLES[GX.vehicle]&&VEHICLES[GX.vehicle].canWater;
+    const blocked = !GX.ghostMode && ((tile==='water'&&!canWater) || isOccupiedInfinite(GX,tx,ty));
+    
+    // 跳跃侦测：若按住空格键并且前方受阻，尝试向前跃迁 2 格
+    let jumped = false;
+    if(blocked && GX.keys[' ']){
+      const jx = Math.round(GX.px + dx * 2.5), jy = Math.round(GX.py + dy * 2.5);
+      const jt = getGround(GX, jx, jy);
+      if(!isOccupiedInfinite(GX, jx, jy) && (jt!=='water' || canWater)){
+        GX.px = GX.px + dx * 2.5; GX.py = GX.py + dy * 2.5;
+        jumped = true;
+        if(!GX._lastJumpToast || Date.now() - GX._lastJumpToast > 5000) {
+          showToast("🤸 翻越障碍！");
+          GX._lastJumpToast = Date.now();
+        }
       }
     }
-    if(GX.infiniteMode||(tx>=0&&tx<GX.worldW&&ty>=0&&ty<GX.worldH)){
-      const tile=getGround(GX,tx,ty);
-      const canWater=VEHICLES[GX.vehicle]&&VEHICLES[GX.vehicle].canWater;
-      if(GX.ghostMode||((tile!=='water'||canWater)&&!isOccupiedInfinite(GX,tx,ty))){
-        if(Math.floor(GX.px)!==Math.floor(nx)||Math.floor(GX.py)!==Math.floor(ny)){GX.steps++;if(GX.infiniteMode){EXPLORE_TRACK.totalSteps++;checkStepMilestones();}}
+
+    if(!jumped) {
+      if(!blocked){
+        if(Math.floor(GX.px)!==Math.floor(nx)||Math.floor(GX.py)!==Math.floor(ny)){
+          GX.steps++;
+          if(GX.infiniteMode){EXPLORE_TRACK.totalSteps++;checkStepMilestones();}
+        }
         GX.px=nx;GX.py=ny;
+      } else {
+        // 滑动机制: 单轴移动侦测
+        const nx2 = GX.px + dx * GX.speed, ny2 = GX.py;
+        const tx2 = Math.round(nx2), ty2 = Math.round(ny2);
+        const tile2 = getGround(GX, tx2, ty2);
+        const blocked2 = !GX.ghostMode && ((tile2==='water'&&!canWater) || isOccupiedInfinite(GX,tx2,ty2));
+        
+        if(!blocked2 && dx!==0){
+          GX.px = nx2;
+        } else {
+          const nx3 = GX.px, ny3 = GX.py + dy * GX.speed;
+          const tx3 = Math.round(nx3), ty3 = Math.round(ny3);
+          const tile3 = getGround(GX, tx3, ty3);
+          const blocked3 = !GX.ghostMode && ((tile3==='water'&&!canWater) || isOccupiedInfinite(GX,tx3,ty3));
+          if(!blocked3 && dy!==0){
+            GX.py = ny3;
+          }
+        }
       }
     }
   }
@@ -5528,7 +5572,11 @@ function glassGameLoop(){
 
 // --- Input ---
 function setupGlassListeners(){
-  window._gxKeyDown=e=>{GX.keys[e.key]=true;if(e.key==='g'||e.key==='G')toggleGhostMode('gx');};
+  window._gxKeyDown=e=>{
+    GX.keys[e.key]=true;
+    if(e.key==='g'||e.key==='G')toggleGhostMode('gx');
+    if(e.key===' ') e.preventDefault(); // 防止按空格键跳跃时页面滚动
+  };
   window._gxKeyUp=e=>{GX.keys[e.key]=false;};
   window.addEventListener('keydown',window._gxKeyDown);
   window.addEventListener('keyup',window._gxKeyUp);

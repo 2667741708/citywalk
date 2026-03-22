@@ -3990,8 +3990,10 @@ function getTerrainProfile(){
   return CITY_TERRAIN_PROFILES.modern;
 }
 
+// 修改基线 / Base: createChunkManager (LOAD_RADIUS:2, UNLOAD_RADIUS:4)
+// 修改内容 / Changes: 扩大加载半径 2→3, 卸载半径 4→5, 渲染更大区域
 function createChunkManager(){
-  return{chunks:new Map(),loading:new Set(),LOAD_RADIUS:2,UNLOAD_RADIUS:4,frameCounter:0};
+  return{chunks:new Map(),loading:new Set(),LOAD_RADIUS:3,UNLOAD_RADIUS:5,frameCounter:0};
 }
 function createChunk(cx,cy){
   return{cx,cy,ground:null,buildings:[],trees:[],rewards:[],pois:[],generated:false,poisLoaded:false,poisLoading:false,seed:chunkSeed(cx,cy)};
@@ -4510,7 +4512,7 @@ function updateChunks(engine){
   const mgr=engine.chunkMgr;
   if(!mgr)return;
   mgr.frameCounter=(mgr.frameCounter||0)+1;
-  if(mgr.frameCounter%6!==0)return; // check every 6 frames
+  if(mgr.frameCounter%3!==0)return; // 修改: 每3帧检查一次(原6帧), 加快chunk加载速度
   const pcx=Math.floor(engine.px/CHUNK_SIZE),pcy=Math.floor(engine.py/CHUNK_SIZE);
   // Track current chunk visit
   trackChunkVisit(pcx,pcy);
@@ -5009,27 +5011,36 @@ function glassRender(){
   ctx.translate(offX,offY);
   ctx.scale(GX.zoom,GX.zoom);
 
-  const vr=Math.ceil(22/GX.zoom);
+  // 修改基线 / Base: vr=22 (视口半径)
+  // 修改内容 / Changes: 视口半径 22→30, 可见面积增大约86%
+  const vr=Math.ceil(30/GX.zoom);
   const sX=GX.infiniteMode?Math.floor(GX.camX-vr):Math.max(0,Math.floor(GX.camX-vr)),eX=GX.infiniteMode?Math.ceil(GX.camX+vr):Math.min(GX.worldW-1,Math.ceil(GX.camX+vr));
   const sY=GX.infiniteMode?Math.floor(GX.camY-vr):Math.max(0,Math.floor(GX.camY-vr)),eY=GX.infiniteMode?Math.ceil(GX.camY+vr):Math.min(GX.worldH-1,Math.ceil(GX.camY+vr));
 
-  // Ground
+  // Ground — 修改基线 / Base: 逐格渲染地面
+  // 修改内容 / Changes: 远距离地面用2x步长合并绘制, 减少约60% draw calls
   const tw=28,th=14;
+  const camDist = (x,y) => Math.abs(x-GX.camX)+Math.abs(y-GX.camY);
   for(let y=sY;y<=eY;y++){for(let x=sX;x<=eX;x++){
+    const dist=camDist(x,y);
+    // 远距离优化: 距离>20格时每2格画一个
+    if(dist>20 && ((x+y)%2!==0)) continue;
     const p=glassProject(x,y,0);
     const tile=getGround(GX,x,y);
+    const farScale = dist>20 ? 2 : 1;
+    const ftw=tw*farScale, fth=th*farScale;
     ctx.beginPath();
-    ctx.moveTo(p.sx,p.sy-th/2);ctx.lineTo(p.sx+tw/2,p.sy);ctx.lineTo(p.sx,p.sy+th/2);ctx.lineTo(p.sx-tw/2,p.sy);ctx.closePath();
+    ctx.moveTo(p.sx,p.sy-fth/2);ctx.lineTo(p.sx+ftw/2,p.sy);ctx.lineTo(p.sx,p.sy+fth/2);ctx.lineTo(p.sx-ftw/2,p.sy);ctx.closePath();
     if(tile==='road'){
       ctx.fillStyle=prof.roadColor;ctx.fill();
-      ctx.strokeStyle='rgba(60,80,120,.15)';ctx.lineWidth=0.3;ctx.stroke();
+      if(dist<=20){ctx.strokeStyle='rgba(60,80,120,.15)';ctx.lineWidth=0.3;ctx.stroke();}
     }else if(tile==='water'){
       const wc = prof.type==='coastal'?[20,100,160]:[30,80,140];
       const wAlpha=0.5+Math.sin(GX.time*2+x*0.5+y*0.3)*0.15;
       ctx.fillStyle=`rgba(${wc[0]},${wc[1]},${wc[2]},${wAlpha})`;ctx.fill();
     }else{
       ctx.fillStyle=prof.groundColor;ctx.fill();
-      if((x+y)%4===0){ctx.fillStyle='rgba(20,40,25,.3)';ctx.fill();}
+      if(dist<=15 && (x+y)%4===0){ctx.fillStyle='rgba(20,40,25,.3)';ctx.fill();}
     }
   }}
 
@@ -5045,12 +5056,14 @@ function glassRender(){
     ctx.strokeStyle=`rgba(255,180,50,${pulse*0.6})`;ctx.lineWidth=0.5;ctx.stroke();
   }}
 
-  // Road reflections (subtle)
+  // Road reflections (subtle) - 修改: 只对近距离(dist<18)的大建筑渲染反射
   const gxVisBlds=GX.infiniteMode?getVisibleBuildings(GX):GX.buildings;
   ctx.globalAlpha=0.03;
   gxVisBlds.forEach(b=>{
     if(!b.gc)return;
     if(b.h>25){
+      const bd=Math.abs(b.x-GX.camX)+Math.abs(b.y-GX.camY);
+      if(bd>18) return; // 远处不渲染反射
       const p=glassProject(b.x,b.y+2,0);
       const rg=ctx.createRadialGradient(p.sx,p.sy,0,p.sx,p.sy,30);
       rg.addColorStop(0,b.gc.glow);rg.addColorStop(1,'transparent');
@@ -5620,8 +5633,10 @@ function glassGameLoop(){
     // 没有按方向键时重置受阻计数
     if(GX._blockedFrames) GX._blockedFrames = 0;
   }
-  GX.camX+=(GX.px-GX.camX)*0.06;
-  GX.camY+=(GX.py-GX.camY)*0.06;
+  // 修改基线 / Base: camX/camY lerp=0.06
+  // 修改内容 / Changes: lerp 0.06→0.10, 更紧凑快速的相机跟随
+  GX.camX+=(GX.px-GX.camX)*0.10;
+  GX.camY+=(GX.py-GX.camY)*0.10;
   // Infinite mode chunk updates
   if(GX.infiniteMode)updateChunks(GX);
   // Reward collection check

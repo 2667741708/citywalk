@@ -858,6 +858,14 @@ function getRouteBanner(category) {
   const pool = ROUTE_BANNERS[category] || ROUTE_BANNERS['精华'];
   return pool[Math.floor(Math.random() * pool.length)];
 }
+// 为不在 CITY_IMAGES 中的动态城市提供一致的 fallback 图片
+function getCityImage(city) {
+  if (CITY_IMAGES[city]) return CITY_IMAGES[city];
+  let hash = 0;
+  for(let i=0; i<city.length; i++) hash += city.charCodeAt(i);
+  const pool = ROUTE_BANNERS['精华'];
+  return pool[hash % pool.length];
+}
 // 城市坐标表 (用于距离计算) / City coordinates for distance sorting
 const CITY_GEO = {
   '上海':[31.23,121.47],'北京':[39.91,116.40],'成都':[30.57,104.07],
@@ -1418,7 +1426,7 @@ function renderCities(filter = '') {
     const data = allCities[city];
     const isDynamic = !!DYNAMIC_CITIES[city];
     const colors = CITY_COLORS[city] || (isDynamic ? ['#ff6b35','#e84393'] : ['#666','#999']);
-    const img = CITY_IMAGES[city] || '';
+    const img = getCityImage(city);
     const routeCount = data.routes ? data.routes.length : 0;
     const geo = CITY_GEO[city];
     const distKm = (APP.userLat && geo) ? (haversineDistance(APP.userLat, APP.userLng, geo[0], geo[1]) / 1000) : 0;
@@ -2062,10 +2070,10 @@ function renderRouteList(city) {
     const diffText = route.difficulty === 'easy' ? '轻松' : route.difficulty === 'medium' ? '适中' : '挑战';
     const isGen = route.isGenerated;
     // 修改基线 / Base: bannerStyle 直接使用 route.banner
-    // 修改内容 / Changes: 添加运行时 fallback, 空 banner 自动从 ROUTE_BANNERS 分配
+    // 修改内容 / Changes: 添加运行时 fallback, 空 banner 自动从 ROUTE_BANNERS 分配，取消 isGen 限制确保所有路线都有图
     // Added runtime fallback for cached routes with empty banner
     let effectiveBanner = route.banner;
-    if (!effectiveBanner && isGen) {
+    if (!effectiveBanner) {
       const cat = route.name.includes('美食') ? '美食' : route.name.includes('人文') ? '人文' : route.name.includes('潮流') ? '潮流' : '精华';
       effectiveBanner = getRouteBanner(cat);
     }

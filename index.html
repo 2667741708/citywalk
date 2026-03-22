@@ -820,6 +820,44 @@ const CITY_IMAGES = {
   '周庄':'https://images.unsplash.com/photo-1528164344885-47d68b2d66c1?w=600&q=80',
   '婺源':'https://images.unsplash.com/photo-1534430480872-3498386e7856?w=600&q=80',
 };
+// 路线 Banner 图片池 / Route banner image pool by category
+// 修改基线 / Base: 新增代码
+// 修改内容 / Changes: 为 AI 发现城市的路线卡片提供分类 banner 图片
+// Added categorized banner images for AI-discovered city route cards
+const ROUTE_BANNERS = {
+  '精华': [
+    'https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=600&q=80',
+    'https://images.unsplash.com/photo-1449824913935-59a10b8d2000?w=600&q=80',
+    'https://images.unsplash.com/photo-1480714378408-67cf0d13bc1b?w=600&q=80',
+    'https://images.unsplash.com/photo-1514565131-fce0801e5785?w=600&q=80',
+    'https://images.unsplash.com/photo-1519501025264-65ba15a82390?w=600&q=80'
+  ],
+  '人文': [
+    'https://images.unsplash.com/photo-1533929736458-ca588d08c8be?w=600&q=80',
+    'https://images.unsplash.com/photo-1545569341-9eb8b30979d9?w=600&q=80',
+    'https://images.unsplash.com/photo-1547981609-4b6bfe67ca0b?w=600&q=80',
+    'https://images.unsplash.com/photo-1617839625591-e5a789e0d050?w=600&q=80',
+    'https://images.unsplash.com/photo-1580192985016-7e15ef081dd8?w=600&q=80'
+  ],
+  '美食': [
+    'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=600&q=80',
+    'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=600&q=80',
+    'https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=600&q=80',
+    'https://images.unsplash.com/photo-1476224203421-9ac39bcb3327?w=600&q=80',
+    'https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445?w=600&q=80'
+  ],
+  '潮流': [
+    'https://images.unsplash.com/photo-1513622470522-26c3c8a854bc?w=600&q=80',
+    'https://images.unsplash.com/photo-1544735716-392fe2489ffa?w=600&q=80',
+    'https://images.unsplash.com/photo-1441984904996-e0b6ba687e04?w=600&q=80',
+    'https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=600&q=80',
+    'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=600&q=80'
+  ]
+};
+function getRouteBanner(category) {
+  const pool = ROUTE_BANNERS[category] || ROUTE_BANNERS['精华'];
+  return pool[Math.floor(Math.random() * pool.length)];
+}
 // 城市坐标表 (用于距离计算) / City coordinates for distance sorting
 const CITY_GEO = {
   '上海':[31.23,121.47],'北京':[39.91,116.40],'成都':[30.57,104.07],
@@ -1857,7 +1895,7 @@ function generateRoutesFromPOIs(pois, cityName) {
     routes.push({
       id: prefix + '1',
       name: cityName + '精华漫步',
-      banner: '',
+      banner: getRouteBanner('精华'),
       desc: `由高德地图智能发现的${cityName}精华路线，涵盖景点、美食、文艺等多个打卡点，一条路线体验城市精华。`,
       difficulty: 'easy',
       season: '四季',
@@ -1877,7 +1915,7 @@ function generateRoutesFromPOIs(pois, cityName) {
     routes.push({
       id: prefix + '2',
       name: cityName + '人文探索',
-      banner: '',
+      banner: getRouteBanner('人文'),
       desc: `探索${cityName}的历史文化底蕴。从景点到文艺空间，感受这座城市的文化脉络。`,
       difficulty: 'medium',
       season: '春秋',
@@ -1897,7 +1935,7 @@ function generateRoutesFromPOIs(pois, cityName) {
     routes.push({
       id: prefix + '3',
       name: cityName + '美食暴走',
-      banner: '',
+      banner: getRouteBanner('美食'),
       desc: `${cityName}吃货必走路线！从街头小吃到地道餐厅，一条路线喂饱你的胃。`,
       difficulty: 'easy',
       season: '四季',
@@ -1916,7 +1954,7 @@ function generateRoutesFromPOIs(pois, cityName) {
     routes.push({
       id: prefix + '4',
       name: cityName + '潮流打卡',
-      banner: '',
+      banner: getRouteBanner('潮流'),
       desc: `${cityName}的潮流地标和网红打卡点，适合拍照发圈。`,
       difficulty: 'easy',
       season: '四季',
@@ -2107,6 +2145,9 @@ async function rollDice() {
   }
 }
 
+// 修改基线 / Base: generateDayTrip() 原始版本 (无天气感知)
+// 修改内容 / Changes: 新增天气API调用, 雨天优先室内POI, 攻略顶部天气建议卡
+// Added weather API call, rainy-day indoor POI priority, weather advice card
 async function generateDayTrip(city, mode, resultDiv) {
   // 获取该城市所有 POI / Get all city POIs
   const allCities = {...MOCK_DATA, ...DYNAMIC_CITIES};
@@ -2116,13 +2157,31 @@ async function generateDayTrip(city, mode, resultDiv) {
     return;
   }
   
+  // === 天气感知 / Weather awareness ===
+  let weatherInfo = null;
+  try {
+    const resp = await fetch(`/api/weather?city=${encodeURIComponent(city)}`);
+    if (resp.ok) {
+      const wData = await resp.json();
+      if (wData.success) weatherInfo = wData.data;
+    }
+  } catch(e) { console.log('[DayTrip] Weather fetch skipped:', e.message); }
+  
+  // 天气判断 / Weather condition flags
+  const isRainy = weatherInfo && (weatherInfo.weather.includes('雨') || weatherInfo.weather.includes('雪'));
+  const isHot = weatherInfo && parseInt(weatherInfo.temperature) > 35;
+  const isCold = weatherInfo && parseInt(weatherInfo.temperature) < 0;
+  const isBadAir = weatherInfo && (weatherInfo.weather.includes('雾') || weatherInfo.weather.includes('霾'));
+  
   // 合并所有路线的 POI / Merge POIs from all routes
   const allPOIs = [];
   const seenNames = new Set();
   data.routes.forEach(route => {
     route.points.forEach(p => {
       if (!seenNames.has(p.name) && p.lat && p.lng) {
-        allPOIs.push(p);
+        // 标记室内/室外类型 / Tag indoor/outdoor
+        const indoor = ['博物馆','商场','购物','美食','餐厅','咖啡','书店','图书馆','展览','艺术馆','会所','影院'].some(k => (p.type||'').includes(k) || (p.name||'').includes(k) || (p.desc||'').includes(k));
+        allPOIs.push({...p, _indoor: indoor});
         seenNames.add(p.name);
       }
     });
@@ -2133,14 +2192,30 @@ async function generateDayTrip(city, mode, resultDiv) {
     return;
   }
   
+  // 天气影响 POI 排序 / Weather-based POI reordering
+  if (isRainy || isBadAir) {
+    // 室内优先 / Indoor first
+    allPOIs.sort((a, b) => (b._indoor ? 1 : 0) - (a._indoor ? 1 : 0));
+  }
+  
   // 模式参数 / Mode parameters
   const config = mode === 'walk' 
     ? { radius: 3000, speed: 5, stopMin: 30, emoji: '🚶', label: '步行', maxPoints: 6 }
     : { radius: 15000, speed: 30, stopMin: 45, emoji: '🚗', label: '驾车', maxPoints: 8 };
   
-  // 随机选择出发点 / Random starting point (dice!)
-  const startIdx = Math.floor(Math.random() * allPOIs.length);
-  const startPOI = allPOIs[startIdx];
+  // 如果用户有位置，优先选附近POI作出发点 / Use nearest POI as start if user location known
+  let startPOI;
+  if (APP.userLat && APP.userLng) {
+    allPOIs.sort((a, b) => {
+      const da = haversineDistance(APP.userLat, APP.userLng, a.lat, a.lng);
+      const db = haversineDistance(APP.userLat, APP.userLng, b.lat, b.lng);
+      return da - db;
+    });
+    startPOI = allPOIs[0];
+  } else {
+    const startIdx = Math.floor(Math.random() * allPOIs.length);
+    startPOI = allPOIs[startIdx];
+  }
   
   // 筛选半径内的 POI / Filter POIs within radius
   const nearbyPOIs = allPOIs.filter(p => {
@@ -2156,9 +2231,10 @@ async function generateDayTrip(city, mode, resultDiv) {
   // DAG 最短路径排序 / Sort using DAG shortest path
   const optimized = optimizePOIOrder(tripPOIs);
   
-  // 生成时间表 / Generate timeline (09:00 - 17:00, 8 hours)
-  const START_HOUR = 9;
-  const BUDGET_MIN = 8 * 60; // 480 minutes
+  // 生成时间表 / Generate timeline
+  // 高温天气延后出发 / Delay start on hot days
+  const START_HOUR = isHot ? 7 : 9;
+  const BUDGET_MIN = 8 * 60;
   let currentMin = 0;
   const timeline = [];
   const colors = ['#667eea','#764ba2','#e84393','#00b894','#ff6b35','#fdcb6e','#a29bfe','#74b9ff'];
@@ -2170,48 +2246,70 @@ async function generateDayTrip(city, mode, resultDiv) {
     const timeStr = `${String(hour).padStart(2,'0')}:${String(min).padStart(2,'0')}`;
     const color = colors[i % colors.length];
     
-    // 交通时间 / Travel time
     if (i > 0) {
       const dist = haversineDistance(optimized[i-1].lat, optimized[i-1].lng, poi.lat, poi.lng);
       const travelMin = Math.round((dist / 1000) / config.speed * 60);
-      timeline.push({
-        time: timeStr,
-        type: 'travel',
-        text: `${config.emoji} ${config.label} ${(dist/1000).toFixed(1)}km · 约${travelMin}分钟`,
-        color: color
-      });
+      timeline.push({ time: timeStr, type: 'travel', text: `${config.emoji} ${config.label} ${(dist/1000).toFixed(1)}km · 约${travelMin}分钟`, color });
       currentMin += travelMin;
     }
     
-    // 到达 / Arrival
     const arrHour = Math.floor((START_HOUR * 60 + currentMin) / 60);
     const arrMin = (START_HOUR * 60 + currentMin) % 60;
     const arrTimeStr = `${String(arrHour).padStart(2,'0')}:${String(arrMin).padStart(2,'0')}`;
-    timeline.push({
-      time: arrTimeStr,
-      type: 'stop',
-      name: poi.name,
-      desc: poi.desc || poi.type || '',
-      icon: poi.catIcon || '📍',
-      color: color,
-      stopMin: config.stopMin
-    });
+    timeline.push({ time: arrTimeStr, type: 'stop', name: poi.name, desc: poi.desc || poi.type || '', icon: poi.catIcon || '📍', color, stopMin: config.stopMin, indoor: poi._indoor });
     currentMin += config.stopMin;
   }
   
-  // 结束时间 / End time
   const endHour = Math.floor((START_HOUR * 60 + currentMin) / 60);
   const endMin = (START_HOUR * 60 + currentMin) % 60;
   const endTimeStr = `${String(endHour).padStart(2,'0')}:${String(endMin).padStart(2,'0')}`;
   
-  // 计算总路程 / Total distance
   let totalDist = 0;
   for (let i = 1; i < optimized.length; i++) {
     totalDist += haversineDistance(optimized[i-1].lat, optimized[i-1].lng, optimized[i].lat, optimized[i].lng);
   }
   
+  // === 天气建议卡 / Weather advice card ===
+  let weatherCardHTML = '';
+  if (weatherInfo) {
+    const WEATHER_EMOJI = {'晴':'☀️','多云':'⛅','阴':'☁️','小雨':'🌦️','中雨':'🌧️','大雨':'⛈️','暴雨':'⛈️','雷阵雨':'⛈️','阵雨':'🌦️','小雪':'🌨️','中雪':'❄️','大雪':'❄️','雾':'🌫️','霾':'😷'};
+    const wIcon = Object.entries(WEATHER_EMOJI).find(([k]) => weatherInfo.weather.includes(k))?.[1] || '🌤️';
+    let advice = '天气适宜出行，享受美好的一天！';
+    if (isRainy) advice = '⚠️ 今日有降水，已优先安排室内打卡点。建议携带雨伞，穿防滑鞋。';
+    else if (isHot) advice = '⚠️ 高温天气，已提前出发时间至7点。注意防晒补水，避开正午烈日。';
+    else if (isCold) advice = '⚠️ 气温较低，注意防寒保暖，热饮是你的好朋友☕';
+    else if (isBadAir) advice = '⚠️ 空气质量不佳，已优先安排室内活动。建议佩戴口罩。';
+    
+    // 3日预报简板
+    let forecastHTML = '';
+    if (weatherInfo.forecast && weatherInfo.forecast.length > 0) {
+      forecastHTML = '<div style="display:flex;gap:8px;margin-top:8px">' + 
+        weatherInfo.forecast.map(f => {
+          const fIcon = Object.entries(WEATHER_EMOJI).find(([k]) => (f.dayweather||'').includes(k))?.[1] || '🌤️';
+          return `<div style="flex:1;text-align:center;padding:4px;background:rgba(255,255,255,.5);border-radius:8px">
+            <div style="font-size:.65rem;color:rgba(26,26,46,.4)">${f.date?.slice(5)||''}</div>
+            <div style="font-size:1rem;margin:2px 0">${fIcon}</div>
+            <div style="font-size:.65rem">${f.daytemp||''}°</div>
+          </div>`;
+        }).join('') + '</div>';
+    }
+    
+    weatherCardHTML = `<div style="margin:8px 0;padding:12px 14px;background:linear-gradient(135deg,rgba(116,185,255,.12),rgba(0,184,148,.08));border:1px solid rgba(116,185,255,.2);border-radius:12px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="font-size:2rem">${wIcon}</div>
+        <div style="flex:1">
+          <div style="font-weight:700;font-size:.9rem">${city} · ${weatherInfo.weather} ${weatherInfo.temperature}°C</div>
+          <div style="font-size:.72rem;color:rgba(26,26,46,.5);margin-top:2px">湿度${weatherInfo.humidity}% · 风力${weatherInfo.windpower||'微'}级</div>
+        </div>
+      </div>
+      <div style="margin-top:8px;padding:8px 10px;background:rgba(255,255,255,.6);border-radius:8px;font-size:.75rem;color:rgba(26,26,46,.7);line-height:1.5">${advice}</div>
+      ${forecastHTML}
+    </div>`;
+  }
+  
   // 渲染时间表 / Render timeline
-  let html = `<div style="margin:12px 0 8px;padding:10px 14px;background:linear-gradient(135deg,rgba(102,126,234,.08),rgba(118,75,162,.08));border-radius:12px;">
+  let html = weatherCardHTML;
+  html += `<div style="margin:8px 0;padding:10px 14px;background:linear-gradient(135deg,rgba(102,126,234,.08),rgba(118,75,162,.08));border-radius:12px;">
     <div style="font-weight:700;font-size:.9rem">${config.emoji} ${city} 一日 ${config.label} 攻略</div>
     <div style="font-size:.72rem;color:rgba(26,26,46,.45);margin-top:4px">
       ${optimized.length} 个打卡点 · ${(totalDist/1000*1.3).toFixed(1)}km · ${endTimeStr} 返回
@@ -2226,10 +2324,11 @@ async function generateDayTrip(city, mode, resultDiv) {
         <div class="tt-info"><div class="tt-desc">${item.text}</div></div>
       </div>`;
     } else {
+      const indoorTag = item.indoor ? ' 🏢' : '';
       html += `<div class="trip-time-item" style="color:${item.color};border-color:${item.color}">
         <div class="tt-time">${item.time}</div>
         <div class="tt-info">
-          <div class="tt-name">${item.icon} ${item.name}</div>
+          <div class="tt-name">${item.icon} ${item.name}${indoorTag}</div>
           <div class="tt-desc">${item.desc} · 停留${item.stopMin}分钟</div>
         </div>
       </div>`;
@@ -2241,18 +2340,16 @@ async function generateDayTrip(city, mode, resultDiv) {
     <div class="tt-info"><div class="tt-name">🏠 行程结束</div><div class="tt-desc">返回出发地，完美的一天！</div></div>
   </div></div>`;
   
-  // 底部按钮: 应用这条路线 / Bottom button to apply this route
   html += `<button class="dice-roll-btn" style="margin-top:12px;background:linear-gradient(135deg,#00b894,#00cec9)" onclick="applyDayTrip()">✅ 使用这条攻略</button>`;
   
   resultDiv.innerHTML = html;
   
-  // 存储当前一日游数据 / Store current day trip for later use
   APP._pendingDayTrip = {
     city, mode, optimized, totalDist, timeline,
     route: {
       id: city.substring(0,2).toLowerCase() + '_dice_' + Date.now(),
       name: `${city} ${config.label}一日游 🎲`,
-      banner: '',
+      banner: getRouteBanner('精华'),
       desc: `由骰子随机生成的${city}一日${config.label}攻略，从「${startPOI.name}」出发，途径${optimized.length}个打卡点。`,
       difficulty: mode === 'walk' ? 'easy' : 'medium',
       season: '四季',

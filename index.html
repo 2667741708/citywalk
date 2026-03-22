@@ -858,14 +858,54 @@ function getRouteBanner(category) {
   const pool = ROUTE_BANNERS[category] || ROUTE_BANNERS['精华'];
   return pool[Math.floor(Math.random() * pool.length)];
 }
-// 为不在 CITY_IMAGES 中的动态城市提供一致的 fallback 图片
+// 为不在 CITY_IMAGES 中的动态城市提供一致的 fallback 图片，如果有按需抓取的图片则优先使用
 function getCityImage(city) {
   if (CITY_IMAGES[city]) return CITY_IMAGES[city];
+  if (DYNAMIC_CITIES[city] && DYNAMIC_CITIES[city].bgUrl) return DYNAMIC_CITIES[city].bgUrl;
   let hash = 0;
   for(let i=0; i<city.length; i++) hash += city.charCodeAt(i);
   const pool = ROUTE_BANNERS['精华'];
   return pool[hash % pool.length];
 }
+
+// 异步获取真实图片覆盖 (Crawler integration)
+async function fetchDynamicImages(city, routes) {
+  try {
+    // 1. 获取城市首页背景图
+    if (!CITY_IMAGES[city] && (!DYNAMIC_CITIES[city].bgUrl || DYNAMIC_CITIES[city].bgUrl.includes('unsplash'))) {
+      fetch(`/api/image-search?q=${encodeURIComponent(city + ' 城市风光 地标 航拍 高清')}`)
+      .then(r => r.json())
+      .then(data => {
+        if(data.success && data.urls.length>0) {
+          DYNAMIC_CITIES[city].bgUrl = data.urls[0];
+          saveDynamicCities();
+          renderCities(document.querySelector('.search-bar input').value);
+          if(APP.selectedCity === city) renderRouteList(city);
+        }
+      });
+    }
+
+    // 2. 获取路线的背景图
+    (routes || []).forEach(route => {
+      // 随机骰子路线也使用这个机制抓取真实图片
+      if (!route.banner || route.banner.includes('unsplash')) {
+        let q = city + ' ' + (route.name.replace(/🎲/g, '').trim()) + ' 风景 高清';
+        fetch(`/api/image-search?q=${encodeURIComponent(q)}`)
+        .then(r => r.json())
+        .then(data => {
+          if(data.success && data.urls.length>0) {
+            route.banner = data.urls[0];
+            saveDynamicCities();
+            if(APP.selectedCity === city) renderRouteList(city);
+          }
+        });
+      }
+    });
+  } catch(e) {
+    console.warn('[Image Crawler]', e);
+  }
+}
+
 // 城市坐标表 (用于距离计算) / City coordinates for distance sorting
 const CITY_GEO = {
   '上海':[31.23,121.47],'北京':[39.91,116.40],'成都':[30.57,104.07],
@@ -1597,6 +1637,9 @@ async function discoverCity(cityName) {
     renderRouteList(cityName);
     showView('routeList');
     showToast(`AI 生成了${routeData.routes.length}条「${cityName}」路线！`);
+
+    // 触发后台抓取真实图片
+    fetchDynamicImages(cityName, DYNAMIC_CITIES[cityName].routes);
 
   } catch (backendErr) {
     console.warn('[discoverCity] 后端 LLM 失败，降级到本地 POI 搜索:', backendErr.message);

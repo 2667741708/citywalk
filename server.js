@@ -98,7 +98,46 @@ app.get('/api/weather', async (req, res) => {
 });
 
 // ============================================================
-// 2. LLM 路线生成 / Route Generation (Gemini + Deepseek fallback)
+// 2. 图片搜索 API / Image Search API (Crawler for CityWalk)
+// ============================================================
+
+app.get('/api/image-search', async (req, res) => {
+  try {
+    const { q } = req.query;
+    if (!q) return res.status(400).json({ error: '缺少查询参数 q' });
+
+    const url = `https://www.bing.com/images/search?q=${encodeURIComponent(q)}&form=HDRSC2&first=1`;
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36',
+        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8'
+      }
+    });
+    const html = await response.text();
+    let urls = [];
+    
+    // Bing images uses murl attribute to store high-res link
+    const regex1 = /"murl"\s*:\s*"([^"]+)"/g;
+    let match;
+    while ((match = regex1.exec(html)) !== null) urls.push(match[1]);
+    
+    if (urls.length === 0) {
+      const regex2 = /murl&quot;:&quot;([^&]+)&quot;/g;
+      while ((match = regex2.exec(html)) !== null) urls.push(match[1]);
+    }
+
+    // Filter out common watermarked or blocked domains
+    urls = urls.filter(u => !u.includes('vjshi.com') && !u.includes('watermark'));
+
+    res.json({ success: true, urls: urls.slice(0, 5) });
+  } catch (err) {
+    console.error('[Image Search Error]', err.message);
+    res.status(500).json({ error: '图片搜索失败', detail: err.message });
+  }
+});
+
+// ============================================================
+// 3. LLM 路线生成 / Route Generation (Gemini + Deepseek fallback)
 //    纯 LLM 方案，不依赖 AMap REST API
 // ============================================================
 

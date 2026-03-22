@@ -5550,7 +5550,11 @@ function glassGameLoop(){
     const canWater=VEHICLES[GX.vehicle]&&VEHICLES[GX.vehicle].canWater;
     const blocked = !GX.ghostMode && ((tile==='water'&&!canWater) || isOccupiedInfinite(GX,tx,ty));
     
-    // 跳跃侦测：若按住空格键并且前方受阻，尝试向前跃迁 2 格
+    // === 自动攀爬系统 / Auto-climb system ===
+    // 当连续被阻挡超过15帧(~0.25s)，自动穿越障碍物
+    if(!GX._blockedFrames) GX._blockedFrames = 0;
+    
+    // 跳跃侦测：按住空格键则即时跃过
     let jumped = false;
     if(blocked && GX.keys[' ']){
       const jx = Math.round(GX.px + dx * 2.5), jy = Math.round(GX.py + dy * 2.5);
@@ -5558,6 +5562,7 @@ function glassGameLoop(){
       if(!isOccupiedInfinite(GX, jx, jy) && (jt!=='water' || canWater)){
         GX.px = GX.px + dx * 2.5; GX.py = GX.py + dy * 2.5;
         jumped = true;
+        GX._blockedFrames = 0;
         if(!GX._lastJumpToast || Date.now() - GX._lastJumpToast > 5000) {
           showToast("🤸 翻越障碍！");
           GX._lastJumpToast = Date.now();
@@ -5567,31 +5572,53 @@ function glassGameLoop(){
 
     if(!jumped) {
       if(!blocked){
+        GX._blockedFrames = 0;
         if(Math.floor(GX.px)!==Math.floor(nx)||Math.floor(GX.py)!==Math.floor(ny)){
           GX.steps++;
           if(GX.infiniteMode){EXPLORE_TRACK.totalSteps++;checkStepMilestones();}
         }
         GX.px=nx;GX.py=ny;
       } else {
-        // 滑动机制: 单轴移动侦测
-        const nx2 = GX.px + dx * GX.speed, ny2 = GX.py;
-        const tx2 = Math.round(nx2), ty2 = Math.round(ny2);
-        const tile2 = getGround(GX, tx2, ty2);
-        const blocked2 = !GX.ghostMode && ((tile2==='water'&&!canWater) || isOccupiedInfinite(GX,tx2,ty2));
+        GX._blockedFrames++;
         
-        if(!blocked2 && dx!==0){
-          GX.px = nx2;
+        // 连续受阻超过15帧 → 自动攀爬穿越
+        if(GX._blockedFrames > 15){
+          // 直接穿越障碍物 (强制移动)
+          if(Math.floor(GX.px)!==Math.floor(nx)||Math.floor(GX.py)!==Math.floor(ny)){
+            GX.steps++;
+            if(GX.infiniteMode){EXPLORE_TRACK.totalSteps++;checkStepMilestones();}
+          }
+          GX.px=nx;GX.py=ny;
+          if(!GX._lastClimbToast || Date.now() - GX._lastClimbToast > 8000){
+            showToast("🧗 攀越障碍中...");
+            GX._lastClimbToast = Date.now();
+          }
         } else {
-          const nx3 = GX.px, ny3 = GX.py + dy * GX.speed;
-          const tx3 = Math.round(nx3), ty3 = Math.round(ny3);
-          const tile3 = getGround(GX, tx3, ty3);
-          const blocked3 = !GX.ghostMode && ((tile3==='water'&&!canWater) || isOccupiedInfinite(GX,tx3,ty3));
-          if(!blocked3 && dy!==0){
-            GX.py = ny3;
+          // 滑动机制: 单轴移动侦测
+          const nx2 = GX.px + dx * GX.speed, ny2 = GX.py;
+          const tx2 = Math.round(nx2), ty2 = Math.round(ny2);
+          const tile2 = getGround(GX, tx2, ty2);
+          const blocked2 = !GX.ghostMode && ((tile2==='water'&&!canWater) || isOccupiedInfinite(GX,tx2,ty2));
+          
+          if(!blocked2 && dx!==0){
+            GX.px = nx2;
+            GX._blockedFrames = Math.max(0, GX._blockedFrames - 1);
+          } else {
+            const nx3 = GX.px, ny3 = GX.py + dy * GX.speed;
+            const tx3 = Math.round(nx3), ty3 = Math.round(ny3);
+            const tile3 = getGround(GX, tx3, ty3);
+            const blocked3 = !GX.ghostMode && ((tile3==='water'&&!canWater) || isOccupiedInfinite(GX,tx3,ty3));
+            if(!blocked3 && dy!==0){
+              GX.py = ny3;
+              GX._blockedFrames = Math.max(0, GX._blockedFrames - 1);
+            }
           }
         }
       }
     }
+  } else {
+    // 没有按方向键时重置受阻计数
+    if(GX._blockedFrames) GX._blockedFrames = 0;
   }
   GX.camX+=(GX.px-GX.camX)*0.06;
   GX.camY+=(GX.py-GX.camY)*0.06;

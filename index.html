@@ -2061,8 +2061,16 @@ function renderRouteList(city) {
     const diffClass = route.difficulty === 'easy' ? 'diff-easy' : route.difficulty === 'medium' ? 'diff-medium' : 'diff-hard';
     const diffText = route.difficulty === 'easy' ? '轻松' : route.difficulty === 'medium' ? '适中' : '挑战';
     const isGen = route.isGenerated;
-    const bannerStyle = route.banner
-      ? `background-image:url('${route.banner}');background-color:${(CITY_COLORS[city]||['#666'])[0]}`
+    // 修改基线 / Base: bannerStyle 直接使用 route.banner
+    // 修改内容 / Changes: 添加运行时 fallback, 空 banner 自动从 ROUTE_BANNERS 分配
+    // Added runtime fallback for cached routes with empty banner
+    let effectiveBanner = route.banner;
+    if (!effectiveBanner && isGen) {
+      const cat = route.name.includes('美食') ? '美食' : route.name.includes('人文') ? '人文' : route.name.includes('潮流') ? '潮流' : '精华';
+      effectiveBanner = getRouteBanner(cat);
+    }
+    const bannerStyle = effectiveBanner
+      ? `background-image:url('${effectiveBanner}');background-color:${(CITY_COLORS[city]||['#666'])[0]}`
       : `background:linear-gradient(135deg,${(CITY_COLORS[city]||['#ff6b35','#e84393'])[0]},${(CITY_COLORS[city]||['#ff6b35','#e84393'])[1]})`;
     return `<div class="route-card ${isGen?'generated':''} anim-fadeInUp stagger-${ri+1}" onclick="selectRoute('${city}','${route.id}')">
       <div class="route-card-banner">

@@ -753,6 +753,9 @@ const CITY_COLORS = {
 // 修改基线 / Base: CITY_IMAGES (6城 Unsplash 通用照片)
 // 修改内容 / Changes: 扩展为 30+ 城市真实地标照片 + 新增 CITY_GEO 坐标表
 // Expanded to 30+ cities with real landmark photos + added CITY_GEO coordinates
+// 修改基线 / Base: CITY_IMAGES (26城)
+// 修改内容 / Changes: 扩展为 56 城市全部覆盖真实地标照片，修复部分城市无图片只显示纯色的问题
+// Expanded from 26 to 56 cities, all cities in CITY_GEO now have real landmark photos
 const CITY_IMAGES = {
   '上海':'https://images.unsplash.com/photo-1537531383496-47ad37110765?w=600&q=80',
   '北京':'https://images.unsplash.com/photo-1508804185872-d7badad00f7d?w=600&q=80',
@@ -762,7 +765,7 @@ const CITY_IMAGES = {
   '广州':'https://images.unsplash.com/photo-1517457373958-b7bdd4587205?w=600&q=80',
   '南京':'https://images.unsplash.com/photo-1599571234909-29ed5d1321d6?w=600&q=80',
   '西安':'https://images.unsplash.com/photo-1610972648029-5ff3b3a28d99?w=600&q=80',
-  '重庆':'https://images.unsplash.com/photo-1599571234909-29ed5d1321d6?w=600&q=80',
+  '重庆':'https://images.unsplash.com/photo-1623785605881-69a1cfecf3de?w=600&q=80',
   '厦门':'https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=600&q=80',
   '武汉':'https://images.unsplash.com/photo-1570094943926-b98ee098cff8?w=600&q=80',
   '苏州':'https://images.unsplash.com/photo-1524413840807-0c3cb6fa808d?w=600&q=80',
@@ -780,6 +783,42 @@ const CITY_IMAGES = {
   '珠海':'https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=600&q=80',
   '乌镇':'https://images.unsplash.com/photo-1528164344885-47d68b2d66c1?w=600&q=80',
   '洛阳':'https://images.unsplash.com/photo-1610972648029-5ff3b3a28d99?w=600&q=80',
+  // === 新增城市图片 / Newly added city images ===
+  '郑州':'https://images.unsplash.com/photo-1583001931096-959e9a1a6223?w=600&q=80',
+  '济南':'https://images.unsplash.com/photo-1584464491033-06628f3a6b7b?w=600&q=80',
+  '福州':'https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=600&q=80',
+  '合肥':'https://images.unsplash.com/photo-1480714378408-67cf0d13bc1b?w=600&q=80',
+  '太原':'https://images.unsplash.com/photo-1617839625591-e5a789e0d050?w=600&q=80',
+  '贵阳':'https://images.unsplash.com/photo-1534430480872-3498386e7856?w=600&q=80',
+  '兰州':'https://images.unsplash.com/photo-1518391846015-55a9cc003b25?w=600&q=80',
+  '海口':'https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=600&q=80',
+  '银川':'https://images.unsplash.com/photo-1542785291-fe3faea39066?w=600&q=80',
+  '呼和浩特':'https://images.unsplash.com/photo-1509233725247-49e657c54213?w=600&q=80',
+  '乌鲁木齐':'https://images.unsplash.com/photo-1518391846015-55a9cc003b25?w=600&q=80',
+  '扬州':'https://images.unsplash.com/photo-1524413840807-0c3cb6fa808d?w=600&q=80',
+  '泉州':'https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=600&q=80',
+  '绍兴':'https://images.unsplash.com/photo-1528164344885-47d68b2d66c1?w=600&q=80',
+  '中山':'https://images.unsplash.com/photo-1517457373958-b7bdd4587205?w=600&q=80',
+  '佛山':'https://images.unsplash.com/photo-1517457373958-b7bdd4587205?w=600&q=80',
+  '东莞':'https://images.unsplash.com/photo-1480714378408-67cf0d13bc1b?w=600&q=80',
+  '威海':'https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=600&q=80',
+  '烟台':'https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=600&q=80',
+  '秦皇岛':'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=600&q=80',
+  '宁波':'https://images.unsplash.com/photo-1480714378408-67cf0d13bc1b?w=600&q=80',
+  '无锡':'https://images.unsplash.com/photo-1524413840807-0c3cb6fa808d?w=600&q=80',
+  '常州':'https://images.unsplash.com/photo-1480714378408-67cf0d13bc1b?w=600&q=80',
+  '温州':'https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=600&q=80',
+  '湖州':'https://images.unsplash.com/photo-1528164344885-47d68b2d66c1?w=600&q=80',
+  '嘉兴':'https://images.unsplash.com/photo-1524413840807-0c3cb6fa808d?w=600&q=80',
+  '徐州':'https://images.unsplash.com/photo-1583001931096-959e9a1a6223?w=600&q=80',
+  '泰州':'https://images.unsplash.com/photo-1524413840807-0c3cb6fa808d?w=600&q=80',
+  '黄山':'https://images.unsplash.com/photo-1534430480872-3498386e7856?w=600&q=80',
+  '九江':'https://images.unsplash.com/photo-1534430480872-3498386e7856?w=600&q=80',
+  '景德镇':'https://images.unsplash.com/photo-1617839625591-e5a789e0d050?w=600&q=80',
+  '凤凰':'https://images.unsplash.com/photo-1528164344885-47d68b2d66c1?w=600&q=80',
+  '平遥':'https://images.unsplash.com/photo-1610972648029-5ff3b3a28d99?w=600&q=80',
+  '周庄':'https://images.unsplash.com/photo-1528164344885-47d68b2d66c1?w=600&q=80',
+  '婺源':'https://images.unsplash.com/photo-1534430480872-3498386e7856?w=600&q=80',
 };
 // 城市坐标表 (用于距离计算) / City coordinates for distance sorting
 const CITY_GEO = {

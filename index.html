@@ -4,8 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>漫步城市 · CityWalk</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Sans+SC:wght@300;400;500;700;900&display=swap" rel="stylesheet">
 <style>
 /* === RESET & BASE === */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -17,8 +15,8 @@
   --radius:16px;--radius-sm:10px;--radius-xs:6px;
   --shadow:0 8px 32px rgba(26,26,46,.12);
   --shadow-lg:0 16px 48px rgba(26,26,46,.18);
-  --font-display:'Ma Shan Zheng',cursive;
-  --font-body:'Noto Sans SC',system-ui,sans-serif;
+  --font-display:'STKaiti','KaiTi','Kaiti SC','Songti SC','Noto Serif SC',serif;
+  --font-body:'PingFang SC','Hiragino Sans GB','Microsoft YaHei','Source Han Sans SC',system-ui,sans-serif;
 }
 html{font-size:16px;scroll-behavior:smooth}
 body{font-family:var(--font-body);background:var(--paper);color:var(--ink);overflow-x:hidden;-webkit-font-smoothing:antialiased}
@@ -5962,6 +5960,7 @@ function closeExplore() {
 function renderExploreMap() {
   const level = getExploreLevel();
   document.getElementById('exploreLevelBadge').textContent = `Lv.${level.level} ${level.name}`;
+  const mapContainer = document.getElementById('exploreMapContainer');
 
   // Stats
   document.getElementById('exploreStatsRow').innerHTML = `
@@ -5977,6 +5976,44 @@ function renderExploreMap() {
       <div class="e-num">${EXPLORE_CITIES.length}</div>
       <div class="e-lbl">全部城市</div>
     </div>`;
+
+  mapContainer.innerHTML = `
+    <svg viewBox="0 0 100 90" aria-label="中国城市探索版图" role="img">
+      <defs>
+        <linearGradient id="exploreBg" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="rgba(116,185,255,.18)"/>
+          <stop offset="100%" stop-color="rgba(0,184,148,.1)"/>
+        </linearGradient>
+      </defs>
+      <path d="M14 18 C25 10, 40 10, 52 18 S75 26, 84 36 S85 62, 74 70 S52 80, 34 74 S14 58, 12 44 S8 26, 14 18 Z"
+            fill="url(#exploreBg)"
+            stroke="rgba(26,26,46,.08)"
+            stroke-width="0.6" />
+      ${CITY_EDGES.map(([from, to]) => {
+        const a = EXPLORE_CITIES.find(city => city.name === from);
+        const b = EXPLORE_CITIES.find(city => city.name === to);
+        if (!a || !b) return '';
+        const aStatus = getCityExploreStatus(from);
+        const bStatus = getCityExploreStatus(to);
+        const cls = aStatus === 'completed' && bStatus === 'completed'
+          ? 'completed'
+          : (aStatus !== 'locked' && bStatus !== 'locked' ? 'active' : '');
+        return `<line class="edge-line ${cls}" x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" />`;
+      }).join('')}
+      ${EXPLORE_CITIES.map(city => {
+        const status = getCityExploreStatus(city.name);
+        const core = status === 'completed' ? '#00b894' : status === 'unlocked' ? '#ff6b35' : 'rgba(26,26,46,.22)';
+        const glow = status === 'completed' ? 'rgba(0,184,148,.22)' : status === 'unlocked' ? 'rgba(255,107,53,.2)' : 'rgba(26,26,46,.06)';
+        return `
+          <g class="city-node ${status}" onclick="onExploreCityClick('${city.name}')" aria-label="${city.name}">
+            <circle class="node-glow" cx="${city.x}" cy="${city.y}" r="18" fill="${glow}"></circle>
+            <circle class="node-ring" cx="${city.x}" cy="${city.y}" r="12" fill="rgba(255,255,255,.88)" stroke="${core}" stroke-width="2"></circle>
+            <circle class="node-core" cx="${city.x}" cy="${city.y}" r="8" fill="${core}"></circle>
+            <text x="${city.x}" y="${city.y + 1}" text-anchor="middle" font-size="6">${city.emoji}</text>
+            <text x="${city.x}" y="${city.y + 17}" text-anchor="middle" font-size="3.2" fill="rgba(26,26,46,.72)" style="font-family:var(--font-body);font-weight:700">${city.name}</text>
+          </g>`;
+      }).join('')}
+    </svg>`;
 
   // City detail cards
   const detail = document.getElementById('exploreCityDetail');
@@ -6082,14 +6119,13 @@ function createParticles() {
 // 修改基线 / Base: index.html HEAD (693dc51)
 // 修改内容 / Changes: 恢复被截断的初始化代码 (enterApp, DOMContentLoaded, AMap script)
 // 修改基线 / Base: enterApp 原始版本
-// 修改内容 / Changes: 进入 App 后自动检测附近城市
-// Added auto-detect nearby cities on app enter
+// 修改内容 / Changes: 首页启动保持稳定，只渲染城市与推荐，不自动定位或改写布局
+// Keep app entry stable: render city list and quick recommendations without auto-location
 function enterApp() {
   document.getElementById('splashScreen').classList.add('hidden');
   showView('citySelect');
   renderCities();
-  // 异步检测附近城市，仅用于排序，不自动生成路线
-  setTimeout(() => autoDetectNearbyCities(), 500);
+  refreshQuickCities();
 }
 // Boot sequence
 window.addEventListener('DOMContentLoaded', () => {

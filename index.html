@@ -23,16 +23,6 @@ body{font-family:var(--font-body);background:var(--paper);color:var(--ink);overf
 button{font-family:inherit;cursor:pointer;border:none;background:none}
 input{font-family:inherit;border:none;outline:none}
 /* === PLACEHOLDER SECTIONS — will be filled via Edit === */
-/* === LOADING SCREEN === */
-.loading-screen{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;flex-direction:column;background:linear-gradient(135deg,#1a1a2e 0%,#2d2d4a 40%,#16213e 100%);transition:opacity .6s,visibility .6s}
-.loading-screen.hidden{opacity:0;visibility:hidden;pointer-events:none}
-.loading-logo{font-family:var(--font-display);font-size:3rem;color:var(--paper);letter-spacing:.1em;animation:breathe 2s ease-in-out infinite}
-.loading-sub{color:rgba(248,245,240,.5);font-size:.85rem;margin-top:12px;letter-spacing:.3em;text-transform:uppercase}
-.loading-dots{display:flex;gap:8px;margin-top:28px}
-.loading-dots span{width:8px;height:8px;border-radius:50%;background:var(--accent);animation:dotPulse 1.4s ease-in-out infinite}
-.loading-dots span:nth-child(2){animation-delay:.2s}
-.loading-dots span:nth-child(3){animation-delay:.4s}
-@keyframes dotPulse{0%,80%,100%{transform:scale(.4);opacity:.3}40%{transform:scale(1);opacity:1}}
 @keyframes breathe{0%,100%{opacity:.8;transform:scale(1)}50%{opacity:1;transform:scale(1.03)}}
 /* === SPLASH / HERO === */
 .splash{position:fixed;inset:0;z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(160deg,#1a1a2e 0%,#2d2d4a 30%,#16213e 60%,#0f3460 100%);overflow:hidden;transition:opacity .8s,transform .8s}
@@ -441,13 +431,6 @@ input{font-family:inherit;border:none;outline:none}
 <body>
 <!-- App Shell -->
 <div id="app">
-  <!-- Loading -->
-  <div class="loading-screen" id="loadingScreen">
-    <div class="loading-logo">漫步城市</div>
-    <div class="loading-sub">CITYWALK</div>
-    <div class="loading-dots"><span></span><span></span><span></span></div>
-  </div>
-
   <!-- Splash -->
   <div class="splash" id="splashScreen">
     <div class="splash-particles" id="particles"></div>
@@ -758,12 +741,12 @@ const CITY_IMAGES = {
   '上海':'https://images.unsplash.com/photo-1548919973-5cef591cdbc9?w=900&q=80',
   '北京':'https://images.unsplash.com/photo-1508804185872-d7badad00f7d?w=900&q=80',
   '广州':'https://images.unsplash.com/photo-1517457373958-b7bdd4587205?w=900&q=80',
-  '深圳':'https://images.unsplash.com/photo-1541437516679-8e0dde9bc222?w=900&q=80',
+  '深圳':'https://images.unsplash.com/photo-1513622470522-26c3c8a854bc?w=900&q=80',
   '杭州':'https://images.unsplash.com/photo-1599571234909-29ed5d1321d6?w=900&q=80',
   '长沙':'https://images.unsplash.com/photo-1516912481808-3406841bd33c?w=900&q=80',
-  '成都':'https://images.unsplash.com/photo-1590103514966-5e2a11c13b52?w=900&q=80',
-  '重庆':'https://images.unsplash.com/photo-1623785605881-69a1cfecf3de?w=900&q=80',
-  '西安':'https://images.unsplash.com/photo-1610972648029-5ff3b3a28d99?w=900&q=80'
+  '成都':'https://images.unsplash.com/photo-1545569341-9eb8b30979d9?w=900&q=80',
+  '重庆':'https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=900&q=80',
+  '西安':'https://images.unsplash.com/photo-1580192985016-7e15ef081dd8?w=900&q=80'
 };
 // 路线 Banner 图片池 / Route banner image pool by category
 // 修改基线 / Base: 新增代码
@@ -781,7 +764,7 @@ const ROUTE_BANNERS = {
     'https://images.unsplash.com/photo-1533929736458-ca588d08c8be?w=600&q=80',
     'https://images.unsplash.com/photo-1545569341-9eb8b30979d9?w=600&q=80',
     'https://images.unsplash.com/photo-1547981609-4b6bfe67ca0b?w=600&q=80',
-    'https://images.unsplash.com/photo-1617839625591-e5a789e0d050?w=600&q=80',
+    'https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=600&q=80',
     'https://images.unsplash.com/photo-1580192985016-7e15ef081dd8?w=600&q=80'
   ],
   '美食': [
@@ -810,23 +793,23 @@ function getRouteCategory(route) {
   if (/潮流|拍照|出片|网红|购物|商场/.test(text)) return '潮流';
   return '精华';
 }
-function proxifyImageUrl(url) {
+function proxifyImageUrl(url, label = 'CityWalk') {
   if (!url || url.startsWith('/api/image-proxy')) return url;
-  if (/^https?:\/\//i.test(url)) return `/api/image-proxy?url=${encodeURIComponent(url)}`;
+  if (/^https?:\/\//i.test(url)) return `/api/image-proxy?url=${encodeURIComponent(url)}&label=${encodeURIComponent(label)}`;
   return url;
 }
 function getRouteBannerImage(route) {
-  if (route?.banner) return proxifyImageUrl(route.banner);
-  return proxifyImageUrl(getRouteBanner(getRouteCategory(route)));
+  if (route?.banner) return proxifyImageUrl(route.banner, route.name || 'CityWalk');
+  return proxifyImageUrl(getRouteBanner(getRouteCategory(route)), route?.name || 'CityWalk');
 }
 // 为不在 CITY_IMAGES 中的动态城市提供一致的 fallback 图片，如果有按需抓取的图片则优先使用
 function getCityImage(city) {
-  if (DYNAMIC_CITIES[city] && DYNAMIC_CITIES[city].bgUrl) return proxifyImageUrl(DYNAMIC_CITIES[city].bgUrl);
-  if (CITY_IMAGES[city]) return proxifyImageUrl(CITY_IMAGES[city]);
+  if (DYNAMIC_CITIES[city] && DYNAMIC_CITIES[city].bgUrl) return proxifyImageUrl(DYNAMIC_CITIES[city].bgUrl, city);
+  if (CITY_IMAGES[city]) return proxifyImageUrl(CITY_IMAGES[city], city);
   let hash = 0;
   for(let i=0; i<city.length; i++) hash += city.charCodeAt(i);
   const pool = ROUTE_BANNERS['精华'];
-  return proxifyImageUrl(pool[hash % pool.length]);
+  return proxifyImageUrl(pool[hash % pool.length], city);
 }
 
 // 异步获取真实图片覆盖 (Crawler integration)
@@ -922,7 +905,7 @@ const MOCK_DATA = {
        {name:'巨鹿路',type:'潮流街区',desc:'网红店密集，vintage古着店探索之旅',lat:31.2125,lng:121.4455,color:'#fdcb6e'},
        {name:'思南公馆',type:'历史建筑群',desc:'花园洋房里的下午茶，感受海派生活美学',lat:31.2140,lng:121.4480,color:'#74b9ff'}
      ]},
-    {id:'sh2',name:'外滩到城隍庙探味',banner:'https://images.unsplash.com/photo-1474181628612-1048006d5feb?w=600&q=80',
+    {id:'sh2',name:'外滩到城隍庙探味',banner:'https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=600&q=80',
      desc:'从十里洋场到烟火人间，一条路线吃遍上海味道。万国建筑群到豫园九曲桥，经典不容错过。',
      difficulty:'easy',season:'四季',duration:'4-5h',distance:'4.8km',
      points:[
@@ -934,7 +917,7 @@ const MOCK_DATA = {
        {name:'城隍庙美食广场',type:'美食区',desc:'南翔小笼、蟹粉生煎…上海味道集大成之处',lat:31.2260,lng:121.4930,color:'#fd79a8'},
        {name:'老码头',type:'创意园区',desc:'百年老仓库改造的时尚创意空间',lat:31.2240,lng:121.4960,color:'#74b9ff'}
      ]},
-    {id:'sh3',name:'苏州河畔艺术巡礼',banner:'https://images.unsplash.com/photo-1506158722652-12e95ebbc643?w=600&q=80',
+    {id:'sh3',name:'苏州河畔艺术巡礼',banner:'https://images.unsplash.com/photo-1533929736458-ca588d08c8be?w=600&q=80',
      desc:'沿苏州河畔的当代艺术之旅。从M50到梦想公园，探索这座城市最有活力的创意地带。',
      difficulty:'medium',season:'春秋',duration:'5-6h',distance:'7.1km',
      points:[
@@ -989,7 +972,7 @@ const MOCK_DATA = {
 '成都':{
   slogan:'巴适得很的慢生活',
   routes:[
-    {id:'cd1',name:'太古里-宽窄巷子潮流线',banner:'https://images.unsplash.com/photo-1590103514966-5e2a11c13b52?w=600&q=80',
+    {id:'cd1',name:'太古里-宽窄巷子潮流线',banner:'https://images.unsplash.com/photo-1513622470522-26c3c8a854bc?w=600&q=80',
      desc:'从最潮的太古里到最古的宽窄巷子，一条路线打卡成都的新与旧。火锅、盖碗茶、采耳一条龙。',
      difficulty:'easy',season:'四季',duration:'4-5h',distance:'4.2km',
      points:[
@@ -6131,10 +6114,6 @@ function enterApp() {
 // Boot sequence
 window.addEventListener('DOMContentLoaded', () => {
   createParticles();
-  // Simulate loading
-  setTimeout(() => {
-    document.getElementById('loadingScreen').classList.add('hidden');
-  }, 1200);
 });
 </script>
 <script type="text/javascript">

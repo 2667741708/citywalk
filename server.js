@@ -74,6 +74,32 @@ function scoreImageUrl(url, query) {
   if (/food|dish|restaurant|cafe|美食|咖啡/.test(value)) score += 2;
   return score;
 }
+function buildFallbackSvg(label = 'CityWalk') {
+  const safeLabel = String(label).replace(/[<>&'"]/g, '');
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800">
+      <defs>
+        <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#ff6b35"/>
+          <stop offset="55%" stop-color="#e84393"/>
+          <stop offset="100%" stop-color="#1f3c88"/>
+        </linearGradient>
+      </defs>
+      <rect width="1200" height="800" rx="36" fill="url(#bg)"/>
+      <circle cx="980" cy="160" r="120" fill="rgba(255,255,255,.08)"/>
+      <circle cx="220" cy="640" r="160" fill="rgba(255,255,255,.08)"/>
+      <text x="96" y="132" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="34" fill="rgba(255,255,255,.78)">CityWalk Fallback</text>
+      <text x="96" y="420" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="84" font-weight="700" fill="#ffffff">${safeLabel}</text>
+      <text x="96" y="488" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="34" fill="rgba(255,255,255,.82)">图片暂时不可用，已切换为站内占位图</text>
+    </svg>`;
+  return Buffer.from(svg);
+}
+function sendFallbackImage(res, label) {
+  res.status(200);
+  res.setHeader('Content-Type', 'image/svg+xml; charset=utf-8');
+  res.setHeader('Cache-Control', 'public, max-age=3600, s-maxage=3600');
+  res.send(buildFallbackSvg(label));
+}
 
 // ============================================================
 // 1. 天气 API / Weather API (wttr.in 免费服务)
@@ -166,7 +192,7 @@ app.get('/api/image-search', async (req, res) => {
 
 app.get('/api/image-proxy', async (req, res) => {
   try {
-    const { url } = req.query;
+    const { url, label } = req.query;
     const target = normalizeImageCandidate(url);
     if (!target) return res.status(400).json({ error: '缺少 url 参数' });
     if (!isAllowedImageUrl(target)) return res.status(400).json({ error: '图片地址不受支持' });
@@ -183,14 +209,10 @@ app.get('/api/image-proxy', async (req, res) => {
     });
     clearTimeout(timeout);
 
-    if (!response.ok) {
-      return res.status(response.status).json({ error: '远程图片获取失败', detail: `HTTP ${response.status}` });
-    }
+    if (!response.ok) return sendFallbackImage(res, label);
 
     const contentType = response.headers.get('content-type') || '';
-    if (!contentType.startsWith('image/')) {
-      return res.status(415).json({ error: '远程资源不是图片', detail: contentType });
-    }
+    if (!contentType.startsWith('image/')) return sendFallbackImage(res, label);
 
     const buffer = Buffer.from(await response.arrayBuffer());
     res.setHeader('Content-Type', contentType);
@@ -198,7 +220,7 @@ app.get('/api/image-proxy', async (req, res) => {
     res.send(buffer);
   } catch (err) {
     console.error('[Image Proxy Error]', err.message);
-    res.status(500).json({ error: '图片代理失败', detail: err.message });
+    sendFallbackImage(res, req.query.label);
   }
 });
 

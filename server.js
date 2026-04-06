@@ -46,6 +46,34 @@ async function fetchText(url) {
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.text();
 }
+function normalizeImageCandidate(url) {
+  if (!url) return '';
+  return url
+    .replace(/\\u002f/g, '/')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/^"+|"+$/g, '');
+}
+function isAllowedImageUrl(url) {
+  try {
+    const parsed = new URL(url);
+    if (!['http:', 'https:'].includes(parsed.protocol)) return false;
+    const blockedHosts = ['vjshi.com', '699pic.com', '58pic.com', 'nipic.com', 'duitang.com'];
+    if (blockedHosts.some(host => parsed.hostname.includes(host))) return false;
+    if (/watermark|logo|avatar|icon|sprite/i.test(parsed.pathname + parsed.search)) return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
+function scoreImageUrl(url, query) {
+  let score = 0;
+  const value = `${url} ${query}`.toLowerCase();
+  if (/unsplash|pexels|pixabay|tripadvisor|booking|qyer|mafengwo|ctrip|amap|meituan|bcebos|alicdn|douyinpic/.test(value)) score += 4;
+  if (/city|travel|landmark|scenic|aerial|skyline|风景|地标|城市/.test(value)) score += 3;
+  if (/food|dish|restaurant|cafe|美食|咖啡/.test(value)) score += 2;
+  return score;
+}
 
 // ============================================================
 // 1. 天气 API / Weather API (wttr.in 免费服务)
@@ -126,13 +154,51 @@ app.get('/api/image-search', async (req, res) => {
       while ((match = regex2.exec(html)) !== null) urls.push(match[1]);
     }
 
-    // Filter out common watermarked or blocked domains
-    urls = urls.filter(u => !u.includes('vjshi.com') && !u.includes('watermark'));
+    urls = [...new Set(urls.map(normalizeImageCandidate).filter(isAllowedImageUrl))]
+      .sort((a, b) => scoreImageUrl(b, q) - scoreImageUrl(a, q));
 
     res.json({ success: true, urls: urls.slice(0, 5) });
   } catch (err) {
     console.error('[Image Search Error]', err.message);
     res.status(500).json({ error: '图片搜索失败', detail: err.message });
+  }
+});
+
+app.get('/api/image-proxy', async (req, res) => {
+  try {
+    const { url } = req.query;
+    const target = normalizeImageCandidate(url);
+    if (!target) return res.status(400).json({ error: '缺少 url 参数' });
+    if (!isAllowedImageUrl(target)) return res.status(400).json({ error: '图片地址不受支持' });
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 12000);
+    const response = await fetch(target, {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+        'Referer': 'https://www.bing.com/'
+      }
+    });
+    clearTimeout(timeout);
+
+    if (!response.ok) {
+      return res.status(response.status).json({ error: '远程图片获取失败', detail: `HTTP ${response.status}` });
+    }
+
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.startsWith('image/')) {
+      return res.status(415).json({ error: '远程资源不是图片', detail: contentType });
+    }
+
+    const buffer = Buffer.from(await response.arrayBuffer());
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Cache-Control', 'public, max-age=86400, s-maxage=86400');
+    res.send(buffer);
+  } catch (err) {
+    console.error('[Image Proxy Error]', err.message);
+    res.status(500).json({ error: '图片代理失败', detail: err.message });
   }
 });
 

@@ -757,68 +757,14 @@ const CITY_COLORS = {
 // 修改内容 / Changes: 扩展为 56 城市全部覆盖真实地标照片，修复部分城市无图片只显示纯色的问题
 // Expanded from 26 to 56 cities, all cities in CITY_GEO now have real landmark photos
 const CITY_IMAGES = {
-  '上海':'https://images.unsplash.com/photo-1537531383496-47ad37110765?w=600&q=80',
-  '北京':'https://images.unsplash.com/photo-1508804185872-d7badad00f7d?w=600&q=80',
-  '成都':'https://images.unsplash.com/photo-1590103514966-5e2a11c13b52?w=600&q=80',
-  '杭州':'https://images.unsplash.com/photo-1599571234909-29ed5d1321d6?w=600&q=80',
-  '长沙':'https://images.unsplash.com/photo-1516912481808-3406841bd33c?w=600&q=80',
-  '广州':'https://images.unsplash.com/photo-1517457373958-b7bdd4587205?w=600&q=80',
-  '南京':'https://images.unsplash.com/photo-1599571234909-29ed5d1321d6?w=600&q=80',
-  '西安':'https://images.unsplash.com/photo-1610972648029-5ff3b3a28d99?w=600&q=80',
-  '重庆':'https://images.unsplash.com/photo-1623785605881-69a1cfecf3de?w=600&q=80',
-  '厦门':'https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=600&q=80',
-  '武汉':'https://images.unsplash.com/photo-1570094943926-b98ee098cff8?w=600&q=80',
-  '苏州':'https://images.unsplash.com/photo-1524413840807-0c3cb6fa808d?w=600&q=80',
-  '深圳':'https://images.unsplash.com/photo-1541437516679-8e0dde9bc222?w=600&q=80',
-  '青岛':'https://images.unsplash.com/photo-1569839333583-7375f3db4d9a?w=600&q=80',
-  '昆明':'https://images.unsplash.com/photo-1558431382-27e303142255?w=600&q=80',
-  '桂林':'https://images.unsplash.com/photo-1529921879218-f99546d03e32?w=600&q=80',
-  '三亚':'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=600&q=80',
-  '大理':'https://images.unsplash.com/photo-1580100586938-02822d99c4a8?w=600&q=80',
-  '丽江':'https://images.unsplash.com/photo-1528164344885-47d68b2d66c1?w=600&q=80',
-  '拉萨':'https://images.unsplash.com/photo-1586003403747-6d42abffa3a6?w=600&q=80',
-  '天津':'https://images.unsplash.com/photo-1573537727716-3d4c8f87e2c5?w=600&q=80',
-  '哈尔滨':'https://images.unsplash.com/photo-1548625462-68c4db2a4e36?w=600&q=80',
-  '大连':'https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=600&q=80',
-  '珠海':'https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=600&q=80',
-  '乌镇':'https://images.unsplash.com/photo-1528164344885-47d68b2d66c1?w=600&q=80',
-  '洛阳':'https://images.unsplash.com/photo-1610972648029-5ff3b3a28d99?w=600&q=80',
-  // === 新增城市图片 / Newly added city images ===
-  '郑州':'https://images.unsplash.com/photo-1583001931096-959e9a1a6223?w=600&q=80',
-  '济南':'https://images.unsplash.com/photo-1584464491033-06628f3a6b7b?w=600&q=80',
-  '福州':'https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=600&q=80',
-  '合肥':'https://images.unsplash.com/photo-1480714378408-67cf0d13bc1b?w=600&q=80',
-  '太原':'https://images.unsplash.com/photo-1617839625591-e5a789e0d050?w=600&q=80',
-  '贵阳':'https://images.unsplash.com/photo-1534430480872-3498386e7856?w=600&q=80',
-  '兰州':'https://images.unsplash.com/photo-1518391846015-55a9cc003b25?w=600&q=80',
-  '海口':'https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=600&q=80',
-  '银川':'https://images.unsplash.com/photo-1542785291-fe3faea39066?w=600&q=80',
-  '呼和浩特':'https://images.unsplash.com/photo-1509233725247-49e657c54213?w=600&q=80',
-  '乌鲁木齐':'https://images.unsplash.com/photo-1518391846015-55a9cc003b25?w=600&q=80',
-  '扬州':'https://images.unsplash.com/photo-1524413840807-0c3cb6fa808d?w=600&q=80',
-  '泉州':'https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=600&q=80',
-  '绍兴':'https://images.unsplash.com/photo-1528164344885-47d68b2d66c1?w=600&q=80',
-  '中山':'https://images.unsplash.com/photo-1517457373958-b7bdd4587205?w=600&q=80',
-  '佛山':'https://images.unsplash.com/photo-1517457373958-b7bdd4587205?w=600&q=80',
-  '东莞':'https://images.unsplash.com/photo-1480714378408-67cf0d13bc1b?w=600&q=80',
-  '威海':'https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=600&q=80',
-  '烟台':'https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=600&q=80',
-  '秦皇岛':'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=600&q=80',
-  '宁波':'https://images.unsplash.com/photo-1480714378408-67cf0d13bc1b?w=600&q=80',
-  '无锡':'https://images.unsplash.com/photo-1524413840807-0c3cb6fa808d?w=600&q=80',
-  '常州':'https://images.unsplash.com/photo-1480714378408-67cf0d13bc1b?w=600&q=80',
-  '温州':'https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=600&q=80',
-  '湖州':'https://images.unsplash.com/photo-1528164344885-47d68b2d66c1?w=600&q=80',
-  '嘉兴':'https://images.unsplash.com/photo-1524413840807-0c3cb6fa808d?w=600&q=80',
-  '徐州':'https://images.unsplash.com/photo-1583001931096-959e9a1a6223?w=600&q=80',
-  '泰州':'https://images.unsplash.com/photo-1524413840807-0c3cb6fa808d?w=600&q=80',
-  '黄山':'https://images.unsplash.com/photo-1534430480872-3498386e7856?w=600&q=80',
-  '九江':'https://images.unsplash.com/photo-1534430480872-3498386e7856?w=600&q=80',
-  '景德镇':'https://images.unsplash.com/photo-1617839625591-e5a789e0d050?w=600&q=80',
-  '凤凰':'https://images.unsplash.com/photo-1528164344885-47d68b2d66c1?w=600&q=80',
-  '平遥':'https://images.unsplash.com/photo-1610972648029-5ff3b3a28d99?w=600&q=80',
-  '周庄':'https://images.unsplash.com/photo-1528164344885-47d68b2d66c1?w=600&q=80',
-  '婺源':'https://images.unsplash.com/photo-1534430480872-3498386e7856?w=600&q=80',
+  '上海':'https://images.unsplash.com/photo-1537531383496-47ad37110765?w=900&q=80',
+  '北京':'https://images.unsplash.com/photo-1508804185872-d7badad00f7d?w=900&q=80',
+  '广州':'https://images.unsplash.com/photo-1517457373958-b7bdd4587205?w=900&q=80',
+  '深圳':'https://images.unsplash.com/photo-1541437516679-8e0dde9bc222?w=900&q=80',
+  '杭州':'https://images.unsplash.com/photo-1599571234909-29ed5d1321d6?w=900&q=80',
+  '成都':'https://images.unsplash.com/photo-1590103514966-5e2a11c13b52?w=900&q=80',
+  '重庆':'https://images.unsplash.com/photo-1623785605881-69a1cfecf3de?w=900&q=80',
+  '西安':'https://images.unsplash.com/photo-1610972648029-5ff3b3a28d99?w=900&q=80'
 };
 // 路线 Banner 图片池 / Route banner image pool by category
 // 修改基线 / Base: 新增代码
@@ -858,28 +804,47 @@ function getRouteBanner(category) {
   const pool = ROUTE_BANNERS[category] || ROUTE_BANNERS['精华'];
   return pool[Math.floor(Math.random() * pool.length)];
 }
+function getRouteCategory(route) {
+  const text = `${route?.name || ''} ${route?.desc || ''}`;
+  if (/美食|夜宵|早餐|咖啡/.test(text)) return '美食';
+  if (/人文|博物馆|历史|古城|书店|展览/.test(text)) return '人文';
+  if (/潮流|拍照|出片|网红|购物|商场/.test(text)) return '潮流';
+  return '精华';
+}
+function proxifyImageUrl(url) {
+  if (!url || url.startsWith('/api/image-proxy')) return url;
+  if (/^https?:\/\//i.test(url)) return `/api/image-proxy?url=${encodeURIComponent(url)}`;
+  return url;
+}
+function getRouteBannerImage(route) {
+  if (route?.banner) return proxifyImageUrl(route.banner);
+  return proxifyImageUrl(getRouteBanner(getRouteCategory(route)));
+}
 // 为不在 CITY_IMAGES 中的动态城市提供一致的 fallback 图片，如果有按需抓取的图片则优先使用
 function getCityImage(city) {
-  if (CITY_IMAGES[city]) return CITY_IMAGES[city];
-  if (DYNAMIC_CITIES[city] && DYNAMIC_CITIES[city].bgUrl) return DYNAMIC_CITIES[city].bgUrl;
+  if (DYNAMIC_CITIES[city] && DYNAMIC_CITIES[city].bgUrl) return proxifyImageUrl(DYNAMIC_CITIES[city].bgUrl);
+  if (CITY_IMAGES[city]) return proxifyImageUrl(CITY_IMAGES[city]);
   let hash = 0;
   for(let i=0; i<city.length; i++) hash += city.charCodeAt(i);
   const pool = ROUTE_BANNERS['精华'];
-  return pool[hash % pool.length];
+  return proxifyImageUrl(pool[hash % pool.length]);
 }
 
 // 异步获取真实图片覆盖 (Crawler integration)
 async function fetchDynamicImages(city, routes) {
   try {
+    if (!DYNAMIC_CITIES[city]) return;
     // 1. 获取城市首页背景图
-    if (!CITY_IMAGES[city] && (!DYNAMIC_CITIES[city].bgUrl || DYNAMIC_CITIES[city].bgUrl.includes('unsplash'))) {
+    if (!DYNAMIC_CITIES[city].bgUrl || DYNAMIC_CITIES[city].bgSource !== 'dynamic') {
       fetch(`/api/image-search?q=${encodeURIComponent(city + ' 城市风光 地标 航拍 高清')}`)
       .then(r => r.json())
       .then(data => {
         if(data.success && data.urls.length>0) {
           DYNAMIC_CITIES[city].bgUrl = data.urls[0];
+          DYNAMIC_CITIES[city].bgSource = 'dynamic';
+          DYNAMIC_CITIES[city].bgUpdatedAt = Date.now();
           saveDynamicCities();
-          renderCities(document.querySelector('.search-bar input').value);
+          renderCities(document.getElementById('citySearch')?.value || '');
           if(APP.selectedCity === city) renderRouteList(city);
         }
       });
@@ -888,13 +853,14 @@ async function fetchDynamicImages(city, routes) {
     // 2. 获取路线的背景图
     (routes || []).forEach(route => {
       // 随机骰子路线也使用这个机制抓取真实图片
-      if (!route.banner || route.banner.includes('unsplash')) {
-        let q = city + ' ' + (route.name.replace(/🎲/g, '').trim()) + ' 风景 高清';
+      if (!route.banner || route.bannerSource !== 'dynamic') {
+        let q = city + ' ' + (route.name.replace(/🎲/g, '').trim()) + ' ' + getRouteCategory(route) + ' 地标 风景 高清';
         fetch(`/api/image-search?q=${encodeURIComponent(q)}`)
         .then(r => r.json())
         .then(data => {
           if(data.success && data.urls.length>0) {
             route.banner = data.urls[0];
+            route.bannerSource = 'dynamic';
             saveDynamicCities();
             if(APP.selectedCity === city) renderRouteList(city);
           }
@@ -1613,7 +1579,8 @@ async function discoverCity(cityName) {
     // 为路线添加 banner 图
     routeData.routes.forEach((r, i) => {
       if (!r.banner) {
-        r.banner = `https://images.unsplash.com/photo-${1500000000000 + i * 100}?w=600&q=80`;
+        r.banner = getRouteBanner(getRouteCategory(r));
+        r.bannerSource = 'fallback';
       }
       // 确保 points 有 color
       (r.points || []).forEach((p, pi) => {
@@ -1625,6 +1592,7 @@ async function discoverCity(cityName) {
     DYNAMIC_CITIES[cityName] = {
       slogan: routeData.slogan || '等你来发现',
       routes: routeData.routes,
+      bgSource: 'fallback',
     };
     saveDynamicCities();
     if (!CITY_COLORS[cityName]) {
@@ -2115,11 +2083,7 @@ function renderRouteList(city) {
     // 修改基线 / Base: bannerStyle 直接使用 route.banner
     // 修改内容 / Changes: 添加运行时 fallback, 空 banner 自动从 ROUTE_BANNERS 分配，取消 isGen 限制确保所有路线都有图
     // Added runtime fallback for cached routes with empty banner
-    let effectiveBanner = route.banner;
-    if (!effectiveBanner) {
-      const cat = route.name.includes('美食') ? '美食' : route.name.includes('人文') ? '人文' : route.name.includes('潮流') ? '潮流' : '精华';
-      effectiveBanner = getRouteBanner(cat);
-    }
+    let effectiveBanner = getRouteBannerImage(route);
     const bannerStyle = effectiveBanner
       ? `background-image:url('${effectiveBanner}');background-color:${(CITY_COLORS[city]||['#666'])[0]}`
       : `background:linear-gradient(135deg,${(CITY_COLORS[city]||['#ff6b35','#e84393'])[0]},${(CITY_COLORS[city]||['#ff6b35','#e84393'])[1]})`;
@@ -2156,6 +2120,72 @@ function renderRouteList(city) {
 
 let _diceCity = '';
 let _diceMode = ''; // 'walk' or 'drive'
+const DAY_TRIP_STATE = JSON.parse(localStorage.getItem('cw_daytrip_state') || '{}');
+const DAY_TRIP_RHYTHMS = [
+  {id:'power', name:'暴走型', startHour:8, stopFactor:0.8, maxAdjust:1, indoorBias:0, radiusFactor:1.15},
+  {id:'chill', name:'松弛型', startHour:10, stopFactor:1.25, maxAdjust:-1, indoorBias:0.1, radiusFactor:0.8},
+  {id:'allday-food', name:'早餐到夜宵', startHour:8, stopFactor:1, maxAdjust:0, indoorBias:0.2, radiusFactor:1},
+  {id:'afternoon', name:'午后半日', startHour:13, stopFactor:0.9, maxAdjust:-2, indoorBias:0.1, radiusFactor:0.75},
+  {id:'night', name:'夜游', startHour:17, stopFactor:0.85, maxAdjust:-1, indoorBias:0.15, radiusFactor:0.9},
+  {id:'indoor', name:'雨天室内', startHour:11, stopFactor:1.1, maxAdjust:-1, indoorBias:0.8, radiusFactor:0.7}
+];
+const DAY_TRIP_THEMES = [
+  {id:'landmark', name:'城市地标', keywords:['地标','历史建筑','古镇','古典园林','历史街区','景点','广场'], categoryBoost:['景点','文艺']},
+  {id:'food', name:'美食', keywords:['美食','餐厅','小吃','咖啡','茶','夜市'], categoryBoost:['美食']},
+  {id:'cafe', name:'文艺咖啡', keywords:['咖啡','书店','文艺','艺术','创意','展览'], categoryBoost:['文艺','购物']},
+  {id:'street', name:'市井烟火', keywords:['菜市场','夜市','小吃','老街','社区','烟火'], categoryBoost:['美食','景点']},
+  {id:'photo', name:'拍照出片', keywords:['拍照','观景','天际线','江景','湖景','网红','建筑'], categoryBoost:['网红','景点','购物']},
+  {id:'hidden', name:'隐藏宝藏', keywords:['巷','老街','小众','秘境','创意','博物馆','书店'], categoryBoost:['文艺','景点']}
+];
+function saveDayTripState() {
+  try { localStorage.setItem('cw_daytrip_state', JSON.stringify(DAY_TRIP_STATE)); } catch(e) {}
+}
+function inferPOITags(poi) {
+  const text = `${poi.name || ''} ${poi.type || ''} ${poi.desc || ''}`.toLowerCase();
+  const tags = [];
+  if (/地标|古迹|古城|历史|建筑|广场|桥|寺|塔|园林|博物馆/.test(text)) tags.push('landmark');
+  if (/美食|餐|咖啡|茶|夜市|小吃|酒吧|甜品/.test(text)) tags.push('food');
+  if (/书店|展|艺术|创意|文艺|咖啡/.test(text)) tags.push('cafe');
+  if (/老街|社区|集市|市场|烟火|巷/.test(text)) tags.push('street');
+  if (/拍照|观景|江景|湖景|天际线|网红|乐园/.test(text)) tags.push('photo');
+  if (/巷|隐藏|秘境|小众|古镇|创意/.test(text)) tags.push('hidden');
+  return tags;
+}
+function pickDayTripTemplate(city, mode, weatherInfo) {
+  const rainy = weatherInfo && (weatherInfo.weather.includes('雨') || weatherInfo.weather.includes('雪') || weatherInfo.weather.includes('雾') || weatherInfo.weather.includes('霾'));
+  const rhythmPool = rainy ? DAY_TRIP_RHYTHMS.filter(r => r.id === 'indoor' || r.id === 'chill' || r.id === 'afternoon') : DAY_TRIP_RHYTHMS.filter(r => r.id !== 'indoor');
+  let rhythm = rhythmPool[Math.floor(Math.random() * rhythmPool.length)];
+  let theme = DAY_TRIP_THEMES[Math.floor(Math.random() * DAY_TRIP_THEMES.length)];
+  const lastKey = `${city}_${mode}`;
+  const lastId = DAY_TRIP_STATE[lastKey];
+  if (`${rhythm.id}-${theme.id}` === lastId) {
+    rhythm = rhythmPool[(rhythmPool.indexOf(rhythm) + 1) % rhythmPool.length];
+    theme = DAY_TRIP_THEMES[(DAY_TRIP_THEMES.indexOf(theme) + 1) % DAY_TRIP_THEMES.length];
+  }
+  DAY_TRIP_STATE[lastKey] = `${rhythm.id}-${theme.id}`;
+  saveDayTripState();
+  return {
+    id: `${rhythm.id}-${theme.id}`,
+    title: `${rhythm.name} · ${theme.name}`,
+    rhythm,
+    theme
+  };
+}
+function scorePOIForDayTrip(poi, template, weatherFlags) {
+  const text = `${poi.name || ''} ${poi.type || ''} ${poi.desc || ''}`;
+  let score = 0;
+  template.theme.keywords.forEach(k => {
+    if (text.includes(k)) score += 3;
+  });
+  if ((template.theme.categoryBoost || []).includes(poi.category)) score += 4;
+  if ((poi._tags || []).includes(template.theme.id)) score += 5;
+  if (template.rhythm.id === 'allday-food' && poi._tags.includes('food')) score += 4;
+  if (template.rhythm.id === 'night' && /夜|酒吧|灯光|江景|live|演出/.test(text)) score += 4;
+  if (template.rhythm.id === 'afternoon' && /咖啡|书店|美术馆|公园|展/.test(text)) score += 3;
+  if (weatherFlags.isRainy || weatherFlags.isBadAir) score += poi._indoor ? 5 : -4;
+  if (weatherFlags.isHot) score += poi._indoor ? 2 : -1;
+  return score + Math.random() * 3;
+}
 
 function openDayTrip(city) {
   _diceCity = city;
@@ -2231,6 +2261,8 @@ async function generateDayTrip(city, mode, resultDiv) {
   const isHot = weatherInfo && parseInt(weatherInfo.temperature) > 35;
   const isCold = weatherInfo && parseInt(weatherInfo.temperature) < 0;
   const isBadAir = weatherInfo && (weatherInfo.weather.includes('雾') || weatherInfo.weather.includes('霾'));
+  const tripTemplate = pickDayTripTemplate(city, mode, weatherInfo);
+  const weatherFlags = { isRainy, isHot, isCold, isBadAir };
   
   // 合并所有路线的 POI / Merge POIs from all routes
   const allPOIs = [];
@@ -2240,7 +2272,7 @@ async function generateDayTrip(city, mode, resultDiv) {
       if (!seenNames.has(p.name) && p.lat && p.lng) {
         // 标记室内/室外类型 / Tag indoor/outdoor
         const indoor = ['博物馆','商场','购物','美食','餐厅','咖啡','书店','图书馆','展览','艺术馆','会所','影院'].some(k => (p.type||'').includes(k) || (p.name||'').includes(k) || (p.desc||'').includes(k));
-        allPOIs.push({...p, _indoor: indoor});
+        allPOIs.push({...p, _indoor: indoor, _tags: inferPOITags(p)});
         seenNames.add(p.name);
       }
     });
@@ -2261,30 +2293,47 @@ async function generateDayTrip(city, mode, resultDiv) {
   const config = mode === 'walk' 
     ? { radius: 3000, speed: 5, stopMin: 30, emoji: '🚶', label: '步行', maxPoints: 6 }
     : { radius: 15000, speed: 30, stopMin: 45, emoji: '🚗', label: '驾车', maxPoints: 8 };
+  config.radius = Math.round(config.radius * tripTemplate.rhythm.radiusFactor);
+  config.stopMin = Math.max(20, Math.round(config.stopMin * tripTemplate.rhythm.stopFactor));
+  config.maxPoints = Math.max(4, config.maxPoints + tripTemplate.rhythm.maxAdjust);
+  const rankedPOIs = allPOIs
+    .map(p => ({ ...p, _tripScore: scorePOIForDayTrip(p, tripTemplate, weatherFlags) }))
+    .sort((a, b) => b._tripScore - a._tripScore);
   
   // 如果用户有位置，优先选附近POI作出发点 / Use nearest POI as start if user location known
   let startPOI;
   if (APP.userLat && APP.userLng) {
-    allPOIs.sort((a, b) => {
+    const nearbyStartPool = rankedPOIs.slice(0, 10).sort((a, b) => {
       const da = haversineDistance(APP.userLat, APP.userLng, a.lat, a.lng);
       const db = haversineDistance(APP.userLat, APP.userLng, b.lat, b.lng);
       return da - db;
     });
-    startPOI = allPOIs[0];
+    startPOI = nearbyStartPool[Math.min(Math.floor(Math.random() * 3), nearbyStartPool.length - 1)];
   } else {
-    const startIdx = Math.floor(Math.random() * allPOIs.length);
-    startPOI = allPOIs[startIdx];
+    const startPool = rankedPOIs.slice(0, Math.min(6, rankedPOIs.length));
+    startPOI = startPool[Math.floor(Math.random() * startPool.length)];
   }
   
   // 筛选半径内的 POI / Filter POIs within radius
-  const nearbyPOIs = allPOIs.filter(p => {
+  let nearbyPOIs = rankedPOIs.filter(p => {
     if (p.name === startPOI.name) return false;
     const dist = haversineDistance(startPOI.lat, startPOI.lng, p.lat, p.lng);
     return dist <= config.radius;
   });
+  if (nearbyPOIs.length < config.maxPoints - 1) {
+    nearbyPOIs = rankedPOIs.filter(p => p.name !== startPOI.name);
+  }
   
   // 取最多 maxPoints 个 / Take at most maxPoints
-  const selected = nearbyPOIs.slice(0, config.maxPoints);
+  const selected = [];
+  const usedTags = new Set(startPOI._tags || []);
+  for (const poi of nearbyPOIs) {
+    const diversityBonus = (poi._tags || []).some(tag => !usedTags.has(tag)) ? 2 : 0;
+    if (poi._tripScore + diversityBonus < 2 && selected.length >= 3) continue;
+    selected.push(poi);
+    (poi._tags || []).forEach(tag => usedTags.add(tag));
+    if (selected.length >= config.maxPoints - 1) break;
+  }
   const tripPOIs = [startPOI, ...selected];
   
   // DAG 最短路径排序 / Sort using DAG shortest path
@@ -2292,7 +2341,7 @@ async function generateDayTrip(city, mode, resultDiv) {
   
   // 生成时间表 / Generate timeline
   // 高温天气延后出发 / Delay start on hot days
-  const START_HOUR = isHot ? 7 : 9;
+  const START_HOUR = isHot ? 7 : tripTemplate.rhythm.startHour;
   const BUDGET_MIN = 8 * 60;
   let currentMin = 0;
   const timeline = [];
@@ -2341,9 +2390,9 @@ async function generateDayTrip(city, mode, resultDiv) {
     
     // 3日预报简板
     let forecastHTML = '';
-    if (weatherInfo.forecast && weatherInfo.forecast.length > 0) {
+    if (weatherInfo.forecasts && weatherInfo.forecasts.length > 0) {
       forecastHTML = '<div style="display:flex;gap:8px;margin-top:8px">' + 
-        weatherInfo.forecast.map(f => {
+        weatherInfo.forecasts.map(f => {
           const fIcon = Object.entries(WEATHER_EMOJI).find(([k]) => (f.dayweather||'').includes(k))?.[1] || '🌤️';
           return `<div style="flex:1;text-align:center;padding:4px;background:rgba(255,255,255,.5);border-radius:8px">
             <div style="font-size:.65rem;color:rgba(26,26,46,.4)">${f.date?.slice(5)||''}</div>
@@ -2368,6 +2417,10 @@ async function generateDayTrip(city, mode, resultDiv) {
   
   // 渲染时间表 / Render timeline
   let html = weatherCardHTML;
+  html += `<div style="margin:8px 0;padding:12px 14px;background:linear-gradient(135deg,rgba(255,107,53,.08),rgba(253,203,110,.16));border-radius:12px;border:1px solid rgba(255,107,53,.12)">
+    <div style="font-weight:800;font-size:.95rem;">${tripTemplate.title}</div>
+    <div style="font-size:.76rem;color:rgba(26,26,46,.6);margin-top:4px;">先抽玩法模板，再按主题筛点和排序，所以同一城市再摇一次也会明显不同。</div>
+  </div>`;
   html += `<div style="margin:8px 0;padding:10px 14px;background:linear-gradient(135deg,rgba(102,126,234,.08),rgba(118,75,162,.08));border-radius:12px;">
     <div style="font-weight:700;font-size:.9rem">${config.emoji} ${city} 一日 ${config.label} 攻略</div>
     <div style="font-size:.72rem;color:rgba(26,26,46,.45);margin-top:4px">
@@ -2449,7 +2502,7 @@ function selectRoute(city, routeId) {
   const route = data.routes.find(r => r.id === routeId);
   if (!route) return;
   APP.selectedRoute = route;
-  document.getElementById('detailHeroBg').style.backgroundImage = `url('${route.banner}')`;
+  document.getElementById('detailHeroBg').style.backgroundImage = `url('${getRouteBannerImage(route)}')`;
   document.getElementById('detailHeroBg').style.backgroundColor = (CITY_COLORS[city]||['#666'])[0];
   const prog = getRouteProgress(route);
   const diffText = route.difficulty === 'easy' ? '轻松' : route.difficulty === 'medium' ? '适中' : '挑战';
@@ -2742,11 +2795,11 @@ const CREATIVE_MODES = [
    desc:'在无限延伸的城市中自由探索！基于高德地图POI数据，走到哪里城市就生成到哪里。选择一座城市作为起点，向任意方向出发吧。',
    tags:['无限','探索','真实地图','动态生成'],cls:'freeroam-mode'},
   {id:'colorwalk',icon:'🌈',name:'ColorWalk',en:'COLOR WALK',
-   desc:'每人选一个颜色，在CityWalk途中专注寻找属于自己颜色的城市元素——红色的门、蓝色的天、黄色的落叶。拍下来拼在一起，生成一组独一无二的城市色卡。',
-   tags:['2-6人','拍照','社交','创意'],cls:'color-mode'},
+   desc:'轻量试玩版。每人选一个颜色，在CityWalk途中专注寻找对应色彩的城市元素，最后把照片拼成一张临时色卡，适合结伴拍照打卡。',
+   tags:['轻玩法','2-6人','拍照','试玩'],cls:'color-mode'},
   {id:'visit',icon:'📷',name:'到此一游',en:'MEMORY CAMERA',
-   desc:'找到城市角落里的电子相机、展示屏，留下你的笑容作为"非卖品"。或者用我们的虚拟相机拍下此刻，存入城市留影墙，让陌生的旅人看到你曾来过这里。',
-   tags:['独行侠','浪漫','异步社交','记录'],cls:'visit-mode'},
+   desc:'轻量试玩版。用虚拟相机记录这一刻，先存进你当前设备上的个人留影墙；现在还不是全站共享墙，但适合做一份私人的城市纪念。',
+   tags:['轻玩法','本地留存','记录','试玩'],cls:'visit-mode'},
   {id:'blindwalk',icon:'🎲',name:'盲盒Walk',en:'BLIND BOX WALK',
    desc:'到路口扔骰子决定方向！左转？右转？直走？掉头？把选择权交给命运，每一步都是未知的惊喜。最后回顾你的随机路线，也许会发现意想不到的宝藏。',
    tags:['随机','冒险','惊喜','佛系'],cls:'blind-mode'},
@@ -3513,7 +3566,7 @@ function colorUpload(playerIndex) {
   input.click();
 }
 function generateColorCard() {
-  showToast('城市色卡已生成！截图保存你的作品');
+  showToast('已生成一张临时色卡预览，当前版本适合截图保存');
 }
 
 // === VISIT MODE (到此一游) ===
@@ -3531,7 +3584,7 @@ function renderVisitMode() {
       <div style="font-size:2.5rem;margin-bottom:8px;">📷</div>
       <div style="font-family:var(--font-display);font-size:1.4rem;">到此一游</div>
       <div style="font-size:.8rem;color:rgba(26,26,46,.4);margin-top:4px;line-height:1.6;">
-        在城市留下你的笑容<br>让陌生的旅人知道，你曾来过这里
+        在城市留下你的笑容<br>当前版本仅保存在本机，先做你的个人留影墙
       </div>
     </div>
     <div class="camera-frame">
@@ -3664,7 +3717,7 @@ function renderBlindWalk() {
       <div style="font-size:2.5rem;margin-bottom:8px;">🎲</div>
       <div style="font-family:var(--font-display);font-size:1.4rem;">盲盒Walk</div>
       <div style="font-size:.8rem;color:rgba(26,26,46,.4);margin-top:4px;line-height:1.6;">
-        把选择权交给命运<br>点击骰子，决定你的下一步
+        把选择权交给命运<br>当前版本先用随机指令驱动你的下一步
       </div>
     </div>
     <div class="dice-container">

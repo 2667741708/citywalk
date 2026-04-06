@@ -1452,8 +1452,8 @@ function renderCities(filter = '') {
 
 // === IP 自动定位附近城市 / Auto-detect nearby cities via IP ===
 // 修改基线 / Base: 新增代码
-// 修改内容 / Changes: 页面加载时自动检测用户城市, 发现附近城市
-// Auto-detect user city on page load, discover nearby cities
+// 修改内容 / Changes: 页面加载时仅静默检测用户城市，用于排序和推荐，不自动触发 AI 规划
+// Detect user city silently on page load for ranking only; do not auto-discover routes
 async function autoDetectNearbyCities() {
   if (typeof AMap === 'undefined') return;
   try {
@@ -1481,34 +1481,11 @@ async function autoDetectNearbyCities() {
     APP.userLat = geoInfo.lat;
     APP.userLng = geoInfo.lng;
     
-    // 3. 从 CITY_POOL + MOCK_DATA 城市中按距离排序
-    const allKnown = new Set(Object.keys({...MOCK_DATA, ...DYNAMIC_CITIES}));
-    const candidates = [...new Set([...Object.keys(MOCK_DATA), ...CITY_POOL])];
-    const sorted = candidates.map(city => {
-      const geo = CITY_GEO[city];
-      const dist = geo ? haversineDistance(APP.userLat, APP.userLng, geo[0], geo[1]) / 1000 : 99999;
-      return { city, dist, known: allKnown.has(city) };
-    }).sort((a, b) => a.dist - b.dist);
-    
-    // 4. 自动发现最近的 6 个尚未发现的城市
-    const toDiscover = sorted.filter(x => !x.known).slice(0, 6);
-    
-    // 先刷新排序 (已有城市立刻按距离排)
+    // 3. 仅刷新排序和推荐，不自动调用 discoverCity
     renderCities('');
-    showToast(`📍 检测到您在 ${userCity} 附近，正在发现周边城市...`);
-    
-    // 逐个发现 (不阻塞)
-    for (const item of toDiscover) {
-      try {
-        await discoverCity(item.city);
-      } catch(e) {
-        console.warn(`[GEO] 自动发现 ${item.city} 失败:`, e);
-      }
-    }
-    
-    // 最终刷新
-    renderCities('');
-    console.log(`[GEO] 附近城市发现完成, 共 ${toDiscover.length} 个新城市`);
+    refreshQuickCities();
+    showToast(`📍 已为你定位到「${userCity}」，附近城市已优先展示`);
+    console.log(`[GEO] 已根据 ${userCity} 更新城市排序，不自动触发 AI 规划`);
   } catch(e) {
     console.warn('[GEO] 自动定位失败:', e);
   }
@@ -6111,7 +6088,7 @@ function enterApp() {
   document.getElementById('splashScreen').classList.add('hidden');
   showView('citySelect');
   renderCities();
-  // 异步检测附近城市 (不阻塞入口)
+  // 异步检测附近城市，仅用于排序，不自动生成路线
   setTimeout(() => autoDetectNearbyCities(), 500);
 }
 // Boot sequence

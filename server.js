@@ -46,6 +46,60 @@ async function fetchText(url) {
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.text();
 }
+function normalizeImageCandidate(url) {
+  if (!url) return '';
+  return url
+    .replace(/\\u002f/g, '/')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/^"+|"+$/g, '');
+}
+function isAllowedImageUrl(url) {
+  try {
+    const parsed = new URL(url);
+    if (!['http:', 'https:'].includes(parsed.protocol)) return false;
+    const blockedHosts = ['vjshi.com', '699pic.com', '58pic.com', 'nipic.com', 'duitang.com'];
+    if (blockedHosts.some(host => parsed.hostname.includes(host))) return false;
+    if (/watermark|logo|avatar|icon|sprite/i.test(parsed.pathname + parsed.search)) return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
+function scoreImageUrl(url, query) {
+  let score = 0;
+  const value = `${url} ${query}`.toLowerCase();
+  if (/unsplash|pexels|pixabay|tripadvisor|booking|qyer|mafengwo|ctrip|amap|meituan|bcebos|alicdn|douyinpic/.test(value)) score += 4;
+  if (/city|travel|landmark|scenic|aerial|skyline|风景|地标|城市/.test(value)) score += 3;
+  if (/food|dish|restaurant|cafe|美食|咖啡/.test(value)) score += 2;
+  return score;
+}
+function buildFallbackSvg(label = 'CityWalk') {
+  const safeLabel = String(label).replace(/[<>&'"]/g, '');
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800">
+      <defs>
+        <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#ff6b35"/>
+          <stop offset="55%" stop-color="#e84393"/>
+          <stop offset="100%" stop-color="#1f3c88"/>
+        </linearGradient>
+      </defs>
+      <rect width="1200" height="800" rx="36" fill="url(#bg)"/>
+      <circle cx="980" cy="160" r="120" fill="rgba(255,255,255,.08)"/>
+      <circle cx="220" cy="640" r="160" fill="rgba(255,255,255,.08)"/>
+      <text x="96" y="132" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="34" fill="rgba(255,255,255,.78)">CityWalk Fallback</text>
+      <text x="96" y="420" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="84" font-weight="700" fill="#ffffff">${safeLabel}</text>
+      <text x="96" y="488" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="34" fill="rgba(255,255,255,.82)">图片暂时不可用，已切换为站内占位图</text>
+    </svg>`;
+  return Buffer.from(svg);
+}
+function sendFallbackImage(res, label) {
+  res.status(200);
+  res.setHeader('Content-Type', 'image/svg+xml; charset=utf-8');
+  res.setHeader('Cache-Control', 'public, max-age=3600, s-maxage=3600');
+  res.send(buildFallbackSvg(label));
+}
 
 // ============================================================
 // 1. 天气 API / Weather API (wttr.in 免费服务)
@@ -126,13 +180,47 @@ app.get('/api/image-search', async (req, res) => {
       while ((match = regex2.exec(html)) !== null) urls.push(match[1]);
     }
 
-    // Filter out common watermarked or blocked domains
-    urls = urls.filter(u => !u.includes('vjshi.com') && !u.includes('watermark'));
+    urls = [...new Set(urls.map(normalizeImageCandidate).filter(isAllowedImageUrl))]
+      .sort((a, b) => scoreImageUrl(b, q) - scoreImageUrl(a, q));
 
     res.json({ success: true, urls: urls.slice(0, 5) });
   } catch (err) {
     console.error('[Image Search Error]', err.message);
     res.status(500).json({ error: '图片搜索失败', detail: err.message });
+  }
+});
+
+app.get('/api/image-proxy', async (req, res) => {
+  try {
+    const { url, label } = req.query;
+    const target = normalizeImageCandidate(url);
+    if (!target) return res.status(400).json({ error: '缺少 url 参数' });
+    if (!isAllowedImageUrl(target)) return res.status(400).json({ error: '图片地址不受支持' });
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 12000);
+    const response = await fetch(target, {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+        'Referer': 'https://www.bing.com/'
+      }
+    });
+    clearTimeout(timeout);
+
+    if (!response.ok) return sendFallbackImage(res, label);
+
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.startsWith('image/')) return sendFallbackImage(res, label);
+
+    const buffer = Buffer.from(await response.arrayBuffer());
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Cache-Control', 'public, max-age=86400, s-maxage=86400');
+    res.send(buffer);
+  } catch (err) {
+    console.error('[Image Proxy Error]', err.message);
+    sendFallbackImage(res, req.query.label);
   }
 });
 

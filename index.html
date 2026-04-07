@@ -785,9 +785,23 @@ const ROUTE_BANNERS = {
     'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=600&q=80'
   ]
 };
-function getRouteBanner(category) {
+const IMAGE_RETRY_COOLDOWN = 30 * 60 * 1000;
+const IMAGE_REFRESH_INTERVAL = 12 * 60 * 60 * 1000;
+const IMAGE_MAX_FAILURES = 3;
+const IMAGE_PRELOAD_TIMEOUT = 8000;
+
+function hashText(text = '') {
+  let hash = 0;
+  const str = String(text || '');
+  for (let i = 0; i < str.length; i++) hash = ((hash << 5) - hash + str.charCodeAt(i)) | 0;
+  return Math.abs(hash);
+}
+function pickFromPool(category, seed = '') {
   const pool = ROUTE_BANNERS[category] || ROUTE_BANNERS['精华'];
-  return pool[Math.floor(Math.random() * pool.length)];
+  return pool[hashText(`${category}:${seed}`) % pool.length];
+}
+function getRouteBanner(category, seed = '') {
+  return pickFromPool(category, seed || Date.now());
 }
 function getRouteCategory(route) {
   const text = `${route?.name || ''} ${route?.desc || ''}`;
@@ -796,6 +810,62 @@ function getRouteCategory(route) {
   if (/潮流|拍照|出片|网红|购物|商场/.test(text)) return '潮流';
   return '精华';
 }
+function shouldRetryImageFetch(item, kind) {
+  const failCount = item?.[`${kind}FailCount`] || 0;
+  const failedAt = item?.[`${kind}FailedAt`] || 0;
+  if (failCount >= IMAGE_MAX_FAILURES) return false;
+  if (failedAt && (Date.now() - failedAt) < IMAGE_RETRY_COOLDOWN) return false;
+  return true;
+}
+function markImageFetchFailure(item, kind) {
+  item[`${kind}FailCount`] = (item[`${kind}FailCount`] || 0) + 1;
+  item[`${kind}FailedAt`] = Date.now();
+}
+function markImageFetchSuccess(item, kind) {
+  item[`${kind}FailCount`] = 0;
+  item[`${kind}FailedAt`] = 0;
+  item[`${kind}VerifiedAt`] = Date.now();
+}
+function shouldRefreshVerifiedImage(item, kind) {
+  const verifiedAt = item?.[`${kind}VerifiedAt`] || 0;
+  return !verifiedAt || (Date.now() - verifiedAt) > IMAGE_REFRESH_INTERVAL;
+}
+function preloadImage(url, label = 'CityWalk') {
+  return new Promise((resolve) => {
+    if (!url) { resolve(false); return; }
+    const img = new Image();
+    const timer = setTimeout(() => {
+      img.onload = null;
+      img.onerror = null;
+      resolve(false);
+    }, IMAGE_PRELOAD_TIMEOUT);
+    img.onload = () => {
+      clearTimeout(timer);
+      resolve(true);
+    };
+    img.onerror = () => {
+      clearTimeout(timer);
+      resolve(false);
+    };
+    img.src = proxifyImageUrl(url, label);
+  });
+}
+async function fetchVerifiedImageCandidates(query, label) {
+  try {
+    const resp = await fetch(`/api/image-search?q=${encodeURIComponent(query)}`);
+    const data = await resp.json();
+    if (!data.success || !Array.isArray(data.urls)) return [];
+    const verified = [];
+    for (const candidate of data.urls.slice(0, 5)) {
+      if (await preloadImage(candidate, label)) verified.push(candidate);
+      if (verified.length >= 2) break;
+    }
+    return verified;
+  } catch (e) {
+    console.warn('[Image Search]', e);
+    return [];
+  }
+}
 function proxifyImageUrl(url, label = 'CityWalk') {
   if (!url || url.startsWith('/api/image-proxy')) return url;
   if (/^https?:\/\//i.test(url)) return `/api/image-proxy?url=${encodeURIComponent(url)}&label=${encodeURIComponent(label)}`;
@@ -803,55 +873,58 @@ function proxifyImageUrl(url, label = 'CityWalk') {
 }
 function getRouteBannerImage(route) {
   if (route?.banner) return proxifyImageUrl(route.banner, route.name || 'CityWalk');
-  return proxifyImageUrl(getRouteBanner(getRouteCategory(route)), route?.name || 'CityWalk');
+  return proxifyImageUrl(pickFromPool(getRouteCategory(route), route?.id || route?.name || 'CityWalk'), route?.name || 'CityWalk');
 }
 // 为不在 CITY_IMAGES 中的动态城市提供一致的 fallback 图片，如果有按需抓取的图片则优先使用
 function getCityImage(city) {
   if (DYNAMIC_CITIES[city] && DYNAMIC_CITIES[city].bgUrl) return proxifyImageUrl(DYNAMIC_CITIES[city].bgUrl, city);
   if (CITY_IMAGES[city]) return proxifyImageUrl(CITY_IMAGES[city], city);
-  let hash = 0;
-  for(let i=0; i<city.length; i++) hash += city.charCodeAt(i);
-  const pool = ROUTE_BANNERS['精华'];
-  return proxifyImageUrl(pool[hash % pool.length], city);
+  return proxifyImageUrl(pickFromPool('精华', city), city);
 }
 
 // 异步获取真实图片覆盖 (Crawler integration)
 async function fetchDynamicImages(city, routes) {
   try {
-    if (!DYNAMIC_CITIES[city]) return;
-    // 1. 获取城市首页背景图
-    if (!DYNAMIC_CITIES[city].bgUrl || DYNAMIC_CITIES[city].bgSource !== 'dynamic') {
-      fetch(`/api/image-search?q=${encodeURIComponent(city + ' 城市风光 地标 航拍 高清')}`)
-      .then(r => r.json())
-      .then(data => {
-        if(data.success && data.urls.length>0) {
-          DYNAMIC_CITIES[city].bgUrl = data.urls[0];
-          DYNAMIC_CITIES[city].bgSource = 'dynamic';
-          DYNAMIC_CITIES[city].bgUpdatedAt = Date.now();
-          saveDynamicCities();
-          renderCities(document.getElementById('citySearch')?.value || '');
-          if(APP.selectedCity === city) renderRouteList(city);
-        }
-      });
+    const cityData = DYNAMIC_CITIES[city];
+    if (!cityData) return;
+
+    // 1. 获取城市首页背景图，成功预加载后再替换
+    if (shouldRefreshVerifiedImage(cityData, 'bg') && shouldRetryImageFetch(cityData, 'bg')) {
+      const bgCandidates = await fetchVerifiedImageCandidates(`${city} 城市风光 地标 航拍 高清`, city);
+      if (bgCandidates.length > 0) {
+        cityData.bgUrl = bgCandidates[0];
+        cityData.bgSource = 'dynamic';
+        cityData.bgUpdatedAt = Date.now();
+        markImageFetchSuccess(cityData, 'bg');
+        saveDynamicCities();
+        renderCities(document.getElementById('citySearch')?.value || '');
+        if (APP.selectedCity === city) renderRouteList(city);
+      } else {
+        markImageFetchFailure(cityData, 'bg');
+        saveDynamicCities();
+      }
     }
 
-    // 2. 获取路线的背景图
-    (routes || []).forEach(route => {
-      // 随机骰子路线也使用这个机制抓取真实图片
-      if (!route.banner || route.bannerSource !== 'dynamic') {
-        let q = city + ' ' + (route.name.replace(/🎲/g, '').trim()) + ' ' + getRouteCategory(route) + ' 地标 风景 高清';
-        fetch(`/api/image-search?q=${encodeURIComponent(q)}`)
-        .then(r => r.json())
-        .then(data => {
-          if(data.success && data.urls.length>0) {
-            route.banner = data.urls[0];
-            route.bannerSource = 'dynamic';
-            saveDynamicCities();
-            if(APP.selectedCity === city) renderRouteList(city);
-          }
-        });
+    // 2. 获取路线背景图，先验证可用再回填
+    for (const route of (routes || [])) {
+      if (!route) continue;
+      const hasDynamicBanner = route.banner && route.bannerSource === 'dynamic';
+      if (hasDynamicBanner && !shouldRefreshVerifiedImage(route, 'banner')) continue;
+      if (!shouldRetryImageFetch(route, 'banner')) continue;
+
+      const q = `${city} ${(route.name || '').replace(/🎲/g, '').trim()} ${getRouteCategory(route)} 地标 风景 高清`;
+      const bannerCandidates = await fetchVerifiedImageCandidates(q, route.name || city);
+      if (bannerCandidates.length > 0) {
+        route.banner = bannerCandidates[0];
+        route.bannerSource = 'dynamic';
+        markImageFetchSuccess(route, 'banner');
+        saveDynamicCities();
+        if (APP.selectedCity === city) renderRouteList(city);
+      } else {
+        markImageFetchFailure(route, 'banner');
+        saveDynamicCities();
       }
-    });
+    }
   } catch(e) {
     console.warn('[Image Crawler]', e);
   }
@@ -1945,7 +2018,8 @@ function selectCity(city) {
 }
 
 // === DYNAMIC CITY DISCOVERY via Amap API ===
-async function discoverCity(cityName) {
+async function discoverCity(cityName, options = {}) {
+  const { silent = false } = options;
   cityName = cityName.trim();
   if (!cityName) return;
 
@@ -1956,16 +2030,18 @@ async function discoverCity(cityName) {
   // If already have data, just go
   const allCities = {...MOCK_DATA, ...DYNAMIC_CITIES};
   if (allCities[cityName] && allCities[cityName].routes && allCities[cityName].routes.length > 0) {
-    APP.selectedCity = cityName;
-    renderRouteList(cityName);
-    showView('routeList');
+    if (!silent) {
+      APP.selectedCity = cityName;
+      renderRouteList(cityName);
+      showView('routeList');
+    }
     return;
   }
 
   // Show loading
   const loader = document.getElementById('searchLoading');
-  if (loader) loader.style.display = 'block';
-  showToast(`正在用 AI 为「${cityName}」规划路线...`);
+  if (!silent && loader) loader.style.display = 'block';
+  if (!silent) showToast(`正在用 AI 为「${cityName}」规划路线...`);
 
   try {
     // 优先调用后端 LLM 生成路线 / Try backend LLM first
@@ -2007,12 +2083,14 @@ async function discoverCity(cityName) {
       CITY_COLORS[cityName] = [DEFAULT_COLORS[Math.floor(Math.random()*DEFAULT_COLORS.length)], DEFAULT_COLORS[Math.floor(Math.random()*DEFAULT_COLORS.length)]];
     }
 
-    if (loader) loader.style.display = 'none';
+    if (!silent && loader) loader.style.display = 'none';
     renderCities('');
-    APP.selectedCity = cityName;
-    renderRouteList(cityName);
-    showView('routeList');
-    showToast(`AI 生成了${routeData.routes.length}条「${cityName}」路线！`);
+    if (!silent) {
+      APP.selectedCity = cityName;
+      renderRouteList(cityName);
+      showView('routeList');
+      showToast(`AI 生成了${routeData.routes.length}条「${cityName}」路线！`);
+    }
 
     // 触发后台抓取真实图片
     fetchDynamicImages(cityName, DYNAMIC_CITIES[cityName].routes);
@@ -2022,16 +2100,16 @@ async function discoverCity(cityName) {
 
     // 降级方案: 使用原有的高德 POI 搜索逻辑 / Fallback to AMap POI search
     if (typeof AMap === 'undefined') {
-      showToast('地图服务和后端均不可用，请稍后重试');
-      if (loader) loader.style.display = 'none';
+      if (!silent) showToast('地图服务和后端均不可用，请稍后重试');
+      if (!silent && loader) loader.style.display = 'none';
       return;
     }
 
     try {
       const cityInfo = await amapGeocode(cityName);
       if (!cityInfo) {
-        showToast(`未找到城市「${cityName}」，请检查名称`);
-        if (loader) loader.style.display = 'none';
+        if (!silent) showToast(`未找到城市「${cityName}」，请检查名称`);
+        if (!silent && loader) loader.style.display = 'none';
         return;
       }
 
@@ -2062,8 +2140,8 @@ async function discoverCity(cityName) {
       });
 
       if (allPOIs.length < 3) {
-        showToast(`「${cityName}」暂未找到足够的打卡点`);
-        if (loader) loader.style.display = 'none';
+        if (!silent) showToast(`「${cityName}」暂未找到足够的打卡点`);
+        if (!silent && loader) loader.style.display = 'none';
         return;
       }
 
@@ -2074,16 +2152,18 @@ async function discoverCity(cityName) {
         CITY_COLORS[cityName] = [DEFAULT_COLORS[Math.floor(Math.random()*DEFAULT_COLORS.length)], DEFAULT_COLORS[Math.floor(Math.random()*DEFAULT_COLORS.length)]];
       }
 
-      if (loader) loader.style.display = 'none';
+      if (!silent && loader) loader.style.display = 'none';
       renderCities('');
-      APP.selectedCity = cityName;
-      renderRouteList(cityName);
-      showView('routeList');
-      showToast(`发现了${routes.length}条「${cityName}」的打卡路线！`);
+      if (!silent) {
+        APP.selectedCity = cityName;
+        renderRouteList(cityName);
+        showView('routeList');
+        showToast(`发现了${routes.length}条「${cityName}」的打卡路线！`);
+      }
     } catch (fallbackErr) {
       console.error('Fallback city discovery also failed:', fallbackErr);
-      showToast('探索失败，请稍后重试');
-      if (loader) loader.style.display = 'none';
+      if (!silent) showToast('探索失败，请稍后重试');
+      if (!silent && loader) loader.style.display = 'none';
     }
   }
 }

@@ -6061,11 +6061,21 @@ const CITY_EDGES = [
 
 // Explore state (persisted)
 let exploreState = JSON.parse(localStorage.getItem('cw_explore') || 'null') || {
-  unlocked: ['上海'], // Start city
+  unlocked: EXPLORE_CITIES.map(city => city.name),
   completed: [],
   startCity: '上海',
   totalLit: 0
 };
+
+function ensureExploreAllCitiesAccessible() {
+  const allCityNames = EXPLORE_CITIES.map(city => city.name);
+  const completedSet = new Set((exploreState.completed || []).filter(city => allCityNames.includes(city)));
+  exploreState.unlocked = allCityNames.slice();
+  exploreState.completed = Array.from(completedSet);
+  exploreState.totalLit = exploreState.completed.length;
+}
+
+ensureExploreAllCitiesAccessible();
 
 function saveExploreState() {
   localStorage.setItem('cw_explore', JSON.stringify(exploreState));
@@ -6083,9 +6093,9 @@ function getExploreLevel() {
 }
 
 function getCityExploreStatus(cityName) {
+  if (!EXPLORE_CITIES.some(city => city.name === cityName)) return 'unlocked';
   if (exploreState.completed.includes(cityName)) return 'completed';
-  if (exploreState.unlocked.includes(cityName)) return 'unlocked';
-  return 'locked';
+  return 'unlocked';
 }
 
 function getAdjacentCities(cityName) {
@@ -6115,31 +6125,20 @@ function isCityRouteCompleted(cityName) {
 
 // Process unlock logic — call after check-ins
 function processExploreUnlocks() {
+  ensureExploreAllCitiesAccessible();
   const newlyCompleted = [];
-  const newlyUnlocked = [];
 
-  // Check all unlocked cities for completion
-  exploreState.unlocked.forEach(city => {
+  // Check all cities for completion
+  EXPLORE_CITIES.forEach(({ name: city }) => {
     if (!exploreState.completed.includes(city) && isCityRouteCompleted(city)) {
       exploreState.completed.push(city);
       newlyCompleted.push(city);
-
-      // Unlock adjacent cities
-      const neighbors = getAdjacentCities(city);
-      neighbors.forEach(n => {
-        if (!exploreState.unlocked.includes(n)) {
-          exploreState.unlocked.push(n);
-          newlyUnlocked.push(n);
-        }
-      });
     }
   });
+  exploreState.totalLit = exploreState.completed.length;
 
-  if (newlyCompleted.length > 0 || newlyUnlocked.length > 0) {
+  if (newlyCompleted.length > 0) {
     saveExploreState();
-    if (newlyUnlocked.length > 0) {
-      showUnlockAnimation(newlyCompleted, newlyUnlocked);
-    }
   }
 }
 
@@ -6161,6 +6160,7 @@ function closeUnlockAnim() {
 function showExplore() {
   // Process any pending unlocks
   processExploreUnlocks();
+  ensureExploreAllCitiesAccessible();
   renderExploreMap();
   document.getElementById('explorePanel').classList.add('active');
 }
@@ -6181,8 +6181,8 @@ function renderExploreMap() {
       <div class="e-lbl">已点亮</div>
     </div>
     <div class="explore-stat anim-fadeInUp stagger-2">
-      <div class="e-num">${exploreState.unlocked.length}</div>
-      <div class="e-lbl">已解锁</div>
+      <div class="e-num">${EXPLORE_CITIES.length}</div>
+      <div class="e-lbl">可探索</div>
     </div>
     <div class="explore-stat anim-fadeInUp stagger-3">
       <div class="e-num">${EXPLORE_CITIES.length}</div>
@@ -6207,9 +6207,7 @@ function renderExploreMap() {
         if (!a || !b) return '';
         const aStatus = getCityExploreStatus(from);
         const bStatus = getCityExploreStatus(to);
-        const cls = aStatus === 'completed' && bStatus === 'completed'
-          ? 'completed'
-          : (aStatus !== 'locked' && bStatus !== 'locked' ? 'active' : '');
+        const cls = aStatus === 'completed' && bStatus === 'completed' ? 'completed' : 'active';
         return `<line class="edge-line ${cls}" x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" />`;
       }).join('')}
       ${EXPLORE_CITIES.map(city => {
@@ -6235,14 +6233,14 @@ function renderExploreMap() {
   let html = '';
   const allCities = {...MOCK_DATA, ...DYNAMIC_CITIES};
 
-  exploreState.unlocked.forEach((cityName, idx) => {
+  EXPLORE_CITIES.forEach((cityMeta, idx) => {
+    const cityName = cityMeta.name;
     const status = getCityExploreStatus(cityName);
-    const cityMeta = EXPLORE_CITIES.find(c => c.name === cityName);
     const data = allCities[cityName];
     const hasRoutes = data && data.routes && data.routes.length > 0;
 
     const bgColor = status === 'completed' ? 'rgba(0,184,148,.08)' : 'rgba(255,107,53,.05)';
-    const statusText = status === 'completed' ? '✅ 已点亮' : '🔓 探索中';
+    const statusText = status === 'completed' ? '✅ 已点亮' : (hasRoutes ? '🧭 可探索' : '🔍 待发现');
     const statusColor = status === 'completed' ? 'var(--teal)' : 'var(--accent)';
     const iconBg = status === 'completed' ? 'linear-gradient(135deg,#00b894,#00cec9)' : 'linear-gradient(135deg,#ff6b35,#e84393)';
 
@@ -6253,7 +6251,7 @@ function renderExploreMap() {
           <div class="ec-name">${cityName}</div>
           <div class="ec-status" style="color:${statusColor}">${statusText}</div>
         </div>
-        ${status === 'unlocked' && !hasRoutes ? '<span style="padding:4px 10px;border-radius:12px;font-size:.6rem;font-weight:700;background:rgba(255,107,53,.1);color:var(--accent);">需要搜索路线</span>' : ''}
+        ${!hasRoutes ? '<span style="padding:4px 10px;border-radius:12px;font-size:.6rem;font-weight:700;background:rgba(255,107,53,.1);color:var(--accent);">需要搜索路线</span>' : ''}
       </div>`;
 
     if (hasRoutes) {
@@ -6275,21 +6273,10 @@ function renderExploreMap() {
     html += '</div>';
   });
 
-  // Show locked cities hint
-  const lockedCount = EXPLORE_CITIES.length - exploreState.unlocked.length;
-  if (lockedCount > 0) {
-    html += `<div class="explore-locked-msg">还有 ${lockedCount} 座城市等待解锁<br>完成已解锁城市的路线以点亮相邻版图</div>`;
-  }
-
   detail.innerHTML = html;
 }
 
 function onExploreCityClick(cityName) {
-  const status = getCityExploreStatus(cityName);
-  if (status === 'locked') {
-    showToast(`「${cityName}」尚未解锁，先完成相邻城市的路线吧`);
-    return;
-  }
   // Go to this city's route page
   closeExplore();
   const allCities = {...MOCK_DATA, ...DYNAMIC_CITIES};

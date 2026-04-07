@@ -274,6 +274,8 @@ input{font-family:inherit;border:none;outline:none}
 .quick-label{font-size:.75rem;color:rgba(26,26,46,.35);margin-right:2px}
 .quick-chip{padding:5px 14px;border:1.5px solid rgba(26,26,46,.1);background:rgba(255,255,255,.8);border-radius:20px;font-size:.78rem;color:var(--ink);cursor:pointer;transition:all .2s;backdrop-filter:blur(4px)}
 .quick-chip:hover{border-color:var(--accent);color:var(--accent);background:#fff;transform:translateY(-1px);box-shadow:0 3px 10px rgba(255,107,53,.15)}
+.quick-chip.nearby{background:linear-gradient(135deg,rgba(255,107,53,.12),rgba(0,184,148,.1));border-color:rgba(255,107,53,.25);color:var(--accent);font-weight:700}
+.quick-chip.nearby:hover{border-color:rgba(255,107,53,.45);box-shadow:0 4px 12px rgba(255,107,53,.18)}
 .city-card.dynamic{border:2px dashed rgba(255,107,53,.3)}
 .city-card.dynamic .city-card-tag{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff}
 .discover-banner{max-width:600px;margin:0 auto 14px;padding:0 20px;width:100%}
@@ -462,6 +464,7 @@ input{font-family:inherit;border:none;outline:none}
     <div class="search-hint" id="searchHint">输入城市名后按回车，自动从高德地图发现打卡路线</div>
     <div class="quick-cities" id="quickCities">
       <span class="quick-label">试试：</span>
+      <button class="quick-chip nearby" onclick="discoverNearbyRoutes()" title="按当前位置生成附近 3km CityWalk">📡 附近推荐</button>
       <button class="quick-chip" onclick="discoverCity('南京')">南京</button>
       <button class="quick-chip" onclick="discoverCity('西安')">西安</button>
       <button class="quick-chip" onclick="discoverCity('重庆')">重庆</button>
@@ -1492,6 +1495,7 @@ const POI_CATEGORIES = [
   {code:'140000',type:'140000',name:'科教文化',icon:'🏫',types:'高等院校|中学|科研机构|培训机构'},
 ];
 const DEFAULT_COLORS = ['#ff6b35','#e84393','#a29bfe','#00b894','#fdcb6e','#74b9ff','#fd79a8','#e17055'];
+const NEARBY_CITY_KEY = '附近推荐';
 // Dynamic city data store (augments MOCK_DATA)
 // 修改基线 / Base: index.html (原始版本 2026-03-17)
 // 修改内容 / Changes: DYNAMIC_CITIES 从 localStorage 恢复，实现持久化
@@ -1532,17 +1536,21 @@ function renderCities(filter = '') {
     const isDynamic = !!DYNAMIC_CITIES[city];
     const colors = CITY_COLORS[city] || (isDynamic ? ['#ff6b35','#e84393'] : ['#666','#999']);
     const img = getCityImage(city);
+    const displayName = data.cardName || data.displayName || city;
     const routeCount = data.routes ? data.routes.length : 0;
     const geo = CITY_GEO[city];
     const distKm = (APP.userLat && geo) ? (haversineDistance(APP.userLat, APP.userLng, geo[0], geo[1]) / 1000) : 0;
     const distLabel = distKm > 0 ? (distKm < 100 ? `📍${Math.round(distKm)}km` : `📍${Math.round(distKm)}km`) : '';
     const isNear = distKm > 0 && distKm < 200;
+    const cardTag = data.isNearbyHub
+      ? `📡 实时附近 · ${routeCount}条路线`
+      : `${isDynamic?'🔍 AI发现':''}${routeCount}条路线${distLabel?' · '+distLabel:''}`;
     return `<div class="city-card ${isDynamic?'dynamic':''} ${isNear?'nearby':''} anim-scaleIn stagger-${Math.min(i+1,8)}" onclick="selectCity('${city}')">
       <div class="city-card-bg" style="background-image:${img?`url('${img}')`:'none'};background-color:${colors[0]}"></div>
       <div class="city-card-overlay"></div>
-      <div class="city-card-tag">${isDynamic?'🔍 AI发现':''}${routeCount}条路线${distLabel?' · '+distLabel:''}</div>
+      <div class="city-card-tag">${cardTag}</div>
       <div class="city-card-info">
-        <div class="city-card-name">${city}</div>
+        <div class="city-card-name">${displayName}</div>
         <div class="city-card-count">${data.slogan || '等你来探索'}</div>
       </div>
     </div>`;
@@ -1587,6 +1595,330 @@ async function autoDetectNearbyCities() {
     console.log(`[GEO] 已根据 ${userCity} 更新城市排序，不自动触发 AI 规划`);
   } catch(e) {
     console.warn('[GEO] 自动定位失败:', e);
+  }
+}
+
+function normalizeCityName(name) {
+  return String(name || '').replace(/(特别行政区|自治州|自治县|自治区|地区|盟|省|市)$/,'');
+}
+
+function resolvePOILocation(location) {
+  if (!location) return null;
+  if (typeof location === 'string') {
+    const [lng, lat] = location.split(',').map(Number);
+    return (!isNaN(lng) && !isNaN(lat)) ? { lng, lat } : null;
+  }
+  const lng = location.lng || location.getLng?.();
+  const lat = location.lat || location.getLat?.();
+  return (!isNaN(lng) && !isNaN(lat)) ? { lng, lat } : null;
+}
+
+function mapNearbyPOI(poi, category, index, origin) {
+  const loc = resolvePOILocation(poi.location);
+  if (!loc) return null;
+  const rawDist = Number(poi.distance);
+  const distance = rawDist > 0 ? rawDist : haversineDistance(origin.lat, origin.lng, loc.lat, loc.lng);
+  const categoryWeight = {
+    '景点': 3.4, '文艺': 3.2, '美食': 2.9, '网红': 2.6, '购物': 2.1,
+    '生活服务': 1.6, '体育休闲': 1.8, '科教文化': 2.3
+  }[category.name] || 1.4;
+  return {
+    name: poi.name,
+    type: (poi.type && String(poi.type).split(';')[0]) || category.name,
+    desc: poi.address || poi.type || category.name + '打卡点',
+    lat: loc.lat,
+    lng: loc.lng,
+    color: DEFAULT_COLORS[index % DEFAULT_COLORS.length],
+    category: category.name,
+    catIcon: category.icon,
+    _distance: distance,
+    _nearbyScore: categoryWeight + Math.max(0, 4 - distance / 450)
+  };
+}
+
+function getPreciseUserLocation() {
+  return new Promise((resolve, reject) => {
+    const fallbackToAMap = (previousError) => {
+      if (typeof AMap === 'undefined' || typeof AMap.Geolocation === 'undefined') {
+        reject(previousError || new Error('地图未加载'));
+        return;
+      }
+      try {
+        const geolocation = new AMap.Geolocation({
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 120000
+        });
+        geolocation.getCurrentPosition((status, result) => {
+          if (status === 'complete' && result?.position) {
+            const lng = result.position.lng || result.position.getLng?.();
+            const lat = result.position.lat || result.position.getLat?.();
+            if (!isNaN(lng) && !isNaN(lat)) {
+              resolve({ lng, lat, source: 'amap' });
+              return;
+            }
+          }
+          reject(previousError || new Error(result?.message || '定位失败'));
+        });
+      } catch (e) {
+        reject(previousError || e);
+      }
+    };
+
+    if (!navigator.geolocation) {
+      fallbackToAMap(new Error('浏览器不支持定位'));
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      pos => resolve({
+        lng: pos.coords.longitude,
+        lat: pos.coords.latitude,
+        source: 'browser'
+      }),
+      err => fallbackToAMap(err),
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 120000 }
+    );
+  });
+}
+
+function amapReverseGeocode(lng, lat) {
+  return new Promise((resolve) => {
+    try {
+      const geocoder = new AMap.Geocoder();
+      geocoder.getAddress([lng, lat], (status, result) => {
+        if (status === 'complete' && result.regeocode) {
+          const comp = result.regeocode.addressComponent || {};
+          const rawCity = Array.isArray(comp.city) ? (comp.province || '') : (comp.city || comp.province || '');
+          const city = normalizeCityName(rawCity);
+          const district = comp.district || city || '身边';
+          resolve({
+            city,
+            district,
+            formattedAddress: result.regeocode.formattedAddress || ''
+          });
+        } else {
+          resolve(null);
+        }
+      });
+    } catch (e) {
+      console.warn('Reverse geocode failed:', e);
+      resolve(null);
+    }
+  });
+}
+
+function buildNearbyRoute(origin, pois, options) {
+  const scoped = pois
+    .filter(p => !options.searchRadius || p._distance <= options.searchRadius)
+    .sort((a, b) => (a._distance || 0) - (b._distance || 0));
+  if (scoped.length < options.minPoints) return null;
+
+  const startPool = scoped.slice(0, Math.min(4, scoped.length));
+  const start = startPool.slice().sort((a, b) => b._nearbyScore - a._nearbyScore)[0] || scoped[0];
+  const selected = [start];
+  const usedNames = new Set([start.name]);
+  const usedCats = new Set([start.category]);
+  let current = start;
+  let totalMeters = 0;
+
+  while (selected.length < options.maxPoints) {
+    let best = null;
+    let bestScore = -Infinity;
+    let bestLeg = 0;
+
+    for (const poi of scoped) {
+      if (usedNames.has(poi.name)) continue;
+      const leg = estimateTravelDistanceMeters(current, poi, 'walk');
+      const projected = totalMeters + leg;
+      if (leg > options.maxLegDistance || projected > options.maxTotalDistance) continue;
+      const diversity = usedCats.has(poi.category) ? 0 : 2.2;
+      const score = poi._nearbyScore + diversity - projected / 420 - (poi._distance || 0) / 650;
+      if (score > bestScore) {
+        bestScore = score;
+        best = poi;
+        bestLeg = leg;
+      }
+    }
+
+    if (!best) break;
+    selected.push(best);
+    usedNames.add(best.name);
+    usedCats.add(best.category);
+    totalMeters += bestLeg;
+    current = best;
+  }
+
+  let ordered = optimizePOIOrder(selected, { fixedStartIndex: 0 });
+  ordered = trimRouteToBudget(ordered, options.maxTotalDistance, 'walk', options.minPoints);
+  if (ordered.length < options.minPoints) return null;
+
+  const totalDistance = computeOrderedTripDistance(ordered, 'walk');
+  const walkMin = Math.max(12, Math.round(totalDistance / 78));
+  const totalMin = walkMin + ordered.length * options.stopMin;
+  const minHours = Math.max(1, Math.floor(totalMin / 60));
+  const maxHours = Math.max(minHours, Math.ceil(totalMin / 60));
+  const duration = minHours === maxHours ? `${minHours}h` : `${minHours}-${maxHours}h`;
+  const difficulty = totalDistance <= 1800 ? 'easy' : totalDistance <= 3200 ? 'medium' : 'hard';
+
+  return {
+    id: options.id,
+    name: options.name,
+    banner: getRouteBanner(options.bannerCategory || '精华'),
+    desc: options.desc,
+    difficulty,
+    season: '四季',
+    duration,
+    distance: (totalDistance / 1000).toFixed(1) + 'km',
+    points: ordered,
+    isGenerated: true,
+    isNearbyRealtime: true
+  };
+}
+
+function generateNearbyRoutesFromPOIs(origin, pois, areaName) {
+  const nearbyPOIs = pois
+    .filter(Boolean)
+    .sort((a, b) => (a._distance || 0) - (b._distance || 0));
+  const routeSeed = 'near_' + Date.now();
+  const routes = [];
+
+  const mixedRoute = buildNearbyRoute(origin, nearbyPOIs, {
+    id: routeSeed + '_1',
+    name: areaName + ' 即刻开走线',
+    desc: '从你当前位置出发，先用一条轻量短线热身，串起附近最顺手的景点、文艺角落和烟火小店。',
+    bannerCategory: '精华',
+    searchRadius: 1200,
+    maxTotalDistance: 1600,
+    maxLegDistance: 800,
+    maxPoints: 4,
+    minPoints: 3,
+    stopMin: 18
+  });
+  if (mixedRoute) routes.push(mixedRoute);
+
+  const cultureRoute = buildNearbyRoute(
+    origin,
+    nearbyPOIs.filter(p => ['景点','文艺','网红','科教文化'].includes(p.category)),
+    {
+      id: routeSeed + '_2',
+      name: areaName + ' 灵感散步线',
+      desc: '偏观察与出片的一条附近路线，适合边走边看，把周边的人文气质一次收进来。',
+      bannerCategory: '人文',
+      searchRadius: 2200,
+      maxTotalDistance: 2600,
+      maxLegDistance: 1100,
+      maxPoints: 5,
+      minPoints: 3,
+      stopMin: 22
+    }
+  );
+  if (cultureRoute) routes.push(cultureRoute);
+
+  const foodRoute = buildNearbyRoute(
+    origin,
+    nearbyPOIs.filter(p => ['美食','购物','生活服务','网红'].includes(p.category)),
+    {
+      id: routeSeed + '_3',
+      name: areaName + ' 觅食充电线',
+      desc: '更偏吃喝与补给的一条附近路线，适合临时想出门、又想保证沿路一直有东西逛有东西吃。',
+      bannerCategory: '美食',
+      searchRadius: 2600,
+      maxTotalDistance: 3000,
+      maxLegDistance: 1300,
+      maxPoints: 5,
+      minPoints: 3,
+      stopMin: 25
+    }
+  );
+  if (foodRoute) routes.push(foodRoute);
+
+  if (routes.length < 2) {
+    const fallbackRoutes = generateRoutesFromPOIs(nearbyPOIs.slice(0, 18), areaName)
+      .slice(0, 3 - routes.length)
+      .map((route, idx) => ({
+        ...route,
+        id: routeSeed + '_f' + idx,
+        name: route.name.replace(areaName, areaName + '附近'),
+        desc: '基于你当前位置周边 3km 内的实时 POI 兜底生成，适合马上出发。',
+        isNearbyRealtime: true
+      }));
+    routes.push(...fallbackRoutes);
+  }
+
+  return routes.slice(0, 3);
+}
+
+async function discoverNearbyRoutes() {
+  const loader = document.getElementById('searchLoading');
+  if (loader) loader.style.display = 'block';
+  showToast('正在根据你当前位置生成附近路线...');
+
+  try {
+    const position = await getPreciseUserLocation();
+    APP.userLat = position.lat;
+    APP.userLng = position.lng;
+
+    const areaInfo = await amapReverseGeocode(position.lng, position.lat);
+    const userCity = areaInfo?.city || APP.userCity || '当前城市';
+    const areaName = areaInfo?.district || userCity || '附近';
+    APP.userCity = userCity;
+
+    const poiResults = await Promise.all(
+      POI_CATEGORIES.map(cat => chunkPOISearchNearBy(position.lng, position.lat, 3000, cat.code))
+    );
+
+    const deduped = [];
+    const seenNames = new Set();
+    POI_CATEGORIES.forEach((cat, ci) => {
+      (poiResults[ci] || []).forEach((poi) => {
+        const mapped = mapNearbyPOI(poi, cat, deduped.length, position);
+        if (!mapped || seenNames.has(mapped.name)) return;
+        if (mapped._distance > 3200) return;
+        seenNames.add(mapped.name);
+        deduped.push(mapped);
+      });
+    });
+
+    if (deduped.length < 6) {
+      showToast('附近可串联的点位还不够多，换个更热闹的位置再试试');
+      if (loader) loader.style.display = 'none';
+      return;
+    }
+
+    const routes = generateNearbyRoutesFromPOIs(position, deduped, areaName);
+    if (!routes.length) {
+      showToast('附近点位较少，暂时没能拼出合适路线');
+      if (loader) loader.style.display = 'none';
+      return;
+    }
+
+    const heroImage = (DYNAMIC_CITIES[userCity] && DYNAMIC_CITIES[userCity].bgUrl) || CITY_IMAGES[userCity] || getRouteBanner('精华');
+    DYNAMIC_CITIES[NEARBY_CITY_KEY] = {
+      cardName: NEARBY_CITY_KEY,
+      displayName: areaName + '附近',
+      slogan: `基于你当前位置 3km 内实时发现的 ${deduped.length} 个点位，刚为你拼好 ${routes.length} 条即刻可走路线`,
+      routes,
+      isNearbyHub: true,
+      bgUrl: heroImage,
+      bgSource: 'dynamic',
+      baseCity: userCity,
+      updatedAt: Date.now()
+    };
+    saveDynamicCities();
+    CITY_COLORS[NEARBY_CITY_KEY] = CITY_COLORS[userCity] || ['#ff6b35', '#00b894'];
+
+    renderCities(document.getElementById('citySearch')?.value || '');
+    refreshQuickCities();
+    APP.selectedCity = NEARBY_CITY_KEY;
+    renderRouteList(NEARBY_CITY_KEY);
+    showView('routeList');
+    showToast(`已生成 ${routes.length} 条「${areaName}附近」路线`);
+  } catch (e) {
+    console.error('Nearby route generation failed:', e);
+    showToast('附近推荐生成失败，请检查定位权限后重试');
+  } finally {
+    if (loader) loader.style.display = 'none';
   }
 }
 
@@ -1873,6 +2205,7 @@ function refreshQuickCities() {
   // Shuffle and pick 8
   const shuffled = available.sort(() => Math.random() - 0.5).slice(0, 8);
   container.innerHTML = '<span class="quick-label">试试：</span>' +
+    `<button class="quick-chip nearby" onclick="discoverNearbyRoutes()" title="按当前位置生成附近 3km CityWalk">📡 附近推荐</button>` +
     shuffled.map(c => `<button class="quick-chip" onclick="discoverCity('${c}')">${c}</button>`).join('') +
     `<button class="quick-chip" onclick="refreshQuickCities()" title="换一批">🔄</button>`;
 }
@@ -2146,7 +2479,8 @@ function renderRouteList(city) {
   const data = allCities[city];
   if (!data) { discoverCity(city); return; }
   const isDynamic = !!DYNAMIC_CITIES[city];
-  document.getElementById('routeCityName').textContent = city + ' CityWalk';
+  const cityLabel = data.displayName || city;
+  document.getElementById('routeCityName').textContent = cityLabel + ' CityWalk';
   document.getElementById('routeCitySubtitle').textContent = data.slogan || '';
   // Stats
   let totalPoints = 0, checkedPoints = 0;
@@ -2162,17 +2496,22 @@ function renderRouteList(city) {
   // Discovery banner for dynamic cities
   let cardsHTML = '';
   if (isDynamic) {
-    cardsHTML += `<div class="discover-banner"><div class="discover-banner-inner anim-fadeInUp">
+    cardsHTML += data.isNearbyHub
+      ? `<div class="discover-banner"><div class="discover-banner-inner anim-fadeInUp">
+      <div class="icon">📡</div>
+      <div class="text">以下路线以你当前所在位置为圆心，抓取 <strong>3km 内实时 POI</strong> 后即时拼装，适合现在就出发。</div>
+    </div></div>`
+      : `<div class="discover-banner"><div class="discover-banner-inner anim-fadeInUp">
       <div class="icon">🔍</div>
-      <div class="text">以下路线由 <strong>高德地图 API</strong> 实时发现并智能生成，基于${city}的热门景点、美食、文艺空间等 POI 数据自动规划。</div>
+      <div class="text">以下路线由 <strong>高德地图 API</strong> 实时发现并智能生成，基于${cityLabel}的热门景点、美食、文艺空间等 POI 数据自动规划。</div>
     </div></div>`;
   }
   // 🎲 随机一日游卡片 / Dice day-trip card
-  cardsHTML += `<div class="dice-card anim-fadeInUp" onclick="openDayTrip('${city}')">
+  if (!data.isNearbyHub) cardsHTML += `<div class="dice-card anim-fadeInUp" onclick="openDayTrip('${city}')">
     <div class="dice-icon">🎲</div>
     <div>
       <div class="dice-text">随机一日游</div>
-      <div class="dice-sub">摇一摇骰子，AI 为你生成 ${city} 今日攻略</div>
+      <div class="dice-sub">摇一摇骰子，AI 为你生成 ${cityLabel} 今日攻略</div>
     </div>
   </div>`;
   // Cards

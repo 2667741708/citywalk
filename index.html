@@ -879,16 +879,42 @@ const CITY_GEO = {
   '婺源':[29.25,117.86],
 };
 const CHALLENGES = [
-  {icon:'📸',text:'在这里拍一张最有创意的自拍！'},
-  {icon:'🍜',text:'品尝这附近最受欢迎的一道小吃，并给它打分！'},
-  {icon:'🎨',text:'用手机画一幅这个地方的速写！'},
-  {icon:'👋',text:'和一位当地人聊天，问一个关于这里的故事！'},
-  {icon:'📝',text:'用三个词描述此刻的心情，发到朋友圈！'},
-  {icon:'🎵',text:'找到这附近的街头艺人，听一首歌！'},
-  {icon:'🌿',text:'收集一片有特色的树叶或花瓣作为纪念！'},
-  {icon:'☕',text:'在最近的咖啡店点一杯特色饮品！'},
-  {icon:'🔍',text:'找到一个隐藏的有趣细节（涂鸦、门牌号等）！'},
-  {icon:'🧭',text:'闭上眼睛转三圈，朝面对的方向走100步看看有什么！'}
+  {icon:'📸',text:'拍一张“像明信片封面”的照片，只保留一个主角。'},
+  {icon:'🍜',text:'找附近最想吃的一样小吃，吃一口后用 5 个字评价它。'},
+  {icon:'🎨',text:'打开备忘录，用一句话给这里写个展览标题。'},
+  {icon:'👋',text:'向店员或路人问一句“这里最值得看的是什么？”'},
+  {icon:'📝',text:'用 3 个词记录你此刻的心情。'},
+  {icon:'🎵',text:'录 10 秒环境声，回头听听这座城市今天的底噪。'},
+  {icon:'🌿',text:'找一个最能代表季节感的小细节，可以是树影、风、花或落叶。'},
+  {icon:'☕',text:'找一家顺眼的小店，记下它最吸引你的招牌或菜单名。'},
+  {icon:'🔍',text:'找到一个容易被忽略的小细节，比如门牌、贴纸、招牌字样或墙面纹理。'},
+  {icon:'🧭',text:'原地转一圈后，选你最想走的方向，往前慢慢走 60 秒。'},
+  {icon:'🏙️',text:'拍一张“城市层次感”照片，前景、中景、远景都要有。'},
+  {icon:'🚶',text:'接下来 5 分钟不看手机，只观察路上的人和建筑。'},
+  {icon:'🎭',text:'给眼前这条街起一个电影片名。'},
+  {icon:'💡',text:'找一个你觉得“晚上来会更好看”的地方，并记住它。'},
+  {icon:'🪟',text:'拍一扇最有故事感的窗或门。'},
+  {icon:'📍',text:'给这个地点打一个你的私人标签，比如“适合发呆”或“适合夜游”。'},
+  {icon:'🍃',text:'停 20 秒，感受一下这里的风、温度和气味。'},
+  {icon:'🧱',text:'找到一种你今天第一次注意到的材质，比如砖、木、金属、石头。'},
+  {icon:'🎬',text:'录一段 5 秒短视频，只拍移动的东西。'},
+  {icon:'🪑',text:'找一个最想坐下休息的角落，拍下来。'},
+  {icon:'🧋',text:'如果此刻要配一杯饮料，你会选什么？心里点单一次。'},
+  {icon:'🗺️',text:'猜一猜这附近最老的一栋建筑可能是哪一栋。'},
+  {icon:'🎒',text:'假装你要带朋友来这里，只能推荐一个点，你会选哪里？'},
+  {icon:'🌈',text:'找出今天在这一路上看到的第 3 种颜色主角。'},
+  {icon:'📚',text:'如果这里能写进一本书，章节名会叫什么？'},
+  {icon:'🕰️',text:'想象这里 20 年前的样子，用一句话描述。'},
+  {icon:'😋',text:'找到一个最让你有食欲的招牌或橱窗。'},
+  {icon:'🏃',text:'快走 30 秒，再停下来看看周围，有没有忽然注意到新东西。'},
+  {icon:'👀',text:'从高处、平视、低角度各看一次同一个地方。'},
+  {icon:'🧩',text:'找出一组“意外搭配”，比如老建筑和新广告、安静小巷和热闹商场。'},
+  {icon:'🛍️',text:'选一家最想逛却还没进去的店，把它记成下次目标。'},
+  {icon:'🌆',text:'拍一张最有“城市正在发光”感觉的画面。'},
+  {icon:'🎤',text:'给这个地点配一句旁白，像旅行纪录片开头。'},
+  {icon:'🤳',text:'拍一张不露脸自拍，只用影子、背影或倒影出镜。'},
+  {icon:'🧠',text:'记住身边 3 个细节，1 分钟后不看周围再复述出来。'},
+  {icon:'🎲',text:'在心里给这里打分：好逛度、好拍度、想再来度，各几分？'}
 ];
 const MOCK_DATA = {
 '上海':{
@@ -3229,6 +3255,27 @@ async function startFreeroam(type) {
       }
     }, 200);
   }
+
+function closeGlassCity() {
+  GX.running = false;
+  if (GX.animFrame) {
+    cancelAnimationFrame(GX.animFrame);
+    GX.animFrame = null;
+  }
+  removeGlassListeners();
+  closeGlassPopup();
+  window.removeEventListener('resize', window._glassResize);
+  window._glassResize = null;
+  GX.keys = {};
+  GX.moveX = 0;
+  GX.moveY = 0;
+  GX.boosting = false;
+  GX.pMoving = false;
+  const loading = document.getElementById('glassLoading');
+  if (loading) loading.classList.add('hidden');
+  const panel = document.getElementById('glassCityPanel');
+  if (panel) panel.classList.remove('active');
+}
 
 
 // === REAL MAP ENGINE ===
@@ -5906,6 +5953,11 @@ function glassGameLoop(){
 // --- Input ---
 function setupGlassListeners(){
   window._gxKeyDown=e=>{
+    if(e.key === 'Escape') {
+      e.preventDefault();
+      closeGlassCity();
+      return;
+    }
     GX.keys[e.key]=true;
     if(e.key==='g'||e.key==='G')toggleGhostMode('gx');
     if(e.key===' ') e.preventDefault(); // 防止按空格键跳跃时页面滚动

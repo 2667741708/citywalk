@@ -227,15 +227,15 @@ input{font-family:inherit;border:none;outline:none}
 .city-node{cursor:pointer;transition:transform .3s,filter .3s}
 .city-node:hover{filter:drop-shadow(0 0 8px rgba(255,107,53,.5))}
 .city-node .node-glow{animation:nodeGlow 2s ease-in-out infinite}
-@keyframes nodeGlow{0%,100%{opacity:.3;r:18}50%{opacity:.6;r:22}}
+@keyframes nodeGlow{0%,100%{opacity:.2;r:2.8}50%{opacity:.34;r:3.6}}
 .city-node .node-ring{transition:r .3s,stroke-width .3s}
-.city-node:hover .node-ring{r:15;stroke-width:3}
+.city-node:hover .node-ring{r:2.6;stroke-width:1.2}
 .city-node.locked{opacity:.35;cursor:default;pointer-events:none}
 .city-node.locked:hover{filter:none}
 .city-node.unlocked .node-core{filter:drop-shadow(0 0 4px rgba(255,107,53,.4))}
 .city-node.completed .node-core{filter:drop-shadow(0 0 6px rgba(0,184,148,.5))}
 .city-node.completed .node-glow{animation:nodeGlowGreen 2s ease-in-out infinite}
-@keyframes nodeGlowGreen{0%,100%{opacity:.2;r:18}50%{opacity:.5;r:24}}
+@keyframes nodeGlowGreen{0%,100%{opacity:.16;r:3}50%{opacity:.3;r:4}}
 .edge-line{stroke:rgba(26,26,46,.06);stroke-width:1;stroke-dasharray:4,4;transition:stroke .4s,stroke-width .4s,opacity .4s}
 .edge-line.active{stroke:rgba(255,107,53,.25);stroke-width:1.5;stroke-dasharray:none;opacity:1}
 .edge-line.completed{stroke:rgba(0,184,148,.3);stroke-width:2;stroke-dasharray:none}
@@ -1140,11 +1140,30 @@ const AmapHelper = {
   markers: [],
   polyline: null,
   infoWindow: null,
+  routeOverlays: [],
+  routeWalkServices: [],
+  routeRenderToken: 0,
+
+  clearRouteVisuals() {
+    this.routeRenderToken++;
+    this.routeOverlays.forEach(overlay => {
+      try { overlay.setMap(null); } catch(e) {}
+    });
+    this.routeOverlays = [];
+    this.routeWalkServices.forEach(service => {
+      try { service.clear(); } catch(e) {}
+    });
+    this.routeWalkServices = [];
+    if (this.polyline) {
+      try { this.polyline.setMap(null); } catch(e) {}
+      this.polyline = null;
+    }
+  },
 
   init(containerId) {
     // Clear previous
     this.markers = [];
-    this.polyline = null;
+    this.clearRouteVisuals();
     const placeholder = document.getElementById('mapPlaceholder');
     if (placeholder) placeholder.style.display = 'none';
 
@@ -1257,9 +1276,11 @@ const AmapHelper = {
   // Rewritten to plan walking routes between every consecutive POI pair
   drawRoute(points) {
     if (!this.map || points.length < 2) return;
+    this.clearRouteVisuals();
+    const renderToken = this.routeRenderToken;
     // 1. 即时显示虚线总览折线 / Instantly show dashed overview polyline
     const path = points.map(p => [p.lng, p.lat]);
-    this.polyline = new AMap.Polyline({
+    const overviewLine = new AMap.Polyline({
       path: path,
       strokeColor: '#ff6b35',
       strokeWeight: 3,
@@ -1269,45 +1290,107 @@ const AmapHelper = {
       lineJoin: 'round',
       lineCap: 'round'
     });
-    this.polyline.setMap(this.map);
+    this.polyline = overviewLine;
+    overviewLine.setMap(this.map);
+    this.routeOverlays.push(overviewLine);
 
-    // 2. 逐段规划步行路径 / Plan walking route for each segment
+    // 2. 逐段规划步行路径，但最终只绘制一条合并后的主线路，避免多段线条叠在一起
+    // Plan each walking segment, then merge them into one main route line
     if (typeof AMap !== 'undefined') {
       const self = this;
-      let segmentsLoaded = 0;
       let totalRealDist = 0;
       const totalSegments = points.length - 1;
-      
-      for (let i = 0; i < totalSegments; i++) {
-        ((idx) => {
-          setTimeout(() => {
-            try {
-              const walking = new AMap.Walking({ map: self.map, hideMarkers: true });
-              walking.search(
-                [points[idx].lng, points[idx].lat],
-                [points[idx + 1].lng, points[idx + 1].lat],
-                (status, result) => {
-                  segmentsLoaded++;
-                  if (status === 'complete' && result.routes && result.routes.length > 0) {
-                    totalRealDist += result.routes[0].distance; // 米
-                  }
-                  // 所有段加载完成后移除虚线 / Remove dashed line after all segments loaded
-                  if (segmentsLoaded >= totalSegments) {
-                    if (self.polyline) {
-                      self.polyline.setMap(null);
-                      self.polyline = null;
-                    }
-                    console.log(`[Route] 全程步行距离: ${(totalRealDist/1000).toFixed(1)}km (${totalSegments}段)`);
-                  }
-                }
-              );
-            } catch(e) {
-              segmentsLoaded++;
-              console.warn('Walking segment', idx, 'failed:', e);
-            }
-          }, idx * 300); // 300ms 间隔避免API限流 / 300ms stagger to avoid rate limiting
-        })(i);
+      const segmentPaths = Array.from({ length: totalSegments }, () => null);
+
+      function normalizePath(rawPath) {
+        const normalized = [];
+        (rawPath || []).forEach(point => {
+          const lng = typeof point?.getLng === 'function' ? point.getLng() : point?.lng;
+          const lat = typeof point?.getLat === 'function' ? point.getLat() : point?.lat;
+          if (typeof lng !== 'number' || typeof lat !== 'number') return;
+          const prev = normalized[normalized.length - 1];
+          if (!prev || prev[0] !== lng || prev[1] !== lat) normalized.push([lng, lat]);
+        });
+        return normalized;
       }
+
+      function finalizeRoute() {
+        if (renderToken !== self.routeRenderToken) return;
+        const mergedPath = [];
+
+        for (let i = 0; i < totalSegments; i++) {
+          const fallbackPath = [
+            [points[i].lng, points[i].lat],
+            [points[i + 1].lng, points[i + 1].lat]
+          ];
+          const segmentPath = segmentPaths[i] && segmentPaths[i].length >= 2 ? segmentPaths[i] : fallbackPath;
+          segmentPath.forEach(coord => {
+            const prev = mergedPath[mergedPath.length - 1];
+            if (!prev || prev[0] !== coord[0] || prev[1] !== coord[1]) mergedPath.push(coord);
+          });
+        }
+
+        self.clearRouteVisuals();
+
+        const routeOutline = new AMap.Polyline({
+          path: mergedPath,
+          strokeColor: '#ffffff',
+          strokeWeight: 8,
+          strokeOpacity: 0.92,
+          lineJoin: 'round',
+          lineCap: 'round',
+          zIndex: 48
+        });
+        const routeMain = new AMap.Polyline({
+          path: mergedPath,
+          strokeColor: '#ff6b35',
+          strokeWeight: 5,
+          strokeOpacity: 0.96,
+          lineJoin: 'round',
+          lineCap: 'round',
+          zIndex: 49
+        });
+        routeOutline.setMap(self.map);
+        routeMain.setMap(self.map);
+        self.routeOverlays = [routeOutline, routeMain];
+        self.polyline = routeMain;
+        self.map.setFitView([...self.markers, routeOutline, routeMain], false, [60, 60, 60, 60]);
+        console.log(`[Route] 全程步行距离: ${(totalRealDist/1000).toFixed(1)}km (${totalSegments}段)`);
+      }
+
+      function planSegment(idx) {
+        if (renderToken !== self.routeRenderToken) return;
+        if (idx >= totalSegments) {
+          finalizeRoute();
+          return;
+        }
+        try {
+          const walking = new AMap.Walking({ hideMarkers: true, autoFitView: false });
+          self.routeWalkServices.push(walking);
+          walking.search(
+            [points[idx].lng, points[idx].lat],
+            [points[idx + 1].lng, points[idx + 1].lat],
+            (status, result) => {
+              if (renderToken !== self.routeRenderToken) return;
+              if (status === 'complete' && result.routes && result.routes.length > 0) {
+                const routeData = result.routes[0];
+                totalRealDist += routeData.distance || 0;
+                const walkPath = [];
+                (routeData.steps || []).forEach(step => {
+                  (step.path || []).forEach(point => walkPath.push(point));
+                });
+                segmentPaths[idx] = normalizePath(walkPath);
+              }
+              setTimeout(() => planSegment(idx + 1), 120);
+            }
+          );
+        } catch(e) {
+          console.warn('Walking segment', idx, 'failed:', e);
+          setTimeout(() => planSegment(idx + 1), 120);
+        }
+      }
+
+      planSegment(0);
     }
 
     // Fit view to show all markers
@@ -1349,6 +1432,14 @@ function goBack(target) {
 }
 function closeMap() {
   document.getElementById('mapPanel').classList.remove('active');
+  if (typeof AmapHelper !== 'undefined') {
+    AmapHelper.clearRouteVisuals();
+    AmapHelper.markers = [];
+    if (AmapHelper.map) {
+      try { AmapHelper.map.destroy(); } catch(e) {}
+      AmapHelper.map = null;
+    }
+  }
 }
 function closeModal(id) {
   document.getElementById(id).classList.remove('active');
@@ -1777,13 +1868,36 @@ function haversineDistance(lat1, lng1, lat2, lng2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+function estimateTravelDistanceMeters(from, to, mode = 'walk') {
+  if (!from || !to) return 0;
+  const base = haversineDistance(from.lat, from.lng, to.lat, to.lng);
+  return base * (mode === 'walk' ? 1.35 : 1.18);
+}
+
+function computeOrderedTripDistance(points, mode = 'walk') {
+  let total = 0;
+  for (let i = 1; i < points.length; i++) {
+    total += estimateTravelDistanceMeters(points[i - 1], points[i], mode);
+  }
+  return total;
+}
+
+function trimRouteToBudget(points, maxDistance, mode = 'walk', minPoints = 2) {
+  const trimmed = points.slice();
+  while (trimmed.length > minPoints && computeOrderedTripDistance(trimmed, mode) > maxDistance) {
+    trimmed.pop();
+  }
+  return trimmed;
+}
+
 // Bitmask DP 求最短哈密顿路径 (精确解, N≤10)
 // Bitmask DP for shortest Hamiltonian path (exact solution, N≤10)
 // 输入: 带 lat/lng 属性的 POI 数组
 // 输出: 重排后的 POI 数组 (最短总步行距离)
-function optimizePOIOrder(points) {
+function optimizePOIOrder(points, options = {}) {
   const N = points.length;
   if (N <= 2) return points; // 0-2 个点无需排序
+  const fixedStartIndex = Number.isInteger(options.fixedStartIndex) ? options.fixedStartIndex : null;
 
   // 1. 构建距离矩阵 / Build distance matrix
   const dist = Array.from({ length: N }, () => new Float64Array(N));
@@ -1804,7 +1918,9 @@ function optimizePOIOrder(points) {
 
   // 初始状态: 每个节点都可以作为起点
   for (let i = 0; i < N; i++) {
-    dp[1 << i][i] = 0;
+    if (fixedStartIndex === null || i === fixedStartIndex) {
+      dp[1 << i][i] = 0;
+    }
   }
 
   // 状态转移
@@ -2146,6 +2262,93 @@ function scorePOIForDayTrip(poi, template, weatherFlags) {
   return score + Math.random() * 3;
 }
 
+function buildBudgetedDayTrip(startPOI, candidates, config) {
+  const trip = [startPOI];
+  const usedNames = new Set([startPOI.name]);
+  const usedTags = new Set(startPOI._tags || []);
+  let current = startPOI;
+  let totalMeters = 0;
+  const pool = candidates
+    .filter(p => p.name !== startPOI.name)
+    .sort((a, b) => b._tripScore - a._tripScore);
+
+  while (trip.length < config.maxPoints && pool.length > 0) {
+    let bestIndex = -1;
+    let bestScore = -Infinity;
+    let bestLegMeters = 0;
+
+    for (let i = 0; i < pool.length; i++) {
+      const poi = pool[i];
+      if (usedNames.has(poi.name)) continue;
+      const legMeters = estimateTravelDistanceMeters(current, poi, config.mode);
+      const startMeters = estimateTravelDistanceMeters(startPOI, poi, config.mode);
+      const projected = totalMeters + legMeters;
+      if (legMeters > config.maxLegDistance || projected > config.maxTotalDistance) continue;
+
+      const diversityBonus = (poi._tags || []).some(tag => !usedTags.has(tag)) ? 2.4 : 0;
+      const indoorBonus = poi._indoor ? 0.6 : 0;
+      const walkScore = poi._tripScore + diversityBonus + indoorBonus - projected / 450 - startMeters / 900;
+
+      if (walkScore > bestScore) {
+        bestScore = walkScore;
+        bestIndex = i;
+        bestLegMeters = legMeters;
+      }
+    }
+
+    if (bestIndex === -1) break;
+
+    const nextPOI = pool.splice(bestIndex, 1)[0];
+    trip.push(nextPOI);
+    totalMeters += bestLegMeters;
+    current = nextPOI;
+    usedNames.add(nextPOI.name);
+    (nextPOI._tags || []).forEach(tag => usedTags.add(tag));
+
+    if (trip.length >= config.minPoints && config.maxTotalDistance - totalMeters < 450) break;
+  }
+
+  return trip;
+}
+
+function buildWalkDayTripOption(startPOI, rankedPOIs, config) {
+  const effectiveRadius = Math.min(config.radius, 1600);
+  let nearbyPOIs = rankedPOIs.filter(p => {
+    if (p.name === startPOI.name) return false;
+    return haversineDistance(startPOI.lat, startPOI.lng, p.lat, p.lng) <= effectiveRadius;
+  });
+
+  if (nearbyPOIs.length < config.minPoints - 1) {
+    nearbyPOIs = rankedPOIs
+      .filter(p => p.name !== startPOI.name)
+      .sort((a, b) => estimateTravelDistanceMeters(startPOI, a, 'walk') - estimateTravelDistanceMeters(startPOI, b, 'walk'))
+      .slice(0, Math.max(config.maxPoints * 3, 10));
+  }
+
+  const tripPOIs = buildBudgetedDayTrip(startPOI, nearbyPOIs, config);
+  let optimized = optimizePOIOrder(tripPOIs, { fixedStartIndex: 0 });
+  optimized = trimRouteToBudget(optimized, config.maxTotalDistance, 'walk', 2);
+
+  const totalDist = computeOrderedTripDistance(optimized, 'walk');
+  const hasLongLeg = optimized.some((poi, idx) => idx > 0 && estimateTravelDistanceMeters(optimized[idx - 1], poi, 'walk') > config.maxLegDistance);
+
+  if (optimized.length < 2 || totalDist > config.maxTotalDistance || hasLongLeg) return null;
+
+  const routeScore = optimized.reduce((sum, poi) => sum + (poi._tripScore || 0), 0) + optimized.length * 6 - totalDist / 450;
+  return { startPOI, optimized, totalDist, score: routeScore };
+}
+
+function pickBestWalkDayTrip(startCandidates, rankedPOIs, config) {
+  let bestOption = null;
+  (startCandidates || []).forEach(candidate => {
+    const option = buildWalkDayTripOption(candidate, rankedPOIs, config);
+    if (option && (!bestOption || option.score > bestOption.score)) {
+      bestOption = option;
+    }
+  });
+  return bestOption;
+}
+
 function openDayTrip(city) {
   _diceCity = city;
   _diceMode = '';
@@ -2250,53 +2453,77 @@ async function generateDayTrip(city, mode, resultDiv) {
   
   // 模式参数 / Mode parameters
   const config = mode === 'walk' 
-    ? { radius: 3000, speed: 5, stopMin: 30, emoji: '🚶', label: '步行', maxPoints: 6 }
-    : { radius: 15000, speed: 30, stopMin: 45, emoji: '🚗', label: '驾车', maxPoints: 8 };
+    ? { mode: 'walk', radius: 2600, speed: 5, stopMin: 30, emoji: '🚶', label: '步行', maxPoints: 5, minPoints: 3, maxTotalDistance: 3000, maxLegDistance: 1200 }
+    : { mode: 'drive', radius: 15000, speed: 30, stopMin: 45, emoji: '🚗', label: '驾车', maxPoints: 8, minPoints: 4, maxTotalDistance: Infinity, maxLegDistance: Infinity };
   config.radius = Math.round(config.radius * tripTemplate.rhythm.radiusFactor);
   config.stopMin = Math.max(20, Math.round(config.stopMin * tripTemplate.rhythm.stopFactor));
-  config.maxPoints = Math.max(4, config.maxPoints + tripTemplate.rhythm.maxAdjust);
+  config.maxPoints = mode === 'walk'
+    ? Math.max(config.minPoints, Math.min(5, config.maxPoints + tripTemplate.rhythm.maxAdjust))
+    : Math.max(config.minPoints, config.maxPoints + tripTemplate.rhythm.maxAdjust);
   const rankedPOIs = allPOIs
     .map(p => ({ ...p, _tripScore: scorePOIForDayTrip(p, tripTemplate, weatherFlags) }))
     .sort((a, b) => b._tripScore - a._tripScore);
   
-  // 如果用户有位置，优先选附近POI作出发点 / Use nearest POI as start if user location known
+  // 如果用户有位置，优先考虑附近高分点；步行模式会在多个候选起点中挑出更合理的一条
+  // Use nearby high-score POIs as candidate starts, then pick the best compact walk route
   let startPOI;
-  if (APP.userLat && APP.userLng) {
-    const nearbyStartPool = rankedPOIs.slice(0, 10).sort((a, b) => {
-      const da = haversineDistance(APP.userLat, APP.userLng, a.lat, a.lng);
-      const db = haversineDistance(APP.userLat, APP.userLng, b.lat, b.lng);
-      return da - db;
-    });
-    startPOI = nearbyStartPool[Math.min(Math.floor(Math.random() * 3), nearbyStartPool.length - 1)];
+  let optimized;
+  if (mode === 'walk') {
+    const walkStartCandidates = APP.userLat && APP.userLng
+      ? rankedPOIs
+          .slice(0, 12)
+          .sort((a, b) => haversineDistance(APP.userLat, APP.userLng, a.lat, a.lng) - haversineDistance(APP.userLat, APP.userLng, b.lat, b.lng))
+          .slice(0, 6)
+      : rankedPOIs.slice(0, Math.min(8, rankedPOIs.length));
+    const bestWalkTrip = pickBestWalkDayTrip(walkStartCandidates, rankedPOIs, config);
+    if (!bestWalkTrip) {
+      resultDiv.innerHTML = '<div style="color:#e84393;padding:12px">当前城市里找不到 3km 内足够顺路的步行玩法，建议再摇一次或切到驾车模式</div>';
+      return;
+    }
+    startPOI = bestWalkTrip.startPOI;
+    optimized = bestWalkTrip.optimized;
   } else {
-    const startPool = rankedPOIs.slice(0, Math.min(6, rankedPOIs.length));
-    startPOI = startPool[Math.floor(Math.random() * startPool.length)];
+    if (APP.userLat && APP.userLng) {
+      const nearbyStartPool = rankedPOIs.slice(0, 10).sort((a, b) => {
+        const da = haversineDistance(APP.userLat, APP.userLng, a.lat, a.lng);
+        const db = haversineDistance(APP.userLat, APP.userLng, b.lat, b.lng);
+        return da - db;
+      });
+      startPOI = nearbyStartPool[Math.min(Math.floor(Math.random() * 3), nearbyStartPool.length - 1)];
+    } else {
+      const startPool = rankedPOIs.slice(0, Math.min(6, rankedPOIs.length));
+      startPOI = startPool[Math.floor(Math.random() * startPool.length)];
+    }
+
+    let nearbyPOIs = rankedPOIs.filter(p => {
+      if (p.name === startPOI.name) return false;
+      const dist = haversineDistance(startPOI.lat, startPOI.lng, p.lat, p.lng);
+      return dist <= config.radius;
+    });
+    if (nearbyPOIs.length < config.minPoints - 1) {
+      nearbyPOIs = rankedPOIs
+        .filter(p => p.name !== startPOI.name)
+        .sort((a, b) => estimateTravelDistanceMeters(startPOI, a, mode) - estimateTravelDistanceMeters(startPOI, b, mode));
+    }
+
+    const tripPOIs = [startPOI];
+    const selected = [];
+    const usedTags = new Set(startPOI._tags || []);
+    for (const poi of nearbyPOIs) {
+      const diversityBonus = (poi._tags || []).some(tag => !usedTags.has(tag)) ? 2 : 0;
+      if (poi._tripScore + diversityBonus < 2 && selected.length >= 3) continue;
+      selected.push(poi);
+      (poi._tags || []).forEach(tag => usedTags.add(tag));
+      if (selected.length >= config.maxPoints - 1) break;
+    }
+    tripPOIs.push(...selected);
+    optimized = optimizePOIOrder(tripPOIs);
   }
-  
-  // 筛选半径内的 POI / Filter POIs within radius
-  let nearbyPOIs = rankedPOIs.filter(p => {
-    if (p.name === startPOI.name) return false;
-    const dist = haversineDistance(startPOI.lat, startPOI.lng, p.lat, p.lng);
-    return dist <= config.radius;
-  });
-  if (nearbyPOIs.length < config.maxPoints - 1) {
-    nearbyPOIs = rankedPOIs.filter(p => p.name !== startPOI.name);
+
+  if (optimized.length < 2) {
+    resultDiv.innerHTML = '<div style="color:#e84393;padding:12px">附近适合步行串联的点位不足，换个城市或改用驾车试试</div>';
+    return;
   }
-  
-  // 取最多 maxPoints 个 / Take at most maxPoints
-  const selected = [];
-  const usedTags = new Set(startPOI._tags || []);
-  for (const poi of nearbyPOIs) {
-    const diversityBonus = (poi._tags || []).some(tag => !usedTags.has(tag)) ? 2 : 0;
-    if (poi._tripScore + diversityBonus < 2 && selected.length >= 3) continue;
-    selected.push(poi);
-    (poi._tags || []).forEach(tag => usedTags.add(tag));
-    if (selected.length >= config.maxPoints - 1) break;
-  }
-  const tripPOIs = [startPOI, ...selected];
-  
-  // DAG 最短路径排序 / Sort using DAG shortest path
-  const optimized = optimizePOIOrder(tripPOIs);
   
   // 生成时间表 / Generate timeline
   // 高温天气延后出发 / Delay start on hot days
@@ -2314,7 +2541,7 @@ async function generateDayTrip(city, mode, resultDiv) {
     const color = colors[i % colors.length];
     
     if (i > 0) {
-      const dist = haversineDistance(optimized[i-1].lat, optimized[i-1].lng, poi.lat, poi.lng);
+      const dist = estimateTravelDistanceMeters(optimized[i-1], poi, mode);
       const travelMin = Math.round((dist / 1000) / config.speed * 60);
       timeline.push({ time: timeStr, type: 'travel', text: `${config.emoji} ${config.label} ${(dist/1000).toFixed(1)}km · 约${travelMin}分钟`, color });
       currentMin += travelMin;
@@ -2330,10 +2557,10 @@ async function generateDayTrip(city, mode, resultDiv) {
   const endHour = Math.floor((START_HOUR * 60 + currentMin) / 60);
   const endMin = (START_HOUR * 60 + currentMin) % 60;
   const endTimeStr = `${String(endHour).padStart(2,'0')}:${String(endMin).padStart(2,'0')}`;
-  
+
   let totalDist = 0;
   for (let i = 1; i < optimized.length; i++) {
-    totalDist += haversineDistance(optimized[i-1].lat, optimized[i-1].lng, optimized[i].lat, optimized[i].lng);
+    totalDist += estimateTravelDistanceMeters(optimized[i-1], optimized[i], mode);
   }
   
   // === 天气建议卡 / Weather advice card ===
@@ -2383,8 +2610,9 @@ async function generateDayTrip(city, mode, resultDiv) {
   html += `<div style="margin:8px 0;padding:10px 14px;background:linear-gradient(135deg,rgba(102,126,234,.08),rgba(118,75,162,.08));border-radius:12px;">
     <div style="font-weight:700;font-size:.9rem">${config.emoji} ${city} 一日 ${config.label} 攻略</div>
     <div style="font-size:.72rem;color:rgba(26,26,46,.45);margin-top:4px">
-      ${optimized.length} 个打卡点 · ${(totalDist/1000*1.3).toFixed(1)}km · ${endTimeStr} 返回
+      ${optimized.length} 个打卡点 · ${(totalDist/1000).toFixed(1)}km${mode === 'walk' ? ' 步行段' : ''} · ${endTimeStr} 收尾
     </div>
+    ${mode === 'walk' ? '<div style="font-size:.68rem;color:rgba(26,26,46,.42);margin-top:4px">已按总步行约 3km 内收敛路线，优先选择更连贯的近距离点位。</div>' : ''}
   </div>
   <div class="trip-timeline">`;
   
@@ -2408,7 +2636,7 @@ async function generateDayTrip(city, mode, resultDiv) {
   
   html += `<div class="trip-time-item" style="color:#00b894;border-color:#00b894">
     <div class="tt-time">${endTimeStr}</div>
-    <div class="tt-info"><div class="tt-name">🏠 行程结束</div><div class="tt-desc">返回出发地，完美的一天！</div></div>
+    <div class="tt-info"><div class="tt-name">🏁 行程结束</div><div class="tt-desc">${mode === 'walk' ? '步行主线已收尾，可就近休息或乘地铁返程。' : '主线已完成，接下来可自由返程。'}</div></div>
   </div></div>`;
   
   html += `<button class="dice-roll-btn" style="margin-top:12px;background:linear-gradient(135deg,#00b894,#00cec9)" onclick="applyDayTrip()">✅ 使用这条攻略</button>`;
@@ -2421,11 +2649,11 @@ async function generateDayTrip(city, mode, resultDiv) {
       id: city.substring(0,2).toLowerCase() + '_dice_' + Date.now(),
       name: `${city} ${config.label}一日游 🎲`,
       banner: getRouteBanner('精华'),
-      desc: `由骰子随机生成的${city}一日${config.label}攻略，从「${startPOI.name}」出发，途径${optimized.length}个打卡点。`,
+      desc: `由骰子随机生成的${city}一日${config.label}攻略，从「${optimized[0].name}」出发，途径${optimized.length}个打卡点。${mode === 'walk' ? '步行玩法会优先控制在 3km 内。' : ''}`,
       difficulty: mode === 'walk' ? 'easy' : 'medium',
       season: '四季',
       duration: `${Math.ceil(currentMin/60)}h`,
-      distance: (totalDist/1000*1.3).toFixed(1) + 'km',
+      distance: (totalDist/1000).toFixed(1) + 'km',
       points: optimized,
       isGenerated: true,
       isDayTrip: true
@@ -5760,32 +5988,32 @@ const EXPLORE_CITIES = [
   {name:'长春',x:83,y:18,emoji:'🌲',region:'东北'},
   {name:'沈阳',x:80,y:23,emoji:'🏭',region:'东北'},
   {name:'大连',x:79,y:28,emoji:'🌊',region:'东北'},
-  {name:'北京',x:70,y:28,emoji:'🏯',region:'华北'},
-  {name:'天津',x:73,y:30,emoji:'🎡',region:'华北'},
+  {name:'北京',x:68,y:28,emoji:'🏯',region:'华北',labelDy:-3.8},
+  {name:'天津',x:73.5,y:29.5,emoji:'🎡',region:'华北',labelDy:5.2},
   {name:'石家庄',x:67,y:33,emoji:'🏔️',region:'华北'},
   {name:'太原',x:63,y:31,emoji:'⛰️',region:'华北'},
   {name:'呼和浩特',x:60,y:22,emoji:'🐴',region:'华北'},
-  {name:'济南',x:72,y:36,emoji:'🌺',region:'华东'},
-  {name:'青岛',x:77,y:36,emoji:'🍺',region:'华东'},
+  {name:'济南',x:71,y:35,emoji:'🌺',region:'华东',labelDy:-3.8},
+  {name:'青岛',x:77.5,y:35.5,emoji:'🍺',region:'华东',labelDy:5},
   {name:'郑州',x:65,y:39,emoji:'🚄',region:'华中'},
   {name:'西安',x:57,y:39,emoji:'🏛️',region:'西北'},
   {name:'兰州',x:48,y:36,emoji:'🍜',region:'西北'},
   {name:'银川',x:52,y:30,emoji:'🏜️',region:'西北'},
   {name:'西宁',x:44,y:36,emoji:'🦌',region:'西北'},
   {name:'乌鲁木齐',x:22,y:20,emoji:'🍇',region:'西北'},
-  {name:'南京',x:74,y:43,emoji:'🌸',region:'华东'},
-  {name:'上海',x:79,y:44,emoji:'🌃',region:'华东'},
-  {name:'杭州',x:77,y:48,emoji:'🍵',region:'华东'},
-  {name:'合肥',x:71,y:44,emoji:'📚',region:'华东'},
-  {name:'武汉',x:66,y:46,emoji:'🌉',region:'华中'},
-  {name:'长沙',x:65,y:51,emoji:'🌶️',region:'华中'},
-  {name:'南昌',x:70,y:50,emoji:'🦆',region:'华东'},
-  {name:'福州',x:76,y:54,emoji:'🫖',region:'华东'},
-  {name:'厦门',x:74,y:58,emoji:'🏖️',region:'华东'},
-  {name:'台北',x:80,y:57,emoji:'🧋',region:'华东'},
-  {name:'广州',x:66,y:62,emoji:'🥟',region:'华南'},
-  {name:'深圳',x:68,y:64,emoji:'💻',region:'华南'},
-  {name:'香港',x:69,y:65,emoji:'🌇',region:'华南'},
+  {name:'南京',x:72.2,y:42.2,emoji:'🌸',region:'华东',labelDy:-4},
+  {name:'上海',x:81.5,y:42.5,emoji:'🌃',region:'华东',labelDx:2.2,labelDy:5.4,labelAnchor:'start'},
+  {name:'杭州',x:79,y:47.5,emoji:'🍵',region:'华东',labelDx:2,labelDy:6.2,labelAnchor:'start'},
+  {name:'合肥',x:68.2,y:45,emoji:'📚',region:'华东',labelDx:-1,labelDy:5.4},
+  {name:'武汉',x:63.5,y:46.5,emoji:'🌉',region:'华中',labelDx:-1.5,labelDy:5.8},
+  {name:'长沙',x:62.8,y:52.5,emoji:'🌶️',region:'华中',labelDy:5.8},
+  {name:'南昌',x:68.5,y:50.8,emoji:'🦆',region:'华东',labelDy:-3.8},
+  {name:'福州',x:76.5,y:54.5,emoji:'🫖',region:'华东',labelDy:-3.8},
+  {name:'厦门',x:74.5,y:59.2,emoji:'🏖️',region:'华东',labelDy:5.8},
+  {name:'台北',x:82,y:58.5,emoji:'🧋',region:'华东',labelDx:1,labelDy:5.8,labelAnchor:'start'},
+  {name:'广州',x:64.5,y:62.5,emoji:'🥟',region:'华南',labelDy:5.8},
+  {name:'深圳',x:68.5,y:65.5,emoji:'💻',region:'华南',labelDx:1,labelDy:5.8,labelAnchor:'start'},
+  {name:'香港',x:72,y:64.3,emoji:'🌇',region:'华南',labelDx:2,labelDy:-3.8,labelAnchor:'start'},
   {name:'南宁',x:57,y:63,emoji:'🌴',region:'华南'},
   {name:'海口',x:60,y:72,emoji:'🏝️',region:'华南'},
   {name:'成都',x:50,y:47,emoji:'🐼',region:'西南'},
@@ -5793,11 +6021,11 @@ const EXPLORE_CITIES = [
   {name:'贵阳',x:56,y:54,emoji:'🌄',region:'西南'},
   {name:'昆明',x:48,y:57,emoji:'🌺',region:'西南'},
   {name:'拉萨',x:30,y:46,emoji:'🏔️',region:'西南'},
-  {name:'苏州',x:77,y:44,emoji:'🏯',region:'华东'},
+  {name:'苏州',x:76.8,y:44.6,emoji:'🏯',region:'华东',labelDx:-1,labelDy:-3.8},
   {name:'大理',x:45,y:58,emoji:'🦋',region:'西南'},
   {name:'丽江',x:43,y:55,emoji:'🏔️',region:'西南'},
   {name:'三亚',x:59,y:76,emoji:'🏖️',region:'华南'},
-  {name:'洛阳',x:63,y:38,emoji:'🌸',region:'华中'},
+  {name:'洛阳',x:61.5,y:38.8,emoji:'🌸',region:'华中',labelDy:-3.8},
   {name:'桂林',x:60,y:58,emoji:'🏞️',region:'华南'},
 ];
 
@@ -5988,13 +6216,16 @@ function renderExploreMap() {
         const status = getCityExploreStatus(city.name);
         const core = status === 'completed' ? '#00b894' : status === 'unlocked' ? '#ff6b35' : 'rgba(26,26,46,.22)';
         const glow = status === 'completed' ? 'rgba(0,184,148,.22)' : status === 'unlocked' ? 'rgba(255,107,53,.2)' : 'rgba(26,26,46,.06)';
+        const labelDx = city.labelDx ?? 0;
+        const labelDy = city.labelDy ?? 4.8;
+        const labelAnchor = city.labelAnchor ?? 'middle';
         return `
           <g class="city-node ${status}" onclick="onExploreCityClick('${city.name}')" aria-label="${city.name}">
-            <circle class="node-glow" cx="${city.x}" cy="${city.y}" r="18" fill="${glow}"></circle>
-            <circle class="node-ring" cx="${city.x}" cy="${city.y}" r="12" fill="rgba(255,255,255,.88)" stroke="${core}" stroke-width="2"></circle>
-            <circle class="node-core" cx="${city.x}" cy="${city.y}" r="8" fill="${core}"></circle>
-            <text x="${city.x}" y="${city.y + 1}" text-anchor="middle" font-size="6">${city.emoji}</text>
-            <text x="${city.x}" y="${city.y + 17}" text-anchor="middle" font-size="3.2" fill="rgba(26,26,46,.72)" style="font-family:var(--font-body);font-weight:700">${city.name}</text>
+            <circle class="node-glow" cx="${city.x}" cy="${city.y}" r="2.8" fill="${glow}"></circle>
+            <circle class="node-ring" cx="${city.x}" cy="${city.y}" r="2.1" fill="rgba(255,255,255,.92)" stroke="${core}" stroke-width="0.7"></circle>
+            <circle class="node-core" cx="${city.x}" cy="${city.y}" r="1.35" fill="${core}"></circle>
+            <text x="${city.x}" y="${city.y + 0.55}" text-anchor="middle" font-size="1.5">${city.emoji}</text>
+            <text x="${city.x + labelDx}" y="${city.y + labelDy}" text-anchor="${labelAnchor}" font-size="1.5" fill="rgba(26,26,46,.72)" style="font-family:var(--font-body);font-weight:700">${city.name}</text>
           </g>`;
       }).join('')}
     </svg>`;
